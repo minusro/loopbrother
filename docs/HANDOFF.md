@@ -1,7 +1,7 @@
 # LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-19 — v0.9.7, the logo on a curve concentric with the lip,
-its white underline back, a lighter bowl shaded round, a 0.1 s colour fade. v0.9.1 is
+Updated: 2026-10-19 — v0.9.8, plain Os on the cells outside the circle; the
+logo's baseline on a curve concentric with the lip. v0.9.1 is
 released (github.com/minusro/loopbrother/releases).
 
 ## Where things stand
@@ -77,9 +77,10 @@ bundle ID are unchanged, so saved sessions find it.
   doesn't grey halfway as an RGB mix does), sunk into the bowl: a white copy sits under it, lower by a quarter of the
   thickness of its O's bottom (measured from the font: 1.3 px at 480), so a
   thin white edge shows along the letters' lower sides like a pressed-in
-  letter lit from above. Set letter by letter with the tops of its capitals
-  on the curve concentric with the lip (the lip's ellipse, both semi-axes
-  longer by the gap), each letter turned to that curve. Drawn as outlines, centred across on its ink and up and down on
+  letter lit from above. Set letter by letter with its baseline on the
+  curve concentric with the lip (the lip's ellipse, both semi-axes longer by
+  the gap) through the middle letter's baseline, so the lowest point stays
+  put, each letter turned to that curve. Drawn as outlines, centred across on its ink and up and down on
   its capitals (the umlauts ride above).
 - **Window**: the pad over the status bar (44 px at 480, the logo in it),
   resizable by the host window from 240
@@ -118,8 +119,9 @@ bundle ID are unchanged, so saved sessions find it.
 
   Covered cells take a wash of their break's colour by share and carry an
   Ö drawn as a Froot Loop (a thick ring, 8.5 px radius at 480, with the
-  umlaut dots over it); every other cell carries a crumb, a round piece
-  the size of one of those dots. The look is a `jmui::RingStyle`
+  umlaut dots over it); every other cell carries a plain O, the same
+  cereal ring without umlauts at half an Ö's resting size (4.25 px radius at
+  480), drawn from the same sprites. The look is a `jmui::RingStyle`
   (`src/Cereal.{h,cpp}`); `kRingStyles` holds nine to try
   (`docs/ring-styles.png`, from `JM_STYLE_SHEET`), `kRingStyle` is the one
   in use: 8, "Soft clay, no gloss" (deeply tube-shaded, softly lit from
@@ -149,7 +151,7 @@ bundle ID are unchanged, so saved sessions find it.
   and, at 1.5 times that, for the cells around it, falling off with their
   distance from the stretch (Gaussian, 0.1 of the pad; none past 0.2). Each such cell feels it once, as a single sin^2
   swell out and back to rest (0.22 s, never below zero, so nothing swings
-  back and forth): its crumb moves with it (the Ös under the circle hold
+  back and forth): its O moves with it (the Ös under the circle hold
   still), and each border corner moves by the average of the cells that
   meet there, so the borders bend without coming apart. While the circle
   crosses a cell it keeps leaning forward; once passed, it settles. A cell
@@ -257,9 +259,9 @@ bundle ID are unchanged, so saved sessions find it.
   pointer hiding, unbounded movement and the pointer landing on the circle
   at release - those need hands on a mouse.
 - The pad renders as intended (`jm_snapshot` renders inspected: the
-  largest circle over half the pad, crumbs, grey lines; close-ups of the Ö
+  largest circle over half the pad, plain Os, grey lines; close-ups of the Ö
   marks; a mid-drag `JM_RIPPLE=1` frame diffed against a still one shows
-  crumbs moved by a pixel or two up to 330 px from the circle); the hidden
+  marks moved by a pixel or two up to 330 px from the circle); the hidden
   pointer while dragging and the dots pulsing in time have not been seen on
   screen yet. Dense breaks keep the meter between about half and full, so
   their dots swing between roughly 1.25x and 2x; a faster release would

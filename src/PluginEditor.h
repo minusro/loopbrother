@@ -65,11 +65,11 @@ inline float bowlLip(float x, float w, float scale, float inside = 0.0f)
 // ring to face the way the circle has lately been dragged, and back on top
 // after a tap. While the break plays,
 // the Ö follows its meter about the ring's centre, from half size in
-// silence to double at the loop's peak. Every other cell shows a crumb: a
-// round piece the size of one of the Ö's dots at rest.
+// silence to double at the loop's peak. Every other cell shows a plain O: the
+// same cereal ring without the umlauts, half the size of an Ö at rest.
 //
 // Dragging pushes the cells the circle's centre passes through (their
-// borders and crumbs) a few pixels the way it goes, and the cells beside
+// borders and Os) a few pixels the way it goes, and the cells beside
 // its path outwards, like a wake in liquid: once, then back to rest, no
 // swinging to and fro; cells further off stay still. Drawing only; the
 // sound follows the true cells. While the mute is held the circle's Ös are
@@ -79,7 +79,7 @@ class XYPad : public juce::Component, private juce::Timer {
 public:
     static constexpr float kFineSpeed = 1.0f / 8.0f;
     static constexpr float kRingRadius = 8.5f;  // at 480 px
-    static constexpr float kCrumbRadius = 0.24f * kRingRadius; // an umlaut dot
+    static constexpr float kSmallO = 0.5f * kRingRadius; // the plain O of a cell outside the circle
 
     explicit XYPad(JungleProcessor& p);
     ~XYPad() override;

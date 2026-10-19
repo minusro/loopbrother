@@ -99,11 +99,10 @@ void XYPad::paint(juce::Graphics& g)
     const auto b = getLocalBounds().toFloat();
     const float scale = b.getWidth() / (float) JungleEditor::kDesignSize; // sizes below are at 480 px
     g.fillAll(cream);
-    sprites.configure(kRingRadius * scale, kCrumbRadius * scale,
-                      g.getInternalContext().getPhysicalPixelScaleFactor(), *style);
+    sprites.configure(kRingRadius * scale, g.getInternalContext().getPhysicalPixelScaleFactor(), *style);
 
     // Where everything is drawn: the layout, moved by the ripples. A pushed
-    // cell's crumb moves with it; a border corner moves by the average of
+    // cell's O moves with it; a border corner moves by the average of
     // the cells that meet there, so the borders bend but never come apart.
     const double now = juce::Time::getMillisecondCounterHiRes() / 1000.0;
     const bool rippling = ! drops.empty();
@@ -143,10 +142,11 @@ void XYPad::paint(juce::Graphics& g)
     for (const auto& path : cells)
         g.strokePath(path, juce::PathStrokeType(juce::jmax(2.0f, 2.0f * scale)));
 
-    // A crumb on every cell the circle doesn't cover...
+    // A plain O, half an Ö's resting size, on every cell the circle doesn't
+    // cover...
     for (int i = 0; i < lib.size(); ++i)
         if (! covered[(size_t) i])
-            sprites.drawCrumb(g, toScreen(lib.entry(i).pos + shift[(size_t) i]), lib.entry(i).colour);
+            sprites.drawO(g, toScreen(lib.entry(i).pos + shift[(size_t) i]), kSmallO * scale, lib.entry(i).colour, i);
 
     // ...and an Ö on each one it does, its size following the break's meter
     // while it plays: half in silence, double at the peak.
@@ -484,9 +484,9 @@ void JungleEditor::paintOverChildren(juce::Graphics& g)
     // the thickness of the O's bottom, showing as a white edge along the
     // letters' lower sides, as on a pressed-in letter lit from above. Centred
     // across on its ink and up and down on its capitals (the umlauts riding
-    // above), then set letter by letter with the tops of its capitals on the
-    // curve concentric with the lip through that point, each letter turned
-    // to the curve.
+    // above), then set letter by letter with its baseline on the curve
+    // concentric with the lip through the middle letter's baseline (so the
+    // lowest point stays put), each letter turned to the curve.
     const auto font = logoFont ? logoFont->withHeight(kLogoHeight * scale)
                                : juce::Font(juce::FontOptions(logoFace).withHeight(kLogoHeight * scale)
                                                 .withKerningFactor(kLogoKerning));
@@ -503,8 +503,8 @@ void JungleEditor::paintOverChildren(juce::Graphics& g)
     glyphs.addLineOfText(font, logo(), 0.0f, 0.0f); // baseline at 0
     const float dx = bar.getCentreX() - outline(logo()).getBounds().getCentreX();
     const float dy = bar.getCentreY() - capitals.getCentreY();
-    const float lipY = (float) statusBar().getY(), top = capitals.getY() + dy; // the capitals' top, mid-window
-    const float inside = top - lipY;                                          // how far in from the lip
+    const float lipY = (float) statusBar().getY(), base = dy; // the baseline, mid-window
+    const float inside = base - lipY;                           // how far in from the lip
     juce::Path text;
     for (int i = 0; i < glyphs.getNumGlyphs(); ++i)
     {
@@ -515,9 +515,9 @@ void JungleEditor::paintOverChildren(juce::Graphics& g)
         const float cx = 0.5f * (glyph.getLeft() + glyph.getRight()), at = cx + dx;
         const float rise = bowlLip(at, w, scale, inside);
         const float slope = 0.5f * (bowlLip(at + 1.0f, w, scale, inside) - bowlLip(at - 1.0f, w, scale, inside));
-        letter.applyTransform(juce::AffineTransform::translation(-cx, -capitals.getY())  // its capitals' top centre...
-                                  .rotated(-std::atan(slope))                           // ...turned to the curve...
-                                  .translated(at, top - rise));                         // ...and set on it
+        letter.applyTransform(juce::AffineTransform::translation(-cx, 0.0f)   // its baseline's centre...
+                                  .rotated(-std::atan(slope))              // ...turned to the curve...
+                                  .translated(at, base - rise));           // ...and set on it
         text.addPath(letter);
     }
     // The O's bottom, measured up its middle from its lowest ink to its hole.

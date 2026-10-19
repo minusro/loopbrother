@@ -31,9 +31,9 @@ struct ScriptedPlayHead : juce::AudioPlayHead {
     }
 };
 
-// Every ring style in every colour, large, with the crumb (an unselected
+// Every ring style in every colour, large, with the plain O (an unselected
 // cell's mark) below each, and the marks at their real size on the right:
-// at rest, at a loop's peak, and crumbs.
+// at rest, at a loop's peak, and plain Os.
 static int styleSheet(const char* path)
 {
     using namespace jmui;
@@ -61,7 +61,8 @@ static int styleSheet(const char* path)
             const juce::Point<float> at { labelW + (c + 0.5f) * colW, y + 0.52f * rowH };
             drawRingShadow(g, at, 36.0f, st, c * 7 + s);
             drawRing(g, at, 36.0f, c, grains, st, c * 7 + s);
-            drawCrumb(g, at.translated(0.0f, 54.0f), 0.24f * 36.0f, c, grains, st);
+            drawOShadow(g, at.translated(0.0f, 58.0f), 0.5f * 36.0f * 0.5f, st, c);
+            drawO(g, at.translated(0.0f, 58.0f), 0.5f * 36.0f * 0.5f, c, grains, st, c);
         }
         const float x0 = (float) (labelW + kFrootLoops * colW);
         const float r0 = XYPad::kRingRadius;
@@ -75,7 +76,11 @@ static int styleSheet(const char* path)
         drawRingShadow(g, peak, 2 * r0, st, 9);
         drawRing(g, peak, 2 * r0, 4, grains, st, 9);
         for (int c = 0; c < kFrootLoops; ++c)
-            drawCrumb(g, { x0 + 30.0f + c * 22.0f, y + 0.82f * rowH }, XYPad::kCrumbRadius, c, grains, st);
+        {
+            const juce::Point<float> at { x0 + 30.0f + c * 22.0f, y + 0.82f * rowH };
+            drawOShadow(g, at, XYPad::kSmallO, st, c);
+            drawO(g, at, XYPad::kSmallO, c, grains, st, c);
+        }
     }
     juce::File out(juce::File::getCurrentWorkingDirectory().getChildFile(juce::String::fromUTF8(path)));
     out.deleteFile();

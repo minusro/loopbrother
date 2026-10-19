@@ -3,7 +3,7 @@
 #include <map>
 
 // The breaks' marks, drawn as Froot Loops: an Ö (a ring with two dots over
-// it) for the breaks under the selection circle, a small round dot for the
+// it) for the breaks under the selection circle, a small plain O for the
 // others. The look is a RingStyle; kRingStyles holds the ones on offer
 // (docs/ring-styles.png shows them all), kRingStyle the one in use.
 namespace jmui {
@@ -75,9 +75,6 @@ void drawUmlaut(juce::Graphics&, juce::Point<float> at, float r, int colour, con
 void drawUmlautShadow(juce::Graphics&, juce::Point<float> at, float r, const RingStyle&, int seed);
 juce::Point<float> umlautAt(juce::Point<float> c, float r, int k, float angle);
 
-// A small round piece, the mark of a break the circle doesn't cover.
-void drawCrumb(juce::Graphics&, juce::Point<float> c, float r, int colour, const Grains&, const RingStyle&);
-
 // The same marks, pre-rendered: each Ö's O and dots are drawn once per
 // colour (and per bump/sugar pattern, for the styles that have them) at
 // three sizes, at the screen's real pixel density, shadows included, then
@@ -87,11 +84,11 @@ void drawCrumb(juce::Graphics&, juce::Point<float> c, float r, int colour, const
 // one image draw each.
 class CerealSprites {
 public:
-    // ringRadius: an Ö at rest; crumbRadius: a crumb (both in pixels).
-    // Clears the cache when anything that changes the pictures changes.
-    void configure(float ringRadius, float crumbRadius, float pixelScale, const RingStyle& style);
+    // ringRadius: an Ö at rest, in pixels. Clears the cache when anything
+    // that changes the pictures changes.
+    void configure(float ringRadius, float pixelScale, const RingStyle& style);
     void drawRing(juce::Graphics&, juce::Point<float> c, float r, int colour, int seed, float angle = 0.0f);
-    void drawCrumb(juce::Graphics&, juce::Point<float> c, int colour);
+    void drawO(juce::Graphics&, juce::Point<float> c, float r, int colour, int seed); // the ring alone
 
 private:
     struct Sprite { juce::Image image; juce::Point<float> centre; float radius = 0.0f; }; // centre in sprite pixels
@@ -100,10 +97,9 @@ private:
 
     Grains grains;
     const RingStyle* style = nullptr;
-    float rest = 0.0f, crumb = 0.0f, density = 0.0f;
+    float rest = 0.0f, density = 0.0f;
     int variants = 1;
     std::map<int, Sprite> cache;
-    juce::Image crumbs[kFrootLoops];
 };
 
 } // namespace jmui

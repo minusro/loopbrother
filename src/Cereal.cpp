@@ -246,40 +246,16 @@ void drawRing(juce::Graphics& g, juce::Point<float> c, float r, int colour, cons
     for (int k = 0; k < 2; ++k) drawUmlaut(g, umlautAt(c, r, k, angle), r, colour, grains, s, seed + 13 + 4 * k);
 }
 
-void drawCrumb(juce::Graphics& g, juce::Point<float> c, float r, int colour, const Grains& grains, const RingStyle& s)
-{
-    const auto base = frootLoop(colour), dark = shadowOf(base);
-    if (s.shadow > 0.0f) // too small to need a blurred one
-    {
-        g.setColour(C::black.withAlpha(0.8f * s.shadow));
-        g.fillEllipse(c.x - r + 0.1f * r, c.y - r + 0.3f * r, 2 * r, 2 * r);
-    }
-    g.setColour(base);
-    g.fillEllipse(c.x - r, c.y - r, 2 * r, 2 * r);
-    sphere(g, c, r, dark, s);
-    juce::Path p;
-    p.addEllipse(c.x - r, c.y - r, 2 * r, 2 * r);
-    grainOver(g, p, c, r * 4.0f, grains[colour], s);
-    if (s.outline > 0.0f)
-    {
-        g.setColour(dark.withAlpha(juce::jmin(1.0f, s.outline)));
-        g.drawEllipse(c.x - r, c.y - r, 2 * r, 2 * r, juce::jmax(0.5f, 0.1f * r));
-    }
-}
-
 // ---------------------------------------------------------------- sprites
-void CerealSprites::configure(float ringRadius, float crumbRadius, float pixelScale, const RingStyle& s)
+void CerealSprites::configure(float ringRadius, float pixelScale, const RingStyle& s)
 {
-    if (style == &s && juce::exactlyEqual(rest, ringRadius) && juce::exactlyEqual(crumb, crumbRadius)
-        && juce::exactlyEqual(density, pixelScale))
+    if (style == &s && juce::exactlyEqual(rest, ringRadius) && juce::exactlyEqual(density, pixelScale))
         return;
     style = &s;
     rest = ringRadius;
-    crumb = crumbRadius;
     density = pixelScale;
     variants = s.bumps > 0.0f || s.sugar > 0.0f ? 4 : 1; // patterns per colour
     cache.clear();
-    for (auto& img : crumbs) img = {};
 }
 
 // Ö sizes on hand: half, full and double the rest size (a loop's silence and
@@ -306,8 +282,8 @@ const CerealSprites::Sprite& CerealSprites::sprite(float r, int colour, int seed
     const int s = colour * 101 + variant;
     if (part == 0)
     {
-        drawOShadow(g, sp.centre, R, *style, s);
-        drawO(g, sp.centre, R, colour, grains, *style, s);
+        jmui::drawOShadow(g, sp.centre, R, *style, s);
+        jmui::drawO(g, sp.centre, R, colour, grains, *style, s);
     }
     else
     {
@@ -334,19 +310,10 @@ void CerealSprites::drawRing(juce::Graphics& g, juce::Point<float> c, float r, i
     }
 }
 
-void CerealSprites::drawCrumb(juce::Graphics& g, juce::Point<float> c, int colour)
+void CerealSprites::drawO(juce::Graphics& g, juce::Point<float> c, float r, int colour, int seed)
 {
-    auto& img = crumbs[(size_t) juce::jlimit(0, kFrootLoops - 1, colour)];
-    const float R = crumb * density;
-    const int side = (int) std::ceil(3.0f * R) + 4;
-    const juce::Point<float> centre { 0.5f * (float) side - 0.2f * R, 0.5f * (float) side - 0.3f * R };
-    if (! img.isValid())
-    {
-        img = juce::Image(juce::Image::ARGB, side, side, true);
-        juce::Graphics sg(img);
-        jmui::drawCrumb(sg, centre, R, colour, grains, *style);
-    }
-    draw(g, img, centre, c, 1.0f / density);
+    const auto& sp = sprite(r, colour, seed, 0);
+    draw(g, sp.image, sp.centre, c, r / (sp.radius * density));
 }
 
 } // namespace jmui
