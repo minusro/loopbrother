@@ -54,7 +54,8 @@ private:
 // its path outwards, like a wake in liquid: once, then back to rest, no
 // swinging to and fro; cells further off stay still. Drawing only; the
 // sound follows the true cells. While the mute is held the circle's Ös are
-// dark grey.
+// dark grey and
+// still.
 class XYPad : public juce::Component, private juce::Timer {
 public:
     static constexpr float kFineSpeed = 1.0f / 16.0f;

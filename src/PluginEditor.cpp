@@ -157,8 +157,9 @@ void XYPad::paint(juce::Graphics& g)
         const int loop = mix[m].loop;
         if (loop < 0 || loop >= lib.size()) continue;
         float r = kRingRadius * scale;
-        for (int i = 0; i < voiceCount; ++i)
-            if (voices[i].loop == loop) r = kRingRadius * scale * (0.5f + 1.5f * lib.level(loop, voices[i].phase));
+        if (! muted) // silenced, they rest at their own size
+            for (int i = 0; i < voiceCount; ++i)
+                if (voices[i].loop == loop) r = kRingRadius * scale * (0.5f + 1.5f * lib.level(loop, voices[i].phase));
         marks.push_back({ toScreen(lib.entry(loop).pos), r, loop }); // the circle's own marks hold still
     }
     for (const auto& k : marks) // dark grey while muted
@@ -440,10 +441,11 @@ void JungleEditor::paint(juce::Graphics& g)
     const auto bar = statusBar().toFloat();
 
     // The logo as outlines, filled with the colour of the break under the
-    // circle, sunk into the bar: its white edge sits a little below it, so it
-    // shows along the letters' lower sides, as on a pressed-in letter lit
-    // from above. Centred across on its ink and up and down on its capitals,
-    // the umlauts riding above.
+    // circle, sunk into the bar: a white copy sits below it by a quarter of
+    // the thickness of the O's bottom, showing as a white edge along the
+    // letters' lower sides, as on a pressed-in letter lit from above. Centred
+    // across on its ink and up and down on its capitals, the umlauts riding
+    // above.
     const auto font = logoFont ? logoFont->withHeight(kLogoHeight * scale)
                                : juce::Font(juce::FontOptions(logoFace).withHeight(kLogoHeight * scale)
                                                 .withKerningFactor(kLogoKerning));
@@ -459,11 +461,19 @@ void JungleEditor::paint(juce::Graphics& g)
     const auto capitals = outline("L").getBounds(); // a capital's height, no accent
     text.applyTransform(juce::AffineTransform::translation(bar.getCentreX() - text.getBounds().getCentreX(),
                                                            bar.getCentreY() - capitals.getCentreY()));
+    // The O's bottom, measured up its middle from its lowest ink to its hole.
+    const auto o = outline("O");
+    const auto ob = o.getBounds();
+    const float x = ob.getCentreX(), step = 0.05f;
+    float y = ob.getBottom();
+    while (y > ob.getCentreY() && ! o.contains(x, y)) y -= step;  // into the ink
+    const float inkBottom = y;
+    while (y > ob.getCentreY() && o.contains(x, y)) y -= step;    // through to the hole
+    const float bottom = inkBottom - y;
     auto edge = text;
-    edge.applyTransform(juce::AffineTransform::translation(0.0f, 2.5f * scale));
+    edge.applyTransform(juce::AffineTransform::translation(0.0f, bottom / 4));
     g.setColour(white);
     g.fillPath(edge);
-    g.strokePath(edge, juce::PathStrokeType(2.0f * scale, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     g.setColour(logoColour);
     g.fillPath(text);
 }

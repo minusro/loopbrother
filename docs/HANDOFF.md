@@ -1,7 +1,7 @@
 # LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-19 — v0.9.2, a wake beside the drag, grey marks while
-muted, a 0.2 s hue-wheel logo fade, a thicker logo edge. v0.9.1 is
+Updated: 2026-10-19 — v0.9.3, muted marks hold still; the logo's white
+edge sized from its O. v0.9.1 is
 released (github.com/minusro/loopbrother/releases).
 
 ## Where things stand
@@ -68,17 +68,18 @@ bundle ID are unchanged, so saved sessions find it.
     audition. It only counts with the pointer over the plugin or during a
     pad drag: Command is global on macOS, and Command-clicks in the host
     shouldn't mute it. While it's held the Ös under the circle turn dark
-    grey.
+    grey and stop following the meter.
 - **Logo**: "LÖÖP BRÖTHER" in Cherry Bomb One (`fonts/`, compiled in as
   `jm_assets`, SIL Open Font License in `fonts/OFL-CherryBombOne.txt`, which
   has to ship with the installers), 38 px at 480 to match the old logo's
   ink height, spacing 0. It takes the colour of the break whose cell the
   circle's centre is in, fading to a new one over about a fifth of a
   second round the hue wheel (saturation and brightness kept, so a pastel
-  doesn't grey halfway as an RGB mix does), sunk into the bar: its white
-  edge, 2 px thick, sits 2.5 px (at 480) below it,
-  showing along the letters' lower sides like a pressed-in letter lit from
-  above. Drawn as outlines, centred across on its ink and up and down on
+  doesn't grey halfway as an RGB mix does), sunk into the bar: a white copy sits under it, lower by a quarter of the
+  thickness of its O's bottom (measured from the font: 1.3 px at 480), so a
+  thin white edge shows along the letters' lower sides like a pressed-in
+  letter lit from above. On the cream bar that white is only 5 to 9 levels
+  brighter, so it reads faintly. Drawn as outlines, centred across on its ink and up and down on
   its capitals (the umlauts ride above).
 - **Window**: the pad over the status bar (44 px at 480, the logo in it),
   resizable by the host window from 240
