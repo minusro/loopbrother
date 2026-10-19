@@ -129,7 +129,7 @@ void XYPad::paint(juce::Graphics& g)
             if (voices[i].loop == loop) r = kRingRadius * scale * (0.5f + 1.5f * lib.level(loop, voices[i].phase));
         marks.push_back({ toScreen(lib.entry(loop).pos), r, loop }); // the circle's own marks hold still
     }
-    for (const auto& k : marks) sprites.drawRing(g, k.c, k.r, lib.entry(k.loop).colour, k.loop);
+    for (const auto& k : marks) sprites.drawRing(g, k.c, k.r, lib.entry(k.loop).colour, k.loop, umlautAngle);
 }
 
 // ---------------------------------------------------------------- ripples
@@ -150,7 +150,11 @@ void XYPad::addDrop(juce::Point<float> push)
     if (drops.size() > 64) drops.erase(drops.begin());
     lastDrop = now;
     lastDropAt = puck;
-    if (! isTimerRunning()) startTimerHz(60);
+    if (! isTimerRunning())
+    {
+        lastTick = now;
+        startTimerHz(60);
+    }
 }
 
 juce::Point<float> XYPad::ripple(juce::Point<float> u, double now) const
@@ -169,14 +173,34 @@ juce::Point<float> XYPad::ripple(juce::Point<float> u, double now) const
     return m > 0.0f ? d * (kRippleMax * std::tanh(m / kRippleMax) / m) : d;
 }
 
+// The umlauts turn towards the drag's heading with this time constant, so
+// they swing round rather than jump; the heading itself averages the
+// circle's moves over about kHeadingTime.
+constexpr double kTurnTime = 0.08, kHeadingTime = 0.15;
+
 void XYPad::timerCallback()
 {
     const double now = juce::Time::getMillisecondCounterHiRes() / 1000.0;
+    const double dt = juce::jlimit(0.0, 0.1, now - lastTick);
+    lastTick = now;
     drops.erase(std::remove_if(drops.begin(), drops.end(),
                                [&](const Drop& d) { return now - d.born > kRippleSwell + 3.0f * kRippleReach / kRippleSpeed; }),
                 drops.end());
-    if (drops.empty()) stopTimer();
+    const float left = std::remainder(umlautTarget - umlautAngle, juce::MathConstants<float>::twoPi); // the short way round
+    if (std::abs(left) < 1e-3f) umlautAngle = umlautTarget;
+    else umlautAngle += left * (float) (1.0 - std::exp(-dt / kTurnTime));
+    if (drops.empty() && juce::exactlyEqual(umlautAngle, umlautTarget)) stopTimer();
     repaint();
+}
+
+void XYPad::turnUmlauts(float angle)
+{
+    umlautTarget = angle;
+    if (! isTimerRunning())
+    {
+        lastTick = juce::Time::getMillisecondCounterHiRes() / 1000.0;
+        startTimerHz(60);
+    }
 }
 
 void XYPad::setPuck(juce::Point<float> u)
@@ -196,6 +220,8 @@ void XYPad::mouseDown(const juce::MouseEvent& e)
 {
     for (auto* p : { px, py, psize }) p->beginChangeGesture();
     isDragging = true;
+    travelled = 0.0f;
+    heading = {};
     last = pivot = e.position;
     e.source.enableUnboundedMouseMovement(true);
     proc.setFineDrag(e.mods.isAltDown());
@@ -219,8 +245,16 @@ void XYPad::mouseDrag(const juce::MouseEvent& e)
     {
         const auto before = toScreen(puck);
         setPuck(toUnit(before + (e.position - last) * speed));
-        pivot += toScreen(puck) - before; // with the circle, stopping where it stops
+        const auto step = toScreen(puck) - before;
+        pivot += step; // with the circle, stopping where it stops
+
+        // The umlauts face where the circle has been heading lately.
+        const double t = juce::Time::getMillisecondCounterHiRes() / 1000.0;
+        heading = heading * (float) std::exp(-(t - headingAt) / kHeadingTime) + step;
+        headingAt = t;
+        if (heading.getDistanceFromOrigin() > 2.0f) turnUmlauts(std::atan2(heading.x, -heading.y));
     }
+    travelled += e.position.getDistanceFrom(last);
     last = e.position;
 
     // A push where the circle is now and then, as far as it went since.
@@ -235,12 +269,16 @@ void XYPad::mouseUp(const juce::MouseEvent& e)
     proc.setFineDrag(false);
     isDragging = false;
     for (auto* p : { px, py, psize }) p->endChangeGesture();
+    if (travelled < 3.0f) turnUmlauts(0.0f); // a tap: umlauts back on top
     // Show the pointer again on the circle's centre. The unbounded drag ends
     // first: ending it afterwards, JUCE would put the pointer back near
     // where it left the pad.
     auto source = e.source; // a handle: the copy moves the same pointer
-    source.enableUnboundedMouseMovement(false);
-    source.setScreenPosition(localPointToGlobal(toScreen(puck)));
+    if (source.isUnboundedMouseMovementEnabled())
+    {
+        source.enableUnboundedMouseMovement(false);
+        source.setScreenPosition(localPointToGlobal(toScreen(puck)));
+    }
 }
 
 // ---------------------------------------------------------------- window

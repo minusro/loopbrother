@@ -1,8 +1,6 @@
 # LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-19 — v0.8.6, a bigger logo with a "!", half the edge
-room, the circle's marks hold still; logo fonts to choose from
-(`docs/logo-fonts.png`).
+Updated: 2026-10-19 — v0.8.7, the umlauts turn to face the drag.
 
 ## Where things stand
 
@@ -117,6 +115,13 @@ bundle ID are unchanged, so saved sessions find it.
   follows the break's meter about the ring's centre, from half size in
   silence to double at the loop's peak; when nothing plays it rests at
   full size.
+  The Ös' umlauts go round their ring to face the way the circle has
+  lately been dragged (the circle's moves averaged over about 0.15 s,
+  turning with a 0.08 s lag the short way round), stay there after the
+  release, and go back on top after a tap (a press with under 3 px of
+  movement). Only the dots move: the O, its shading and every shadow stay
+  lit from the top left. `CerealSprites` keeps the O and each dot as
+  separate images for this.
   Dragging pushes the nearby cells (their lines and crumbs; the Ös under
   the circle hold still) the way the circle goes, as through liquid: every
   60 ms or so the circle leaves a push as long as it moved,
@@ -209,7 +214,9 @@ bundle ID are unchanged, so saved sessions find it.
   pivot and shrinks it back, Shift+Option a sixteenth as much, the size
   holds at the largest circle, an Option press leaves the circle in place;
   a rightward drag pushes a nearby point right (2.5 px), never back, still
-  at the end, and a distant one not at all. Through the
+  at the end, and a distant one not at all; the umlauts face right after
+  it (90 deg), go back on top after a tap (0) and face down after a drag
+  down (179, the drag wobbling a pixel), staying put after the release. Through the
   processor: holding the mute silences it from the next block and letting
   go brings it back, with the clock running and during an audition. Not
   covered: real modifier keys (the Command-over-the-plugin polling), the
