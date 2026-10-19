@@ -3,11 +3,12 @@
 
 namespace jmui {
 
-// Yellow and white: a yellow pad in a white frame, white for everything that
-// moves or sounds, a deeper yellow for structure (cell borders, ring tracks).
+// Yellow, white and green: a yellow pad, white for what the circle covers,
+// green for the breaks' dots, a deeper yellow for structure (cell borders).
 const juce::Colour white  { 0xffffffff };
 const juce::Colour yellow { 0xffffc800 };
 const juce::Colour shade  { 0xffe0a800 };
+const juce::Colour green  { 0xff2e7d32 };
 
 // Hides the mouse pointer while a control is being dragged: the control's own
 // marker (the puck, a knob's pointer) shows where it is. Every draggable

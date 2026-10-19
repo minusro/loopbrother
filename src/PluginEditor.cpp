@@ -96,7 +96,7 @@ void XYPad::paint(juce::Graphics& g)
         for (int i = 0; i < voiceCount; ++i)
             if (voices[i].loop == loop) r = 6.0f * scale * (0.5f + 1.5f * lib.level(loop, voices[i].phase));
         const auto c = toScreen(lib.entry(loop).pos);
-        g.setColour(white);
+        g.setColour(green);
         g.fillEllipse(c.x - r, c.y - r, 2 * r, 2 * r);
     }
 

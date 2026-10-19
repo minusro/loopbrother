@@ -34,8 +34,8 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
   circle (`jm::kPuckRadius`) inside its Voronoi cell, so the shares add up to
   exactly 1 (`src/engine/PadGeometry.h`). Gains are equal power, the square
   root of the share (`jm::equalPower`), so the squared gains add up to 1.
-- The editor palette is yellow and white (`jmui::yellow`, `white`, `shade`);
-  new controls draw from it.
+- The editor palette is yellow, white and green (`jmui::yellow`, `white`,
+  `shade`, `green`); new controls draw from it.
 - Every draggable control (the pad now, knobs and sliders later) hides the
   mouse pointer while dragged: give it a `jmui::HideCursorWhileDragging` via
   `addMouseListener`.
