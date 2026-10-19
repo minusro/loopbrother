@@ -94,8 +94,8 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
   only). Each push to main runs the Windows build on GitHub Actions. Commit
   messages:
   imperative subject, body explains the musical/design reasoning.
-- Releases are unsigned for now (`installer/README.md` has the signing
-  checklist). The plugin codes `Mnro`/`Jngl` never change; the bundle ID is
+- Releases are unsigned for now (`docs/RELEASE.md`: building and the signing
+  checklist; `installer/README.md`: how users install them, nothing else). The plugin codes `Mnro`/`Jngl` never change; the bundle ID is
   `com.minus.loopbrother`. Windows has never been built yet: keep code
   portable (no `M_PI`, no POSIX-only calls outside tests/tools).
 - Versioning: from `project(... VERSION)`; patch for small fixes, minor for a
@@ -134,7 +134,7 @@ JM_PAD_CHECK=1 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png      
 # AU validation
 auval -v aumu Jngl Mnro
 
-# Release (installer/README.md): universal Mac installer, unsigned for now;
+# Release (docs/RELEASE.md): universal Mac installer, unsigned for now;
 # Windows builds on GitHub Actions (.github/workflows/windows.yml)
 sh installer/macos/make_pkg.sh
 ```
