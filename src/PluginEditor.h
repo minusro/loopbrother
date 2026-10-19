@@ -154,7 +154,9 @@ private:
 class JungleEditor : public juce::AudioProcessorEditor, private juce::Timer, private juce::AsyncUpdater {
 public:
     static constexpr int kDesignSize  = 480;  // the pad width drawing dimensions are given at
-    static constexpr int kTitleHeight = 24;   // the status bar, at kDesignSize
+    static constexpr int kTitleHeight = 44;   // the status bar, at kDesignSize
+    static constexpr float kLogoHeight = 30.0f; // its lettering, at kDesignSize
+    static juce::String logo() { return juce::CharPointer_UTF8("L\xc3\x96\xc3\x96P BR\xc3\x96THER!"); }
     static constexpr int kDefaultSize = JungleProcessor::kDefaultEditorSize, kMinSize = 240, kMaxSize = 1440;
     static constexpr double kRatio = (double) kDesignSize / (kDesignSize + kTitleHeight); // width / height
     static int heightFor(int width) { return juce::roundToInt(width / kRatio); }

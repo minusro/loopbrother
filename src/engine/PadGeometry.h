@@ -25,7 +25,7 @@ struct Pt { double x, y; };
 // breaks sit drawn in by kSiteInset on every side, so the marks of the
 // outermost ones have room inside the edges. Their cells still reach the
 // edges.
-constexpr double kSiteInset = 0.06;
+constexpr double kSiteInset = 0.03;
 inline Pt padSite(Pt layout)
 {
     return { kSiteInset + (1.0 - 2.0 * kSiteInset) * layout.x, kSiteInset + (1.0 - 2.0 * kSiteInset) * layout.y };

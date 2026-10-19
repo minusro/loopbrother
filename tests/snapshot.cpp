@@ -7,6 +7,8 @@
 // JM_CIRCLE=<size> sets the Circle Size first; JM_RING_STYLE=<n> draws the
 // marks in kRingStyles[n].
 // JM_STYLE_SHEET=<out.png> draws every ring style in every colour instead.
+// JM_LOGO_SHEET=<out.png> JM_LOGO_FONTS=<dir> draws the logo in the current
+// font and in every .ttf/.otf in dir, each in a mock of the status bar.
 // JM_RIPPLE=1 drags the pad (synthetic events) just before the render, so
 // it shows ripples; JM_TIME_PAINT=1 times the pad's painting and
 // JM_TIME_AUDIO=1 the processor's blocks.
@@ -82,10 +84,62 @@ static int styleSheet(const char* path)
     return 0;
 }
 
+// The logo in each candidate font, on the status bar at 480 px (drawn 2x).
+static int logoSheet(const char* path, const char* fontDir)
+{
+    using namespace jmui;
+    using Ed = JungleEditor;
+    struct Candidate { juce::String name; juce::Typeface::Ptr face; };
+    std::vector<Candidate> fonts { { "current (system sans, bold)", nullptr } };
+    if (fontDir != nullptr)
+    {
+        auto files = juce::File(juce::String::fromUTF8(fontDir)).findChildFiles(juce::File::findFiles, false, "*.ttf;*.otf");
+        files.sort();
+        for (const auto& f : files)
+        {
+            juce::MemoryBlock data;
+            f.loadFileAsData(data);
+            if (auto face = juce::Typeface::createSystemTypefaceFor(data.getData(), data.getSize()))
+                fonts.push_back({ f.getFileNameWithoutExtension(), face });
+        }
+    }
+    constexpr int cols = 2, cellW = Ed::kDesignSize, labelH = 22, barH = Ed::kTitleHeight, gap = 18, k2 = 2;
+    const int rows = ((int) fonts.size() + cols - 1) / cols, cellH = labelH + barH + gap;
+    const int w = cols * cellW + (cols + 1) * gap, h = rows * cellH + gap;
+    juce::Image img(juce::Image::ARGB, w * k2, h * k2, true);
+    juce::Graphics g(img);
+    g.addTransform(juce::AffineTransform::scale((float) k2));
+    g.fillAll(juce::Colour(0xfff2f2f2));
+    for (size_t i = 0; i < fonts.size(); ++i)
+    {
+        const int x = gap + (int) (i % cols) * (cellW + gap), y = gap + (int) (i / cols) * cellH;
+        g.setColour(juce::Colour(0xff808080));
+        g.setFont(juce::FontOptions(13.0f));
+        g.drawText(juce::String((int) i) + "  " + fonts[i].name, x, y, cellW, labelH - 4, juce::Justification::bottomLeft);
+        const juce::Rectangle<float> bar((float) x, (float) (y + labelH), (float) cellW, (float) barH);
+        g.setColour(white);
+        g.fillRect(bar);
+        g.setColour(cream);
+        g.fillRect(bar.withHeight(1.0f));
+        g.setColour(brown);
+        g.setFont(fonts[i].face == nullptr
+                      ? juce::Font(juce::FontOptions(Ed::kLogoHeight, juce::Font::bold).withKerningFactor(0.14f))
+                      : juce::Font(juce::FontOptions(fonts[i].face).withHeight(Ed::kLogoHeight).withKerningFactor(0.05f)));
+        g.drawText(Ed::logo(), bar, juce::Justification::centred, false);
+    }
+    juce::File out(juce::File::getCurrentWorkingDirectory().getChildFile(juce::String::fromUTF8(path)));
+    out.deleteFile();
+    juce::FileOutputStream os(out);
+    juce::PNGImageFormat().writeImageToStream(img, os);
+    std::printf("wrote %s (%zu fonts)\n", out.getFullPathName().toRawUTF8(), fonts.size());
+    return 0;
+}
+
 int main(int argc, char** argv)
 {
     juce::ScopedJuceInitialiser_GUI gui;
     if (const char* sheet = std::getenv("JM_STYLE_SHEET")) return styleSheet(sheet);
+    if (const char* sheet = std::getenv("JM_LOGO_SHEET")) return logoSheet(sheet, std::getenv("JM_LOGO_FONTS"));
     if (argc < 2) { std::printf("usage: jm_snapshot out.png [x y [size]]\n"); return 2; }
 
     JungleProcessor proc;
@@ -212,15 +266,20 @@ int main(int argc, char** argv)
             ok &= r.getWidth() == want && std::abs(r.getHeight() - H(want)) <= 1;
             side = r.getWidth();
         };
-        ask(980, 1013, 980);            // corner out, x ahead
-        ask(980, 1018, 980);            // the mouse moved down only
-        ask(990, 1018, 990);            // across only
-        ask(990, 1070, W(1070));        // down only, and y overtakes
-        ask(1000, 1065, W(1065));       // corner back in, y ahead
-        ask(990, 1065, W(1065));        // across only: y still the further side
-        ask(990, 1050, W(1050));
+        // (Sizes relative to the window's shape: y ahead means a height
+        // past H of the width.)
+        const int h0 = H(960);
+        ask(980, h0 + 5, 980);                  // corner out, x ahead
+        ask(980, h0 + 10, 980);                 // the mouse moved down only
+        ask(990, h0 + 10, 990);                 // across only
+        ask(990, H(990) + 20, W(H(990) + 20));  // down only, and y overtakes
+        const int y1 = H(side) - 5;
+        ask(side - 8, y1, W(y1));               // corner back in, y ahead
+        ask(side - 13, H(side), side);          // across only: y still the further side
+        const int y2 = H(side) - 15;
+        ask(side - 14, y2, W(y2));
         newDrag();
-        ask(1040, H(1000), 1040);       // a new drag: an edge again
+        ask(1040, H(side), 1040);               // a new drag: an edge again
         ask(1040, 900, W(900));
         std::printf(ok ? "resize check passed\n" : "resize check FAILED\n");
         if (! ok) return 1;

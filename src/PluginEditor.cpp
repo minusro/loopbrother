@@ -127,7 +127,7 @@ void XYPad::paint(juce::Graphics& g)
         float r = kRingRadius * scale;
         for (int i = 0; i < voiceCount; ++i)
             if (voices[i].loop == loop) r = kRingRadius * scale * (0.5f + 1.5f * lib.level(loop, voices[i].phase));
-        marks.push_back({ place(lib.entry(loop).pos), r, loop });
+        marks.push_back({ toScreen(lib.entry(loop).pos), r, loop }); // the circle's own marks hold still
     }
     for (const auto& k : marks) sprites.drawRing(g, k.c, k.r, lib.entry(k.loop).colour, k.loop);
 }
@@ -292,8 +292,9 @@ void JungleEditor::paint(juce::Graphics& g)
     g.setColour(cream); // the pad's lower edge
     g.fillRect(bar.withHeight(juce::jmax(1.0f, (float) getWidth() / kDesignSize)));
     g.setColour(brown);
-    g.setFont(juce::Font(juce::FontOptions(bar.getHeight() * 0.62f, juce::Font::bold).withKerningFactor(0.14f)));
-    g.drawText(juce::String(juce::CharPointer_UTF8("L\xc3\x96\xc3\x96P BR\xc3\x96THER")), bar,
+    g.setFont(juce::Font(juce::FontOptions(kLogoHeight * (float) getWidth() / kDesignSize, juce::Font::bold)
+                             .withKerningFactor(0.14f)));
+    g.drawText(logo(), bar,
                juce::Justification::centred, false);
 }
 
