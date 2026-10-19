@@ -1,5 +1,5 @@
 # Windows build: the VST3 and the app, the engine tests, and an Inno Setup
-# installer, uploaded as artifacts. Unsigned for now (installer/RELEASE.md).
+# installer, uploaded as artifacts. Unsigned for now (installer/README.md).
 # The Mac release is built locally: installer/macos/make_pkg.sh.
 name: windows
 
