@@ -14,11 +14,10 @@ already wait for (`LoopEngine::kStepBeats`).
   and follows the selection while Shift isn't held.
   - The radius is fixed today (`jm::kPuckRadius`). Making it adjustable
     means a new parameter, which adds a parameter ID to the saved state.
-- [ ] **Mute.** Pressing the pad while holding Option (Alt on Windows)
-  with the clock running mutes the instrument, and the next such press
-  unmutes it. Muting and unmuting both wait for the next 1/4 crossing.
-  - Open question: is mute a toggle per press (as above), or muted only
-    while the press is held?
+- [ ] **Mute.** With the clock running, the instrument is muted only while
+  Option (Alt on Windows) is held and the pad is pressed, never as a
+  toggle. Letting go of either unmutes it. Muting and unmuting both wait
+  for the next 1/4 crossing.
 - [ ] **White dots when idle.** The dots are white when nothing plays: the
   clock is stopped, no MIDI note is held and the pad isn't held.
 - [ ] **Brighter green when playing.** While playing, the dots are midway
