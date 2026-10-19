@@ -366,6 +366,33 @@ int main(int argc, char** argv)
             std::printf("  ripple: nearby pushed %.2f px right, %.4f px back, %.4f px across, %.4f px at the end; distant %.4f px\n",
                         most * w, -against * w, across * w, last * w, distant * w);
             ok &= most * w > 1.0f && against > -1e-6f && across < 1e-4f && last < 1e-6f && distant < 1e-6f;
+
+            // The umlauts: after that drag right they face right; a tap puts
+            // them back on top; a drag down turns them underneath, and they
+            // stay there after the release. (mouseUp leaves the real pointer
+            // alone here: these events never start an unbounded drag.)
+            auto settle = [] { juce::MessageManager::getInstance()->runDispatchLoopUntil(600); };
+            auto degrees = [&] { return juce::radiansToDegrees(std::remainder(pad->umlautTurn(), juce::MathConstants<float>::twoPi)); };
+            pad->mouseUp(ev(160, 300, 0));
+            settle();
+            const float right = degrees();
+            pad->mouseDown(ev(200, 200, 0));
+            pad->mouseUp(ev(200, 200, 0));
+            settle();
+            const float tapped = degrees();
+            pad->mouseDown(ev(200, 100, 0));
+            for (int i = 1; i <= 5; ++i)
+            {
+                juce::Thread::sleep(40);
+                pad->mouseDrag(ev(200.0f + (i % 2), 100.0f + 15.0f * i, 0));
+            }
+            pad->mouseUp(ev(201, 175, 0));
+            settle();
+            const float down = std::abs(degrees());
+            std::printf("  umlauts: after a drag right %.1f deg, after a tap %.1f deg, after a drag down %.1f deg\n",
+                        right, tapped, down);
+            ok &= std::abs(right - 90.0f) < 2.0f && std::abs(tapped) < 1.0f && std::abs(down - 180.0f) < 5.0f;
+            proc.setPadHeld(false);
         }
 
         // Command over the plugin (the editor's part, faked here): silent
@@ -425,7 +452,7 @@ int main(int argc, char** argv)
                     juce::Thread::sleep(70);
                     pad->mouseDrag(ev((0.30f + 0.03f * i) * w, (0.55f - 0.012f * i) * w));
                 }
-                juce::Thread::sleep(250);
+                juce::MessageManager::getInstance()->runDispatchLoopUntil(250); // ripples and umlauts move on
                 proc.setPadHeld(false);
             }
             if (std::getenv("JM_TIME_PAINT"))

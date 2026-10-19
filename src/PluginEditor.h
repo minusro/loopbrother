@@ -42,7 +42,9 @@ private:
 //   moves with the circle while Shift is up.
 //
 // Each cell under the circle shows its break as an Ö: a cereal ring in the
-// break's colour with two dots over it (Cereal.h). While the break plays,
+// break's colour with two dots over it (Cereal.h). The dots go round the
+// ring to face the way the circle has lately been dragged, and back on top
+// after a tap. While the break plays,
 // the Ö follows its meter about the ring's centre, from half size in
 // silence to double at the loop's peak. Every other cell shows a crumb: a
 // round piece the size of one of the Ö's dots at rest.
@@ -80,11 +82,14 @@ private:
     // far as it moved since the last.
     struct Drop { juce::Point<float> at; double born; juce::Point<float> push; };
     void addDrop(juce::Point<float> push);
-    void timerCallback() override;          // animates while ripples run
+    void timerCallback() override;          // animates ripples and turning umlauts
+    void turnUmlauts(float angle);
 
 public:
     // How far the ripples move a point of the pad at a time (pad units).
     juce::Point<float> ripple(juce::Point<float> u, double now) const;
+    // Where the umlauts sit round the ring (radians, clockwise, 0 = on top).
+    float umlautTurn() const { return umlautAngle; }
 
 private:
 
@@ -102,6 +107,11 @@ private:
     std::vector<Drop> drops;
     double lastDrop = 0.0;
     juce::Point<float> lastDropAt;
+    double lastTick = 0.0;
+    float umlautAngle = 0.0f, umlautTarget = 0.0f;
+    juce::Point<float> heading;             // the circle's recent moves, pixels
+    double headingAt = 0.0;
+    float travelled = 0.0f;                 // by the mouse since the press, pixels
     juce::Point<float> last, pivot;         // the drag, in pad pixels (unbounded)
     jm::MixVoice mix[kMaxMix] {};           // what the circle covers
     int mixCount = 0;
