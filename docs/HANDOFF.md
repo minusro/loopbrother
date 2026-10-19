@@ -1,6 +1,6 @@
 # Jungle Massive — handoff
 
-Updated: 2026-10-19 — v0.5.1, the default arrow pointer over the pad; opens at 480 px.
+Updated: 2026-10-19 — v0.5.2, green dots.
 
 ## Where things stand
 
@@ -51,7 +51,8 @@ an instrument with stereo out and MIDI in.
   - **Hosts that ignore the constraint:** non-square sizes are squared
     afterwards by the same rules.
 
-  Covered cells whiten by share and only they carry a dot;
+  Covered cells whiten by share and only they carry a dot, medium dark
+  green (`jmui::green`, #2E7D32);
   while a covered break plays, its dot follows the break's meter, from half
   its size (6 px radius at 480) in silence to double at the loop's peak. The meter
   is precomputed per loop at load (RMS, 10 ms attack, VU-style 300 ms
