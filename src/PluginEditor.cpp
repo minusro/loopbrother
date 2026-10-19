@@ -138,18 +138,21 @@ void XYPad::paint(juce::Graphics& g)
             g.setColour(frootLoop(lib.entry(mix[m].loop).colour).withAlpha(0.10f + 0.35f * mix[m].weight));
             g.fillPath(cells[(size_t) mix[m].loop]);
         }
-    g.setColour(white);
-    for (const auto& path : cells)
-        g.strokePath(path, juce::PathStrokeType(juce::jmax(2.0f, 2.0f * scale)));
-
-    // A plain O, half an Ö's resting size, on every cell the circle doesn't
-    // cover...
+    // A small O on every cell the circle doesn't cover. Pushed by a ripple,
+    // it squashes along the push, up to kBob, like a ring tipping as it bobs
+    // in milk, and rounds out again as it settles.
     for (int i = 0; i < lib.size(); ++i)
         if (! covered[(size_t) i])
-            sprites.drawO(g, toScreen(lib.entry(i).pos + shift[(size_t) i]), kSmallO * scale, lib.entry(i).colour, i);
+        {
+            const auto d = shift[(size_t) i];
+            const float push = d.getDistanceFromOrigin();
+            const float squeeze = 1.0f - kBob * std::tanh(push / kBobAt);
+            const float axis = push > 0.0f ? std::atan2(-d.y, d.x) : 0.0f; // on screen, y down
+            sprites.drawO(g, toScreen(lib.entry(i).pos + d), kSmallO * scale, lib.entry(i).colour, i, axis, squeeze);
+        }
 
-    // ...and an Ö on each one it does, its size following the break's meter
-    // while it plays: half in silence, double at the peak.
+    // ...and a full-size O on each one it does, its size following the
+    // break's meter while it plays: half in silence, double at the peak.
     struct Mark { juce::Point<float> c; float r; int loop; };
     std::vector<Mark> marks;
     for (int m = 0; m < mixCount; ++m)
@@ -163,7 +166,7 @@ void XYPad::paint(juce::Graphics& g)
         marks.push_back({ toScreen(lib.entry(loop).pos), r, loop }); // the circle's own marks hold still
     }
     for (const auto& k : marks) // dark grey while muted
-        sprites.drawRing(g, k.c, k.r, muted ? kMutedColour : lib.entry(k.loop).colour, k.loop, umlautAngle);
+        sprites.drawO(g, k.c, k.r, muted ? kMutedColour : lib.entry(k.loop).colour, k.loop);
 }
 
 // ---------------------------------------------------------------- ripples
@@ -226,11 +229,7 @@ void XYPad::addDrop(juce::Point<float> from, juce::Point<float> to)
     if (drops.size() > 64) drops.erase(drops.begin());
     lastDrop = now;
     lastDropAt = to;
-    if (! isTimerRunning())
-    {
-        lastTick = now;
-        startTimerHz(60);
-    }
+    if (! isTimerRunning()) startTimerHz(60);
 }
 
 juce::Point<float> XYPad::cellShift(int cell, double now) const
@@ -248,33 +247,13 @@ juce::Point<float> XYPad::cellShift(int cell, double now) const
     return m > 0.0f ? d * (kRippleMax * std::tanh(m / kRippleMax) / m) : d;
 }
 
-// The umlauts turn towards the drag's heading with this time constant, so
-// they swing round rather than jump; the heading itself averages the
-// circle's moves over about kHeadingTime.
-constexpr double kTurnTime = 0.08, kHeadingTime = 0.15;
-
 void XYPad::timerCallback()
 {
     const double now = juce::Time::getMillisecondCounterHiRes() / 1000.0;
-    const double dt = juce::jlimit(0.0, 0.1, now - lastTick);
-    lastTick = now;
     drops.erase(std::remove_if(drops.begin(), drops.end(), [&](const Drop& d) { return now - d.born > kRippleSwell; }),
                 drops.end());
-    const float left = std::remainder(umlautTarget - umlautAngle, juce::MathConstants<float>::twoPi); // the short way round
-    if (std::abs(left) < 1e-3f) umlautAngle = umlautTarget;
-    else umlautAngle += left * (float) (1.0 - std::exp(-dt / kTurnTime));
-    if (drops.empty() && juce::exactlyEqual(umlautAngle, umlautTarget)) stopTimer();
+    if (drops.empty()) stopTimer();
     repaint();
-}
-
-void XYPad::turnUmlauts(float angle)
-{
-    umlautTarget = angle;
-    if (! isTimerRunning())
-    {
-        lastTick = juce::Time::getMillisecondCounterHiRes() / 1000.0;
-        startTimerHz(60);
-    }
 }
 
 void XYPad::setPuck(juce::Point<float> u)
@@ -294,8 +273,6 @@ void XYPad::mouseDown(const juce::MouseEvent& e)
 {
     for (auto* p : { px, py, psize }) p->beginChangeGesture();
     isDragging = true;
-    travelled = 0.0f;
-    heading = {};
     last = e.position;
     e.source.enableUnboundedMouseMovement(true);
     proc.setFineDrag(e.mods.isAltDown());
@@ -318,17 +295,8 @@ void XYPad::mouseDrag(const juce::MouseEvent& e)
     }
     else
     {
-        const auto before = toScreen(puck);
-        setPuck(toUnit(before + (e.position - last) * speed));
-        const auto step = toScreen(puck) - before;
-
-        // The umlauts face where the circle has been heading lately.
-        const double t = juce::Time::getMillisecondCounterHiRes() / 1000.0;
-        heading = heading * (float) std::exp(-(t - headingAt) / kHeadingTime) + step;
-        headingAt = t;
-        if (heading.getDistanceFromOrigin() > 2.0f) turnUmlauts(std::atan2(heading.x, -heading.y));
+        setPuck(toUnit(toScreen(puck) + (e.position - last) * speed));
     }
-    travelled += e.position.getDistanceFrom(last);
     last = e.position;
 
     // A push where the circle is now and then, as far as it went since.
@@ -343,7 +311,6 @@ void XYPad::mouseUp(const juce::MouseEvent& e)
     proc.setFineDrag(false);
     isDragging = false;
     for (auto* p : { px, py, psize }) p->endChangeGesture();
-    if (travelled < 3.0f) turnUmlauts(0.0f); // a tap: umlauts back on top
     // Show the pointer again on the circle's centre. The unbounded drag ends
     // first: ending it afterwards, JUCE would put the pointer back near
     // where it left the pad.

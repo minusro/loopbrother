@@ -1,7 +1,7 @@
 # LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-19 — v0.9.8, plain Os on the cells outside the circle; the
-logo's baseline on a curve concentric with the lip. v0.9.1 is
+Updated: 2026-10-19 — v0.10.0, plain cereal rings (no umlauts, no turning),
+no cell borders, small rings that squash as they bob in the wake. v0.9.1 is
 released (github.com/minusro/loopbrother/releases).
 
 ## Where things stand
@@ -67,7 +67,7 @@ bundle ID are unchanged, so saved sessions find it.
     so unmuting comes back in place), with the clock running or during an
     audition. It only counts with the pointer over the plugin or during a
     pad drag: Command is global on macOS, and Command-clicks in the host
-    shouldn't mute it. While it's held the Ös under the circle turn dark
+    shouldn't mute it. While it's held the rings under the circle turn dark
     grey and stop following the meter.
 - **Logo**: "LÖÖP BRÖTHER" in Cherry Bomb One (`fonts/`, compiled in as
   `jm_assets`, SIL Open Font License in `fonts/OFL-CherryBombOne.txt`, which
@@ -117,11 +117,10 @@ bundle ID are unchanged, so saved sessions find it.
   - **Hosts that ignore the constraint:** off-ratio sizes are corrected
     afterwards by the same rules.
 
-  Covered cells take a wash of their break's colour by share and carry an
-  Ö drawn as a Froot Loop (a thick ring, 8.5 px radius at 480, with the
-  umlaut dots over it); every other cell carries a plain O, the same
-  cereal ring without umlauts at half an Ö's resting size (4.25 px radius at
-  480), drawn from the same sprites. The look is a `jmui::RingStyle`
+  No cell borders are drawn. Covered cells take a wash of their break's
+  colour by share and carry a cereal ring (a Froot Loop: a thick ring,
+  8.5 px radius at 480); every other cell carries a small one at half that
+  (4.25 px), drawn from the same sprites. The look is a `jmui::RingStyle`
   (`src/Cereal.{h,cpp}`); `kRingStyles` holds nine to try
   (`docs/ring-styles.png`, from `JM_STYLE_SHEET`), `kRingStyle` is the one
   in use: 8, "Soft clay, no gloss" (deeply tube-shaded, softly lit from
@@ -130,19 +129,14 @@ bundle ID are unchanged, so saved sessions find it.
   olive; the grain is tileable value noise in octaves, so a coarse grain
   stays soft. The marks are pre-rendered (`jmui::CerealSprites`: per
   colour and pattern, at half, full and double size, at the screen's pixel
-  density, shadow included) and drawn scaled: with 65 Ös a frame paints in
+  density, shadow included) and drawn scaled: with 65 rings a frame paints in
   4 ms at 480 px, 13 at 960, 27 at 1440 (software rendering; it was 18 and
-  84 drawing them from scratch). While a covered break plays, its Ö
-  follows the break's meter about the ring's centre, from half size in
-  silence to double at the loop's peak; when nothing plays it rests at
-  full size.
-  The Ös' umlauts go round their ring to face the way the circle has
-  lately been dragged (the circle's moves averaged over about 0.15 s,
-  turning with a 0.08 s lag the short way round), stay there after the
-  release, and go back on top after a tap (a press with under 3 px of
-  movement). Only the dots move: the O, its shading and every shadow stay
-  lit from the top left. `CerealSprites` keeps the O and each dot as
-  separate images for this.
+  84 drawing them from scratch). Sprites are drawn at full opacity
+  whatever was filled before them (JUCE draws images at the context's
+  opacity: the translucent washes faded them once). While a covered break
+  plays, its ring follows the break's meter about its centre, from half
+  size in silence to double at the loop's peak; when nothing plays it
+  rests at full size.
   Dragging pushes the cells the circle's centre actually passes through
   the way the circle goes, and the cells beside the path straight
   outwards, as a wake in liquid: every 60 ms or so the circle leaves a
@@ -151,9 +145,11 @@ bundle ID are unchanged, so saved sessions find it.
   and, at 1.5 times that, for the cells around it, falling off with their
   distance from the stretch (Gaussian, 0.1 of the pad; none past 0.2). Each such cell feels it once, as a single sin^2
   swell out and back to rest (0.22 s, never below zero, so nothing swings
-  back and forth): its O moves with it (the Ös under the circle hold
-  still), and each border corner moves by the average of the cells that
-  meet there, so the borders bend without coming apart. While the circle
+  back and forth): its small ring moves with it and squashes along the
+  push (up to 40% flatter, tanh of the push over 0.006 of the pad), like
+  a ring tipping as it bobs in milk, rounding out as it settles; the rings
+  under the circle hold still. A covered cell's wash moves with its
+  corners, each the average of the cells meeting there. While the circle
   crosses a cell it keeps leaning forward; once passed, it settles. A cell
   moves at most 0.014 of the pad (7 px at 480); a slow drag moves it 2 to
   3 px. 60 Hz while any run. Drawing only: the sound follows the true
@@ -250,17 +246,15 @@ bundle ID are unchanged, so saved sessions find it.
   per pixel and left/down shrinks it back, Shift+Option an eighth as
   much, the size holds at the smallest and the largest circle, an Option press leaves the circle in place;
   a rightward drag pushes the cells it crossed right (2.5 px), never back,
-  still at the end, and the nearest cell it didn't cross not at all; the umlauts face right after
-  it (90 deg), go back on top after a tap (0) and face down after a drag
-  down (179, the drag wobbling a pixel), staying put after the release. Through the
+  still at the end, and a cell well away not at all. Through the
   processor: holding the mute silences it from the next block and letting
   go brings it back, with the clock running and during an audition. Not
   covered: real modifier keys (the Command-over-the-plugin polling), the
   pointer hiding, unbounded movement and the pointer landing on the circle
   at release - those need hands on a mouse.
 - The pad renders as intended (`jm_snapshot` renders inspected: the
-  largest circle over half the pad, plain Os, grey lines; close-ups of the Ö
-  marks; a mid-drag `JM_RIPPLE=1` frame diffed against a still one shows
+  largest circle over half the pad, the rings, no borders; close-ups of the
+  rings, and of small rings squashed mid-drag; a mid-drag `JM_RIPPLE=1` frame diffed against a still one shows
   marks moved by a pixel or two up to 330 px from the circle); the hidden
   pointer while dragging and the dots pulsing in time have not been seen on
   screen yet. Dense breaks keep the meter between about half and full, so

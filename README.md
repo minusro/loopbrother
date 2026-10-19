@@ -15,9 +15,9 @@ In plugin lists it appears as **LOOP BROTHER** by **minus**.
 
 Load it as an instrument on a track and press play in your DAW.
 
-- **Each dot on the pad is a break.** Breaks that sound alike sit close
-  together and share a colour. The Ö marks show the breaks under the circle,
-  and they pulse with the music.
+- **Each ring on the pad is a break.** Breaks that sound alike sit close
+  together and share a colour. The big rings show the breaks under the
+  circle, and they pulse with the music.
 - **Click or drag** to move the circle. Changes land on the next 16th note,
   so they stay in time.
 - **Shift-drag** sizes the circle like a knob: right or up makes it bigger,

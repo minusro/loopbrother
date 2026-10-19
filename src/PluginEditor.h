@@ -60,26 +60,24 @@ inline float bowlLip(float x, float w, float scale, float inside = 0.0f)
 // - Shift: sizes the circle like a knob: right or up grows it, left or down
 //   shrinks it, the circle staying where it is.
 //
-// Each cell under the circle shows its break as an Ö: a cereal ring in the
-// break's colour with two dots over it (Cereal.h). The dots go round the
-// ring to face the way the circle has lately been dragged, and back on top
-// after a tap. While the break plays,
-// the Ö follows its meter about the ring's centre, from half size in
-// silence to double at the loop's peak. Every other cell shows a plain O: the
-// same cereal ring without the umlauts, half the size of an Ö at rest.
+// Each cell under the circle shows its break as a cereal ring in its
+// colour (Cereal.h). While the break plays, the ring follows its meter, from
+// half size in silence to double at the loop's peak. Every other cell shows
+// a small ring, half the size of one at rest.
 //
 // Dragging pushes the cells the circle's centre passes through (their
-// borders and Os) a few pixels the way it goes, and the cells beside
-// its path outwards, like a wake in liquid: once, then back to rest, no
-// swinging to and fro; cells further off stay still. Drawing only; the
-// sound follows the true cells. While the mute is held the circle's Ös are
-// dark grey and
-// still.
+// washes and small rings) a few pixels the way it goes, and the cells
+// beside its path outwards, like a wake in liquid: once, then back to rest,
+// no swinging to and fro; cells further off stay still. A pushed small ring
+// squashes along the push as if tipping in milk. Drawing only; the sound
+// follows the true cells. While the mute is held the circle's rings are dark
+// grey and still.
 class XYPad : public juce::Component, private juce::Timer {
 public:
     static constexpr float kFineSpeed = 1.0f / 8.0f;
     static constexpr float kRingRadius = 8.5f;  // at 480 px
-    static constexpr float kSmallO = 0.5f * kRingRadius; // the plain O of a cell outside the circle
+    static constexpr float kSmallO = 0.5f * kRingRadius; // the ring of a cell outside the circle
+    static constexpr float kBob = 0.4f, kBobAt = 0.006f;  // its squash when pushed: at most, and its scale (pad units)
 
     explicit XYPad(JungleProcessor& p);
     ~XYPad() override;
@@ -109,8 +107,7 @@ private:
     // circle moved, for the cells its centre passed through.
     struct Drop { double born; std::vector<std::pair<int, juce::Point<float>>> pushes; }; // cell, its push
     void addDrop(juce::Point<float> from, juce::Point<float> to);
-    void timerCallback() override;          // animates ripples and turning umlauts
-    void turnUmlauts(float angle);
+    void timerCallback() override;          // animates the ripples
 
 public:
     // The break whose cell a point of the pad is in, and how far the ripples
@@ -118,8 +115,6 @@ public:
     int cellAt(juce::Point<float> u) const;
     juce::Point<float> circleCentre() const { return puck; }
     juce::Point<float> cellShift(int cell, double now) const;
-    // Where the umlauts sit round the ring (radians, clockwise, 0 = on top).
-    float umlautTurn() const { return umlautAngle; }
 
 private:
 
@@ -138,11 +133,6 @@ private:
     std::vector<Drop> drops;
     double lastDrop = 0.0;
     juce::Point<float> lastDropAt;
-    double lastTick = 0.0;
-    float umlautAngle = 0.0f, umlautTarget = 0.0f;
-    juce::Point<float> heading;             // the circle's recent moves, pixels
-    double headingAt = 0.0;
-    float travelled = 0.0f;                 // by the mouse since the press, pixels
     juce::Point<float> last;                // the drag, in pad pixels (unbounded)
     jm::MixVoice mix[kMaxMix] {};           // what the circle covers
     int mixCount = 0;

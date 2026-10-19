@@ -97,23 +97,13 @@ juce::Path blob(juce::Point<float> c, float r, float bumps, int seed)
 }
 
 // The O: a thick ring, the cereal. Its hole is about half its radius.
-constexpr float kHole = 0.48f, kDot = 0.24f; // as fractions of the ring's radius
+constexpr float kHole = 0.48f; // as a fraction of the ring's radius
 juce::Path ringPath(juce::Point<float> c, float r, float bumps, int seed)
 {
     auto p = blob(c, r, bumps, seed);
     p.addPath(blob(c, kHole * r, 0.7f * bumps, seed + 7));
     p.setUsingNonZeroWinding(false); // the hole stays empty
     return p;
-}
-
-void sphere(juce::Graphics& g, juce::Point<float> at, float d, juce::Colour dark, const RingStyle& s)
-{
-    if (s.light <= 0.0f) return;
-    juce::ColourGradient lit(C::white.withAlpha(juce::jmin(1.0f, 0.6f * s.light)), at.translated(-0.35f * d, -0.35f * d),
-                             dark.withAlpha(juce::jmin(1.0f, 0.4f * s.light)), at.translated(d, d), true);
-    lit.addColour(0.45, C::white.withAlpha(0.0f));
-    g.setGradientFill(lit);
-    g.fillEllipse(at.x - d, at.y - d, 2 * d, 2 * d);
 }
 
 void grainOver(juce::Graphics& g, const juce::Path& p, juce::Point<float> c, float r, const juce::Image& grain, const RingStyle& s)
@@ -129,13 +119,6 @@ void grainOver(juce::Graphics& g, const juce::Path& p, juce::Point<float> c, flo
 
 } // namespace
 
-juce::Point<float> umlautAt(juce::Point<float> c, float r, int k, float angle)
-{
-    const juce::Point<float> off { (k == 0 ? -0.5f : 0.5f) * r, -(r + 1.55f * kDot * r) };
-    const float cs = std::cos(angle), sn = std::sin(angle);
-    return { c.x + off.x * cs - off.y * sn, c.y + off.x * sn + off.y * cs };
-}
-
 static juce::DropShadow shadowFor(float r, const RingStyle& s)
 {
     return juce::DropShadow(C::black.withAlpha(s.shadow), juce::jmax(1, juce::roundToInt(0.35f * r)),
@@ -145,11 +128,6 @@ static juce::DropShadow shadowFor(float r, const RingStyle& s)
 void drawOShadow(juce::Graphics& g, juce::Point<float> c, float r, const RingStyle& s, int seed)
 {
     if (s.shadow > 0.0f) shadowFor(r, s).drawForPath(g, ringPath(c, r, s.bumps, seed));
-}
-
-void drawUmlautShadow(juce::Graphics& g, juce::Point<float> at, float r, const RingStyle& s, int seed)
-{
-    if (s.shadow > 0.0f) shadowFor(r, s).drawForPath(g, blob(at, kDot * r, s.bumps, seed));
 }
 
 void drawO(juce::Graphics& g, juce::Point<float> c, float r, int colour, const Grains& grains, const RingStyle& s, int seed)
@@ -211,41 +189,6 @@ void drawO(juce::Graphics& g, juce::Point<float> c, float r, int colour, const G
     }
 }
 
-void drawUmlaut(juce::Graphics& g, juce::Point<float> at, float r, int colour, const Grains& grains, const RingStyle& s, int seed)
-{
-    const auto base = frootLoop(colour), dark = shadowOf(base);
-    const float d = kDot * r;
-    const auto dot = blob(at, d, s.bumps, seed);
-    g.setColour(base);
-    g.fillPath(dot);
-    sphere(g, at, d, dark, s);
-    if (s.light > 0.0f)
-    {
-        g.setGradientFill(juce::ColourGradient(C::white.withAlpha(juce::jmin(1.0f, 0.35f * s.light)), at.x - d, at.y - d,
-                                               dark.withAlpha(juce::jmin(1.0f, 0.22f * s.light)), at.x + d, at.y + d, false));
-        g.fillPath(dot);
-    }
-    grainOver(g, dot, at, r, grains[colour], s);
-    if (s.outline > 0.0f)
-    {
-        g.setColour(dark.withAlpha(juce::jmin(1.0f, s.outline)));
-        g.strokePath(dot, juce::PathStrokeType(juce::jmax(0.6f, 0.05f * r)));
-    }
-}
-
-void drawRingShadow(juce::Graphics& g, juce::Point<float> c, float r, const RingStyle& s, int seed, float angle)
-{
-    drawOShadow(g, c, r, s, seed);
-    for (int k = 0; k < 2; ++k) drawUmlautShadow(g, umlautAt(c, r, k, angle), r, s, seed + 13 + 4 * k);
-}
-
-void drawRing(juce::Graphics& g, juce::Point<float> c, float r, int colour, const Grains& grains, const RingStyle& s,
-              int seed, float angle)
-{
-    drawO(g, c, r, colour, grains, s, seed);
-    for (int k = 0; k < 2; ++k) drawUmlaut(g, umlautAt(c, r, k, angle), r, colour, grains, s, seed + 13 + 4 * k);
-}
-
 // ---------------------------------------------------------------- sprites
 void CerealSprites::configure(float ringRadius, float pixelScale, const RingStyle& s)
 {
@@ -258,62 +201,42 @@ void CerealSprites::configure(float ringRadius, float pixelScale, const RingStyl
     cache.clear();
 }
 
-// Ö sizes on hand: half, full and double the rest size (a loop's silence and
+// Sizes on hand: half, full and double the rest size (a loop's silence and
 // peak). Each is drawn from the smallest one at least as large, so never
-// enlarged and never shrunk by more than half. part 0 is the O, 1 and 2 its
-// dots (drawn on their own so they can go round it).
-const CerealSprites::Sprite& CerealSprites::sprite(float r, int colour, int seed, int part)
+// enlarged and never shrunk by more than half.
+const CerealSprites::Sprite& CerealSprites::sprite(float r, int colour, int seed)
 {
     int level = 0;
     while (level < 2 && rest * std::ldexp(0.5f, level) < r) ++level;
     const int variant = (seed % variants + variants) % variants;
-    const int key = ((colour * 4 + variant) * 3 + level) * 3 + part;
+    const int key = (colour * 4 + variant) * 3 + level;
     auto it = cache.find(key);
     if (it != cache.end()) return it->second;
 
     Sprite sp;
     sp.radius = rest * std::ldexp(0.5f, level);
     const float R = sp.radius * density;                 // in sprite pixels
-    const float half = (part == 0 ? 1.15f : 0.4f) * R;   // the part, bumps included
+    const float half = 1.15f * R;                        // the ring, bumps included
     const int w = (int) std::ceil(2.0f * half + 0.8f * R) + 4;
     sp.centre = { half + 0.2f * R + 2.0f, half + 0.2f * R + 2.0f };
     sp.image = juce::Image(juce::Image::ARGB, w, w, true);
     juce::Graphics g(sp.image);
     const int s = colour * 101 + variant;
-    if (part == 0)
-    {
-        jmui::drawOShadow(g, sp.centre, R, *style, s);
-        jmui::drawO(g, sp.centre, R, colour, grains, *style, s);
-    }
-    else
-    {
-        drawUmlautShadow(g, sp.centre, R, *style, s + 13 + 4 * (part - 1));
-        drawUmlaut(g, sp.centre, R, colour, grains, *style, s + 13 + 4 * (part - 1));
-    }
+    jmui::drawOShadow(g, sp.centre, R, *style, s);
+    jmui::drawO(g, sp.centre, R, colour, grains, *style, s);
     return cache.emplace(key, std::move(sp)).first->second;
 }
 
-void CerealSprites::draw(juce::Graphics& g, const juce::Image& img, juce::Point<float> centre, juce::Point<float> c, float k) const
+void CerealSprites::drawO(juce::Graphics& g, juce::Point<float> c, float r, int colour, int seed, float axis, float squeeze)
 {
+    const auto& sp = sprite(r, colour, seed);
+    const float k = r / (sp.radius * density);
     juce::Graphics::ScopedSaveState keep(g);
+    g.setOpacity(1.0f); // images draw at the context's opacity: whatever was filled last mustn't fade them
     g.setImageResamplingQuality(juce::Graphics::mediumResamplingQuality);
-    g.drawImageTransformed(img, juce::AffineTransform::translation(-centre).scaled(k).translated(c));
-}
-
-void CerealSprites::drawRing(juce::Graphics& g, juce::Point<float> c, float r, int colour, int seed, float angle)
-{
-    for (int part = 0; part < 3; ++part)
-    {
-        const auto& sp = sprite(r, colour, seed, part);
-        const auto at = part == 0 ? c : umlautAt(c, r, part - 1, angle);
-        draw(g, sp.image, sp.centre, at, r / (sp.radius * density));
-    }
-}
-
-void CerealSprites::drawO(juce::Graphics& g, juce::Point<float> c, float r, int colour, int seed)
-{
-    const auto& sp = sprite(r, colour, seed, 0);
-    draw(g, sp.image, sp.centre, c, r / (sp.radius * density));
+    g.drawImageTransformed(sp.image, juce::AffineTransform::translation(-sp.centre)
+                                         .rotated(-axis).scaled(k * squeeze, k).rotated(axis) // flattened along axis
+                                         .translated(c));
 }
 
 } // namespace jmui

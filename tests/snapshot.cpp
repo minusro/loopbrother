@@ -59,8 +59,8 @@ static int styleSheet(const char* path)
         for (int c = 0; c < kFrootLoops; ++c)
         {
             const juce::Point<float> at { labelW + (c + 0.5f) * colW, y + 0.52f * rowH };
-            drawRingShadow(g, at, 36.0f, st, c * 7 + s);
-            drawRing(g, at, 36.0f, c, grains, st, c * 7 + s);
+            drawOShadow(g, at, 36.0f, st, c * 7 + s);
+            drawO(g, at, 36.0f, c, grains, st, c * 7 + s);
             drawOShadow(g, at.translated(0.0f, 58.0f), 0.5f * 36.0f * 0.5f, st, c);
             drawO(g, at.translated(0.0f, 58.0f), 0.5f * 36.0f * 0.5f, c, grains, st, c);
         }
@@ -69,12 +69,12 @@ static int styleSheet(const char* path)
         for (int c = 0; c < 2; ++c)
         {
             const juce::Point<float> rest { x0 + 40.0f + c * 30.0f, y + 0.45f * rowH };
-            drawRingShadow(g, rest, r0, st, c);
-            drawRing(g, rest, r0, c * 3 + 1, grains, st, c);
+            drawOShadow(g, rest, r0, st, c);
+            drawO(g, rest, r0, c * 3 + 1, grains, st, c);
         }
         const juce::Point<float> peak { x0 + 140.0f, y + 0.45f * rowH };
-        drawRingShadow(g, peak, 2 * r0, st, 9);
-        drawRing(g, peak, 2 * r0, 4, grains, st, 9);
+        drawOShadow(g, peak, 2 * r0, st, 9);
+        drawO(g, peak, 2 * r0, 4, grains, st, 9);
         for (int c = 0; c < kFrootLoops; ++c)
         {
             const juce::Point<float> at { x0 + 30.0f + c * 22.0f, y + 0.82f * rowH };
@@ -426,31 +426,6 @@ int main(int argc, char** argv)
             ok &= most * w > 1.0f && against > -1e-6f && out * w > 0.8f && inwards > -1e-6f
                   && sideways < 1e-4f && last < 1e-6f && still < 1e-6f;
 
-            // The umlauts: after that drag right they face right; a tap puts
-            // them back on top; a drag down turns them underneath, and they
-            // stay there after the release. (mouseUp leaves the real pointer
-            // alone here: these events never start an unbounded drag.)
-            auto settle = [] { juce::MessageManager::getInstance()->runDispatchLoopUntil(600); };
-            auto degrees = [&] { return juce::radiansToDegrees(std::remainder(pad->umlautTurn(), juce::MathConstants<float>::twoPi)); };
-            pad->mouseUp(ev(160, 300, 0));
-            settle();
-            const float right = degrees();
-            pad->mouseDown(ev(200, 200, 0));
-            pad->mouseUp(ev(200, 200, 0));
-            settle();
-            const float tapped = degrees();
-            pad->mouseDown(ev(200, 100, 0));
-            for (int i = 1; i <= 5; ++i)
-            {
-                juce::Thread::sleep(40);
-                pad->mouseDrag(ev(200.0f + (i % 2), 100.0f + 15.0f * i, 0));
-            }
-            pad->mouseUp(ev(201, 175, 0));
-            settle();
-            const float down = std::abs(degrees());
-            std::printf("  umlauts: after a drag right %.1f deg, after a tap %.1f deg, after a drag down %.1f deg\n",
-                        right, tapped, down);
-            ok &= std::abs(right - 90.0f) < 2.0f && std::abs(tapped) < 1.0f && std::abs(down - 180.0f) < 5.0f;
             proc.setPadHeld(false);
         }
 
@@ -533,7 +508,7 @@ int main(int argc, char** argv)
                     juce::Thread::sleep(70);
                     pad->mouseDrag(ev((0.30f + 0.03f * i) * w, (0.55f - 0.012f * i) * w));
                 }
-                juce::MessageManager::getInstance()->runDispatchLoopUntil(std::getenv("JM_RIPPLE_WAIT") ? std::atoi(std::getenv("JM_RIPPLE_WAIT")) : 250); // ripples and umlauts move on
+                juce::MessageManager::getInstance()->runDispatchLoopUntil(std::getenv("JM_RIPPLE_WAIT") ? std::atoi(std::getenv("JM_RIPPLE_WAIT")) : 250); // the ripples move on
                 proc.setPadHeld(false);
             }
             if (std::getenv("JM_TIME_PAINT"))

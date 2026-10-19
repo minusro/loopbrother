@@ -2,9 +2,8 @@
 #include <juce_graphics/juce_graphics.h>
 #include <map>
 
-// The breaks' marks, drawn as Froot Loops: an Ö (a ring with two dots over
-// it) for the breaks under the selection circle, a small plain O for the
-// others. The look is a RingStyle; kRingStyles holds the ones on offer
+// The breaks' marks, drawn as Froot Loops: a cereal ring, full size for the
+// breaks under the selection circle, small for the others. The look is a RingStyle; kRingStyles holds the ones on offer
 // (docs/ring-styles.png shows them all), kRingStyle the one in use.
 namespace jmui {
 
@@ -60,40 +59,28 @@ private:
     juce::Image images[kFrootLoops + 1];
 };
 
-// An Ö of radius r centred (the ring) on c, its dots turned by angle about
-// the ring's centre (radians, clockwise, 0 = over it as on the letter).
-// seed makes each mark's bumps and sugar its own and keeps them still from
-// frame to frame.
-void drawRingShadow(juce::Graphics&, juce::Point<float> c, float r, const RingStyle&, int seed, float angle = 0.0f);
-void drawRing(juce::Graphics&, juce::Point<float> c, float r, int colour, const Grains&, const RingStyle&, int seed,
-              float angle = 0.0f);
-// Its parts: the O, and one umlaut dot (k = 0 left, 1 right of the upright Ö)
-// and where it sits.
+// A ring of radius r centred on c. seed makes each mark's bumps and sugar
+// its own and keeps them still from frame to frame.
 void drawO(juce::Graphics&, juce::Point<float> c, float r, int colour, const Grains&, const RingStyle&, int seed);
 void drawOShadow(juce::Graphics&, juce::Point<float> c, float r, const RingStyle&, int seed);
-void drawUmlaut(juce::Graphics&, juce::Point<float> at, float r, int colour, const Grains&, const RingStyle&, int seed);
-void drawUmlautShadow(juce::Graphics&, juce::Point<float> at, float r, const RingStyle&, int seed);
-juce::Point<float> umlautAt(juce::Point<float> c, float r, int k, float angle);
 
-// The same marks, pre-rendered: each Ö's O and dots are drawn once per
-// colour (and per bump/sugar pattern, for the styles that have them) at
-// three sizes, at the screen's real pixel density, shadows included, then
-// drawn scaled down to the size they need, the dots wherever the angle puts
-// them (the light stays on the top left). Painting 65 shaded Ös (the largest circle) from scratch
-// took 18 ms at 480 px and 84 at 1440 (software rendering); from the cache,
-// one image draw each.
+// The same marks, pre-rendered: each ring is drawn once per colour (and per
+// bump/sugar pattern, for the styles that have them) at three sizes, at the
+// screen's real pixel density, shadow included, then drawn scaled down to
+// the size it needs. Painting 65 shaded marks (the largest circle) from
+// scratch took 18 ms at 480 px and 84 at 1440 (software rendering); from
+// the cache, one image draw each.
 class CerealSprites {
 public:
     // ringRadius: an Ö at rest, in pixels. Clears the cache when anything
     // that changes the pictures changes.
     void configure(float ringRadius, float pixelScale, const RingStyle& style);
-    void drawRing(juce::Graphics&, juce::Point<float> c, float r, int colour, int seed, float angle = 0.0f);
-    void drawO(juce::Graphics&, juce::Point<float> c, float r, int colour, int seed); // the ring alone
+    // squeeze < 1 flattens it along axis (radians, on screen).
+    void drawO(juce::Graphics&, juce::Point<float> c, float r, int colour, int seed, float axis = 0.0f, float squeeze = 1.0f);
 
 private:
     struct Sprite { juce::Image image; juce::Point<float> centre; float radius = 0.0f; }; // centre in sprite pixels
-    const Sprite& sprite(float r, int colour, int seed, int part);
-    void draw(juce::Graphics&, const juce::Image&, juce::Point<float> centre, juce::Point<float> c, float k) const;
+    const Sprite& sprite(float r, int colour, int seed);
 
     Grains grains;
     const RingStyle* style = nullptr;
