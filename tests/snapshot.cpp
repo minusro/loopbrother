@@ -446,14 +446,53 @@ int main(int argc, char** argv)
             proc.setPadHeld(false);
         }
 
-        // The cat: up behind the logo once the circle is at its largest, back
-        // down below the window's edge when it's small again (easing between).
+        // The cat: up over the logo once the circle is at its largest, back
+        // down below the window's edge when it's small again (easing
+        // between). While up it squishes with the output: some while the
+        // loops play, none once they've stopped and the meter has fallen; and
+        // it sways both ways on the beat while they play, upright once stopped.
         if (auto* jed = dynamic_cast<jmui::JungleEditor*>(ed.get()))
         {
             auto* sizeParam = proc.apvts.getParameter("size");
             sizeParam->setValueNotifyingHost(1.0f);
             juce::MessageManager::getInstance()->runDispatchLoopUntil(600);
             const float up = jed->catRise();
+            float left = 0.0f, right = 0.0f, still = 0.0f;
+            auto squish = [&](int frames) // about 21 ms of audio a frame
+            {
+                float least = 1.0f, most = 0.0f;
+                left = right = still = 0.0f;
+                for (int f = 0; f < frames; ++f)
+                {
+                    for (int b = 0; b < 2; ++b)
+                    {
+                        proc.processBlock(buf, midi);
+                        if (head.playing) head.ppq += 512 * 162.0 / 60.0 / 48000.0;
+                    }
+                    juce::MessageManager::getInstance()->runDispatchLoopUntil(20);
+                    least = std::min(least, jed->catSquish());
+                    most = std::max(most, jed->catSquish());
+                    left = std::min(left, jed->catTurn());
+                    right = std::max(right, jed->catTurn());
+                    still = std::max(still, std::abs(jed->catTurn()));
+                }
+                return std::pair { least, most };
+            };
+            const bool wasPlaying = head.playing;
+            head.playing = true;
+            squish(10);
+            const auto playing = squish(50);
+            const float swayL = left, swayR = right;
+            head.playing = false;
+            squish(40); // the meter's 300 ms release
+            const auto stopped = squish(10);
+            head.playing = wasPlaying;
+            std::printf("  cat meter: squished %.2f to %.2f while playing, up to %.2f stopped; swaying %.1f to %.1f"
+                        " degrees while playing, %.2f stopped\n", playing.first, playing.second, stopped.second,
+                        juce::radiansToDegrees(swayL), juce::radiansToDegrees(swayR), juce::radiansToDegrees(still));
+            ok &= playing.second > 0.4f && playing.second - playing.first > 0.1f && stopped.second < 1e-6f
+                  && swayL < -0.8f * jmui::JungleEditor::kCatSway && swayR > 0.8f * jmui::JungleEditor::kCatSway
+                  && still < 1e-6f;
             sizeParam->setValueNotifyingHost(sizeParam->convertTo0to1(1.0f));
             juce::MessageManager::getInstance()->runDispatchLoopUntil(600);
             const float down = jed->catRise();
@@ -560,6 +599,9 @@ int main(int argc, char** argv)
                 std::printf("pad paint: %.2f ms a frame at %d px (best of %d x %d)\n", best, pad->getWidth(), rounds, frames);
             }
         }
+    // A few frames of the editor's timer first, so a cat that's up shows the
+    // output's level and sways to the beat as it would playing.
+    juce::MessageManager::getInstance()->runDispatchLoopUntil(std::getenv("JM_CAT_WAIT") ? std::atoi(std::getenv("JM_CAT_WAIT")) : 40);
     const auto img = ed->createComponentSnapshot(ed->getLocalBounds(), true, 2.0f);
     juce::File out(juce::File::getCurrentWorkingDirectory().getChildFile(juce::String::fromUTF8(argv[1])));
     out.deleteFile();

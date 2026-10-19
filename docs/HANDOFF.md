@@ -1,7 +1,7 @@
 # LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-19 — v0.11.1, the cat comes up over the logo at a random
-spot; the small rings bob on after the ripples settle. v0.9.1 is
+Updated: 2026-10-19 — v0.12.0, the cat squishes with the output's level
+and sways left and right on the beat. v0.9.1 is
 released (github.com/minusro/loopbrother/releases).
 
 ## Where things stand
@@ -89,7 +89,21 @@ bundle ID are unchanged, so saved sessions find it.
   edge at the largest (15.47x). Each time it comes up from hidden its
   centre lands somewhere new, at random between 30% and 70% of the width.
   It's drawn last (`paintOverChildren`), 200 px tall at 480, over the
-  bowl and the logo; it's only a picture, so presses still reach the pad. The source photo is 640 px, so at large window
+  bowl and the logo; it's only a picture, so presses still reach the pad.
+  It's the output's meter: the processor runs the rings' meter ballistics
+  (RMS of the mono sum, 1 ms attack, 300 ms release) over its output and
+  keeps the loudest moment until the editor takes it
+  (`takeOutputLevel`), and the cat squishes towards the window's edge and
+  out to the sides by up to 10% as that goes from -14 to 0 dBFS (playing,
+  it mostly sits between -10 and -2). While the timeline plays it sways
+  4 degrees left and right about where it stands on the edge: over to the
+  other side on each beat, in the first 30% of the beat (ease-out), then
+  holding; upright again over 0.1 s when it stops. The editor reads the
+  beat from `uiBeatAt(ms)`: the processor publishes the beat at time zero
+  (one atomic, so it never tears) and the tempo, and the editor
+  extrapolates to the frame's time, so the sway runs smooth between blocks.
+  `jm_snapshot` lets the editor's timer run 40 ms (`JM_CAT_WAIT`) before it
+  renders, so a cat that's up shows a live pose. The source photo is 640 px, so at large window
   sizes the cat is upscaled and soft.
 - **Window**: the pad over the status bar (44 px at 480, the logo in it),
   resizable by the host window from 240

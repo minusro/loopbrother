@@ -47,6 +47,9 @@ void JungleProcessor::prepareToPlay(double sampleRate, int)
 {
     sr_ = sampleRate;
     engine_.prepare(sampleRate);
+    outEnv_ = 0.0;
+    outUp_ = 1.0 - std::exp(-1.0 / (0.001 * sampleRate));
+    outDown_ = 1.0 - std::exp(-1.0 / (0.300 * sampleRate));
     timeline_ = {};
     for (auto& ch : noteDown_) std::fill(std::begin(ch), std::end(ch), false);
     heldNotes_ = 0;
@@ -104,12 +107,16 @@ void JungleProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiB
     float* R = buffer.getWritePointer(1);
     const double beatsPerSample = bpm / 60.0 / sr_;
     int cur = 0;
+    bool playing = false;
+    double endBeat = 0.0; // the timeline's beat at the block's end
     auto renderTo = [&](int end)
     {
         const auto tl = timeline_.next(hasTransport, hostPlaying, hostBeat + cur * beatsPerSample, bpm,
                                        padHeld || heldNotes_ > 0, end - cur, sr_);
         engine_.beginBlock(tl.playing, tl.beat, bpm, tl.resync);
         engine_.render(L + cur, R + cur, end - cur);
+        playing = tl.playing;
+        endBeat = tl.beat + (end - cur) * beatsPerSample;
         cur = end;
     };
     for (const auto meta : midi)
@@ -140,6 +147,22 @@ void JungleProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiB
     }
     renderTo(n);
     midi.clear();
+
+    double loudest = 0.0;
+    for (int i = 0; i < n; ++i)
+    {
+        const double s = 0.5 * (L[i] + R[i]), sq = s * s;
+        outEnv_ += (sq > outEnv_ ? outUp_ : outDown_) * (sq - outEnv_);
+        loudest = std::max(loudest, outEnv_);
+    }
+    const float level = (float) std::sqrt(loudest);
+    if (level > uiOutput_.load(std::memory_order_relaxed)) uiOutput_.store(level, std::memory_order_relaxed);
+    uiPlaying_.store(playing, std::memory_order_relaxed);
+    if (playing)
+    {
+        uiBpm_.store(bpm, std::memory_order_relaxed);
+        uiBeatOrigin_.store(endBeat - juce::Time::getMillisecondCounterHiRes() * bpm / 60000.0, std::memory_order_relaxed);
+    }
 
     int loops[kMaxMix];
     float gains[kMaxMix];

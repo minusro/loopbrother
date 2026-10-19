@@ -61,6 +61,19 @@ public:
     int    uiLoop(int i) const    { return uiLoop_[i].load(std::memory_order_relaxed); }
     float  uiGain(int i) const    { return uiGain_[i].load(std::memory_order_relaxed); }
     double uiPhase(int i) const   { return uiPhase_[i].load(std::memory_order_relaxed); }
+    // The output's level (the cat's meter): RMS of the mono sum with the
+    // rings' meter ballistics, a 1 ms attack and a 300 ms release; the most
+    // it reached since the editor last took it, so no hit falls between
+    // frames. Linear, 1 = full scale.
+    float takeOutputLevel()       { return uiOutput_.exchange(0.0f, std::memory_order_relaxed); }
+    // The timeline's beat at a time (juce::Time::getMillisecondCounterHiRes),
+    // extrapolated from the last block, and whether it's playing at all:
+    // the cat sways to it.
+    bool   uiPlaying() const      { return uiPlaying_.load(std::memory_order_relaxed); }
+    double uiBeatAt(double ms) const
+    {
+        return uiBeatOrigin_.load(std::memory_order_relaxed) + ms * uiBpm_.load(std::memory_order_relaxed) / 60000.0;
+    }
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout layout();
@@ -83,6 +96,10 @@ private:
     std::atomic<int>    uiLoop_[kMaxMix] {};
     std::atomic<float>  uiGain_[kMaxMix] {};
     std::atomic<double> uiPhase_[kMaxMix] {};
+    std::atomic<float>  uiOutput_ { 0.0f };
+    std::atomic<bool>   uiPlaying_ { false };
+    std::atomic<double> uiBeatOrigin_ { 0.0 }, uiBpm_ { jm::kLoopBpm }; // the beat at time 0, so one value says where it is
+    double outEnv_ = 0.0, outUp_ = 1.0, outDown_ = 1.0; // the output meter: its envelope (power) and rates
 
     std::atomic<float>* pX = nullptr;
     std::atomic<float>* pY = nullptr;
