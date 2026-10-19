@@ -3,7 +3,7 @@
 # Intel), and pack the VST3, the Audio Unit and the app into one installer
 # package, dist/LOOP-BROTHER-<version>-macos.pkg.
 #
-# Unsigned for now (docs/RELEASE.md): each bundle gets an ad-hoc seal only,
+# Unsigned for now (installer/RELEASE.md): each bundle gets an ad-hoc seal only,
 # the package none, so users open it from System Settings > Privacy &
 # Security the first time.
 #
