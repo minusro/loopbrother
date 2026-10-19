@@ -8,7 +8,7 @@ if(APPLE AND NOT CMAKE_OSX_DEPLOYMENT_TARGET)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "" FORCE)
 endif()
 
-project(junglemassive VERSION 0.8.9 LANGUAGES C CXX)
+project(junglemassive VERSION 0.9.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -71,6 +71,13 @@ if(JM_BUILD_PLUGIN)
         SOURCES     ${JM_BREAK_FILES} ${CMAKE_CURRENT_SOURCE_DIR}/breaks/layout.json
                     ${CMAKE_CURRENT_SOURCE_DIR}/breaks/colours.json)
 
+    # The logo's font, compiled in so it looks the same everywhere (SIL Open
+    # Font License: fonts/OFL-CherryBombOne.txt).
+    juce_add_binary_data(jm_assets
+        HEADER_NAME Assets.h
+        NAMESPACE   Assets
+        SOURCES     ${CMAKE_CURRENT_SOURCE_DIR}/fonts/CherryBombOne-Regular.ttf)
+
     set(JM_FORMATS VST3)
     if(APPLE)
         list(APPEND JM_FORMATS AU Standalone)
@@ -119,6 +126,7 @@ if(JM_BUILD_PLUGIN)
         PRIVATE
             jm_engine
             jm_breaks
+            jm_assets
             juce::juce_audio_utils
         PUBLIC
             juce::juce_recommended_config_flags
@@ -146,7 +154,7 @@ if(JM_BUILD_PLUGIN)
         target_compile_definitions(jm_snapshot PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_MODAL_LOOPS_PERMITTED=1
             JucePlugin_Name="${JM_PLUGIN_NAME}")
         target_link_libraries(jm_snapshot PRIVATE
-            jm_engine jm_breaks juce::juce_audio_utils
+            jm_engine jm_breaks jm_assets juce::juce_audio_utils
             juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
     endif()
 endif()

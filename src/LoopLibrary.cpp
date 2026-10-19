@@ -15,15 +15,16 @@ static const char* resourceNamed(const juce::String& file, int& size)
 // One meter value per this many frames (about 6 ms at 44.1 kHz).
 constexpr int kMeterHop = 256;
 
-// The level a meter shows through the loop: RMS with a 10 ms attack and a
-// VU-style 300 ms release, run twice round the loop so the start already
-// carries the end's decay, then scaled so the loop's peak reads 1.
+// The level a meter shows through the loop: RMS with a snappy 1 ms attack and
+// a VU-style 300 ms release, run twice round the loop so the start already
+// carries the end's decay, each hop keeping its loudest moment so no hit
+// falls between readings, then scaled so the loop's peak reads 1.
 static std::vector<float> meterOf(const juce::AudioBuffer<float>& audio, double rate)
 {
     const int frames = audio.getNumSamples();
     const float* l = audio.getReadPointer(0);
     const float* r = audio.getReadPointer(1);
-    const double up = 1.0 - std::exp(-1.0 / (0.010 * rate)), down = 1.0 - std::exp(-1.0 / (0.300 * rate));
+    const double up = 1.0 - std::exp(-1.0 / (0.001 * rate)), down = 1.0 - std::exp(-1.0 / (0.300 * rate));
     std::vector<float> m((size_t) ((frames + kMeterHop - 1) / kMeterHop), 0.0f);
     double env = 0.0;
     for (int pass = 0; pass < 2; ++pass)
@@ -31,7 +32,11 @@ static std::vector<float> meterOf(const juce::AudioBuffer<float>& audio, double 
         {
             const double x = 0.5 * (l[i] + r[i]), sq = x * x;
             env += (sq > env ? up : down) * (sq - env);
-            if (pass == 1 && i % kMeterHop == 0) m[(size_t) (i / kMeterHop)] = (float) std::sqrt(env);
+            if (pass == 1)
+            {
+                auto& v = m[(size_t) (i / kMeterHop)];
+                v = std::max(v, (float) std::sqrt(env));
+            }
         }
     const float peak = *std::max_element(m.begin(), m.end());
     if (peak > 0.0f)

@@ -5,8 +5,9 @@
 namespace jmui {
 
 // A warm off-white pad (cream) parted by white cell borders, a white status
-// bar under a cream edge, a dark brown logo, and the breaks in the Froot
-// Loops pastels (Cereal.h).
+// bar under a cream edge, the breaks in the Froot Loops pastels (Cereal.h)
+// and the logo in the colour of the one under the circle. Dark brown is
+// for any other lettering.
 const juce::Colour white  { 0xffffffff };
 const juce::Colour cream  { 0xfffffaf6 };
 const juce::Colour brown  { 0xff3e2723 };
@@ -89,6 +90,7 @@ public:
     // The break whose cell a point of the pad is in, and how far the ripples
     // move that cell at a time (pad units).
     int cellAt(juce::Point<float> u) const;
+    juce::Point<float> circleCentre() const { return puck; }
     juce::Point<float> cellShift(int cell, double now) const;
     // Where the umlauts sit round the ring (radians, clockwise, 0 = on top).
     float umlautTurn() const { return umlautAngle; }
@@ -150,7 +152,8 @@ private:
 
 // The square pad over a small status bar with the logo, resizable by the
 // host window at that fixed ratio (the width is kept in the plugin state);
-// everything scales with it. Holding Command (Control on Windows) with the
+// everything scales with it. The logo, in Cherry Bomb One, takes the colour
+// of the break whose cell the circle's centre is in, fading as it changes. Holding Command (Control on Windows) with the
 // pointer over the plugin mutes it. Command is global on macOS, so it only
 // counts over the plugin (or during a pad drag, when the hidden pointer can
 // be anywhere): Command-clicks in the host don't mute it.
@@ -168,7 +171,8 @@ class JungleEditor : public juce::AudioProcessorEditor, private juce::Timer, pri
 public:
     static constexpr int kDesignSize  = 480;  // the pad width drawing dimensions are given at
     static constexpr int kTitleHeight = 44;   // the status bar, at kDesignSize
-    static constexpr float kLogoHeight = 30.0f; // its lettering, at kDesignSize
+    static constexpr float kLogoKerning = 0.0f;
+    static constexpr float kLogoHeight = 38.0f; // its lettering (Cherry Bomb One), at kDesignSize
     static juce::String logo() { return juce::CharPointer_UTF8("L\xc3\x96\xc3\x96P BR\xc3\x96THER"); }
     static constexpr int kDefaultSize = JungleProcessor::kDefaultEditorSize, kMinSize = 240, kMaxSize = 1440;
     static constexpr double kRatio = (double) kDesignSize / (kDesignSize + kTitleHeight); // width / height
@@ -184,7 +188,8 @@ public:
     void setLogoFont(const juce::Font& f) { logoFont = f; repaint(); }
 
 private:
-    void timerCallback() override { pad.refresh(); updateMute(); }
+    void timerCallback() override;
+    juce::Rectangle<int> statusBar() const { return getLocalBounds().withTop(pad.getBottom()); }
     void handleAsyncUpdate() override;      // fix the ratio after an unconstrained host resize
     void updateMute();
 
@@ -193,6 +198,8 @@ private:
     XYPad pad;
     int side = kDefaultSize;                // the last width at the right ratio
     std::optional<juce::Font> logoFont;
+    juce::Typeface::Ptr logoFace;           // Cherry Bomb One, compiled in
+    juce::Colour logoColour;                // the colour it's fading to the target's
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(JungleEditor)
 };
