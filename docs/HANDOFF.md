@@ -1,7 +1,7 @@
 # LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-19 — v0.11.0, a cat slides up behind the logo as the
-circle nears its largest. v0.9.1 is
+Updated: 2026-10-19 — v0.11.1, the cat comes up over the logo at a random
+spot; the small rings bob on after the ripples settle. v0.9.1 is
 released (github.com/minusro/loopbrother/releases).
 
 ## Where things stand
@@ -85,11 +85,11 @@ bundle ID are unchanged, so saved sessions find it.
 - **The cat**: as the circle's radius passes 60% of its largest, a begging
   calico cat (`images/loops-cat.png`, cut out of `docs/loops cat.jpg` with
   macOS's Vision subject lifting) slides up from the window's bottom edge,
-  easing (0.1 s) towards how far the size puts it: ears over the logo at
-  about 11x, nearly all of it (92%) at the largest (15.47x). It's drawn
-  after the bowl's front and before the logo (`paintOverChildren`), 200 px
-  tall at 480, so the logo stays in front of it; it's only a picture, so
-  presses still reach the pad. The source photo is 640 px, so at large window
+  easing (0.1 s) towards how far the size puts it, up to its middle on the
+  edge at the largest (15.47x). Each time it comes up from hidden its
+  centre lands somewhere new, at random between 30% and 70% of the width.
+  It's drawn last (`paintOverChildren`), 200 px tall at 480, over the
+  bowl and the logo; it's only a picture, so presses still reach the pad. The source photo is 640 px, so at large window
   sizes the cat is upscaled and soft.
 - **Window**: the pad over the status bar (44 px at 480, the logo in it),
   resizable by the host window from 240
@@ -155,9 +155,13 @@ bundle ID are unchanged, so saved sessions find it.
   distance from the stretch (Gaussian, 0.1 of the pad; none past 0.2). Each such cell feels it once, as a single sin^2
   swell out and back to rest (0.22 s, never below zero, so nothing swings
   back and forth): its small ring moves with it and squashes along the
-  push (up to 40% flatter, tanh of the push over 0.006 of the pad), like
-  a ring tipping as it bobs in milk, rounding out as it settles; the rings
-  under the circle hold still. A covered cell's wash moves with its
+  push (up to 20% flatter, tanh of the push over 0.006 of the pad), like
+  a ring tipping as it bobs in milk. The ring bobs on after its cell is
+  back: each push is a damped sine, four half-swings of 0.22 s (the first
+  with the push, then across it, along, across), dying away over 0.45 s,
+  the pushes added as vectors at twice their axis's angle so pushes either
+  way along an axis add up and a swing across turns the axis a quarter
+  (`XYPad::cellBob`); the rings under the circle hold still. A covered cell's wash moves with its
   corners, each the average of the cells meeting there. While the circle
   crosses a cell it keeps leaning forward; once passed, it settles. A cell
   moves at most 0.014 of the pad (7 px at 480); a slow drag moves it 2 to

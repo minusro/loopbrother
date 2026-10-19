@@ -69,7 +69,8 @@ inline float bowlLip(float x, float w, float scale, float inside = 0.0f)
 // washes and small rings) a few pixels the way it goes, and the cells
 // beside its path outwards, like a wake in liquid: once, then back to rest,
 // no swinging to and fro; cells further off stay still. A pushed small ring
-// squashes along the push as if tipping in milk. Drawing only; the sound
+// squashes along the push as if tipping in milk, then across it and along
+// it again, a few swings dying away after the cell is back. Drawing only; the sound
 // follows the true cells. While the mute is held the circle's rings are dark
 // grey and still.
 class XYPad : public juce::Component, private juce::Timer {
@@ -77,7 +78,7 @@ public:
     static constexpr float kFineSpeed = 1.0f / 8.0f;
     static constexpr float kRingRadius = 8.5f;  // at 480 px
     static constexpr float kSmallO = 0.5f * kRingRadius; // the ring of a cell outside the circle
-    static constexpr float kBob = 0.4f, kBobAt = 0.006f;  // its squash when pushed: at most, and its scale (pad units)
+    static constexpr float kBob = 0.2f, kBobAt = 0.006f;  // its squash when pushed: at most, and its scale (pad units)
 
     explicit XYPad(JungleProcessor& p);
     ~XYPad() override;
@@ -116,6 +117,9 @@ public:
     juce::Point<float> circleCentre() const { return puck; }
     float circleSize() const { return size; }
     juce::Point<float> cellShift(int cell, double now) const;
+    // How squashed that cell's small O is at a time: its width along axis
+    // (radians, pad units, y up), 1 round, down to 1 - kBob.
+    float cellBob(int cell, double now, float& axis) const;
 
 private:
 
@@ -171,7 +175,7 @@ private:
 // The square pad over a small status bar with the logo, resizable by the
 // host window at that fixed ratio (the width is kept in the plugin state);
 // everything scales with it. As the circle nears its largest, a cat slides
-// up from the bottom behind the logo, begging for the cereal. The logo, in Cherry Bomb One, takes the colour
+// up from the bottom over the logo, begging for the cereal. The logo, in Cherry Bomb One, takes the colour
 // of the break whose cell the circle's centre is in, fading round the hue
 // wheel over 0.1 s as it changes. Holding Command (Control on Windows) with the
 // pointer over the plugin mutes it. Command is global on macOS, so it only
@@ -193,11 +197,14 @@ public:
     static constexpr int kTitleHeight = 44;   // the status bar, at kDesignSize
     static constexpr float kLogoKerning = 0.0f;
     static constexpr double kLogoFade = 0.1; // seconds
-    // The cat behind the logo: it starts to rise once the circle's radius
-    // passes kCatFrom of its largest and is fully up at the largest, easing
-    // with kCatEase (seconds). kCatHeight is its height at 480 px, kCatShown
-    // how much of it clears the window's bottom edge when it's up.
-    static constexpr float kCatFrom = 0.6f, kCatHeight = 200.0f, kCatShown = 0.92f;
+    // The cat in front of the logo: it starts to rise once the circle's
+    // radius passes kCatFrom of its largest and is fully up at the largest,
+    // easing with kCatEase (seconds). kCatHeight is its height at 480 px,
+    // kCatShown how much of it clears the window's bottom edge when it's up
+    // (half: its middle on the edge). Each time it comes up it picks a new
+    // spot between kCatLeft and kCatRight.
+    static constexpr float kCatFrom = 0.6f, kCatHeight = 200.0f, kCatShown = 0.5f;
+    static constexpr float kCatLeft = 0.3f, kCatRight = 0.7f; // where its centre may come up, across the width
     static constexpr double kCatEase = 0.1;
     float catRise() const { return cat; } // 0 hidden .. 1 up
     // Between two colours round the hue wheel, saturation and brightness
@@ -235,6 +242,7 @@ private:
     juce::Colour logoColour, logoFrom, logoTo; // shown now, and the fade's ends
     juce::Image catImage;                   // the cat, cut out (images/loops-cat.png)
     float cat = 0.0f;                       // how far it has risen
+    float catX = 0.5f;                      // its centre, as a fraction of the width
     double catTick = 0.0;
     float catTarget() const;
     double logoFadeStart = 0.0;

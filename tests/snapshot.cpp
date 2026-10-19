@@ -362,9 +362,10 @@ int main(int argc, char** argv)
         // crossed right, once, and they come back to rest: never pushed the
         // other way (no ping-pong), still at the end. The nearest cell beside
         // the path is pushed straight outwards and back; a cell well away
-        // from it never moves.
+        // from it never moves. A crossed cell's O bobs on after it's back:
+        // squashed along the drag, then across it, round by the end.
         {
-            juce::Thread::sleep(600); // the earlier drags' pushes settle first
+            juce::Thread::sleep(1000); // the earlier drags' pushes settle first
             pad->mouseDown(ev(100, 300, 0));
             const double start = juce::Time::getMillisecondCounterHiRes() / 1000.0;
             for (int i = 1; i <= 5; ++i)
@@ -401,8 +402,20 @@ int main(int argc, char** argv)
             const float outwards = lib.entry(beside).pos.y >= y ? 1.0f : -1.0f; // its side of the path (pad y is up)
             float most = 0.0f, against = 0.0f, across = 0.0f, last = 0.0f;
             float out = 0.0f, inwards = 0.0f, sideways = 0.0f, still = 0.0f;
+            float bobAlong = 0.0f, bobAcross = 0.0f, bobAfter = 0.0f, bobLast = 0.0f;
             for (double t = 0.0; t < 2.0; t += 0.005)
             {
+                bool moving = false;
+                for (const int c : crossed) moving |= pad->cellShift(c, start + t).getDistanceFromOrigin() > 1e-6f;
+                for (const int c : crossed)
+                {
+                    float axis = 0.0f;
+                    const float squash = 1.0f - pad->cellBob(c, start + t, axis);
+                    const bool along = std::abs(std::cos(axis)) > std::abs(std::sin(axis)); // the drag went right
+                    (along ? bobAlong : bobAcross) = std::max(along ? bobAlong : bobAcross, squash);
+                    if (! moving && t > 0.1) bobAfter = std::max(bobAfter, squash);
+                    if (t > 1.9) bobLast = std::max(bobLast, squash);
+                }
                 for (const int c : crossed)
                 {
                     const auto d = pad->cellShift(c, start + t);
@@ -423,8 +436,12 @@ int main(int argc, char** argv)
                         " %.4f px at the end; a far cell %.4f px\n",
                         crossed.size(), most * w, -against * w, across * w, besideDist * w, out * w, -inwards * w,
                         sideways * w, last * w, still * w);
+            std::printf("  bob: squashed up to %.2f along the drag, %.2f across it, %.2f once the cells are back,"
+                        " %.4f at the end\n", bobAlong, bobAcross, bobAfter, bobLast);
             ok &= most * w > 1.0f && against > -1e-6f && out * w > 0.8f && inwards > -1e-6f
-                  && sideways < 1e-4f && last < 1e-6f && still < 1e-6f;
+                  && sideways < 1e-4f && last < 1e-6f && still < 1e-6f
+                  && bobAlong > 0.1f && bobAlong <= jmui::XYPad::kBob + 1e-4f && bobAcross > 0.02f && bobAfter > 0.02f
+                  && bobLast < 1e-6f;
 
             proc.setPadHeld(false);
         }

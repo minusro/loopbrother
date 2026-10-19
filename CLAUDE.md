@@ -57,7 +57,8 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
   pre-renders them; the pad must draw through the sprites, since drawing
   65 shaded marks from scratch can't keep up with the ripple animation.
   The marks are plain rings (no umlauts): full size under the circle,
-  half size elsewhere, those squashing along a ripple's push.
+  half size elsewhere, those squashing along a ripple's push and bobbing
+  on (`XYPad::cellBob`) after it.
   Regenerate `docs/ring-styles.png` (`JM_STYLE_SHEET`) after changing a
   style. The logo is
   drawn text with umlauts; never put them in a plugin name or file name

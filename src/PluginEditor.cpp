@@ -140,15 +140,14 @@ void XYPad::paint(juce::Graphics& g)
         }
     // A small O on every cell the circle doesn't cover. Pushed by a ripple,
     // it squashes along the push, up to kBob, like a ring tipping as it bobs
-    // in milk, and rounds out again as it settles.
+    // in milk, and swings across and along it a few times as it settles.
     for (int i = 0; i < lib.size(); ++i)
         if (! covered[(size_t) i])
         {
-            const auto d = shift[(size_t) i];
-            const float push = d.getDistanceFromOrigin();
-            const float squeeze = 1.0f - kBob * std::tanh(push / kBobAt);
-            const float axis = push > 0.0f ? std::atan2(-d.y, d.x) : 0.0f; // on screen, y down
-            sprites.drawO(g, toScreen(lib.entry(i).pos + d), kSmallO * scale, lib.entry(i).colour, i, axis, squeeze);
+            float axis = 0.0f, squeeze = 1.0f;
+            if (rippling) squeeze = cellBob(i, now, axis);
+            sprites.drawO(g, toScreen(lib.entry(i).pos + shift[(size_t) i]), kSmallO * scale, lib.entry(i).colour, i,
+                          -axis, squeeze); // on screen, y down
         }
 
     // ...and a full-size O on each one it does, its size following the
@@ -180,8 +179,16 @@ void XYPad::paint(juce::Graphics& g)
 // cell moves; cells beside the path get kSidePush of that, straight
 // outwards, falling off with their distance from the stretch, across it and
 // past its ends (kSideWidth), none beyond kSideReach.
+//
+// A pushed small O bobs longer than its cell moves: it squashes along the
+// push as the cell goes out and back, then across it, then along it again,
+// kBobSwings swings in all, each as long as the push and dying away over
+// kBobDecay seconds.
 constexpr float kRippleSwell = 0.22f, kRipplePush = 0.14f, kRippleMax = 0.014f;
 constexpr float kSidePush = 1.5f, kSideWidth = 0.1f, kSideReach = 0.2f;
+constexpr int   kBobSwings = 4;
+constexpr float kBobDecay = 0.45f;
+constexpr float kRippleLife = kBobSwings * kRippleSwell; // a drop lasts as long as its bobbing
 
 int XYPad::cellAt(juce::Point<float> u) const
 {
@@ -247,10 +254,34 @@ juce::Point<float> XYPad::cellShift(int cell, double now) const
     return m > 0.0f ? d * (kRippleMax * std::tanh(m / kRippleMax) / m) : d;
 }
 
+float XYPad::cellBob(int cell, double now, float& axis) const
+{
+    // Each push's squash as a vector at twice its axis's angle, so pushes
+    // either way along one axis add up, and a swing across it (negative)
+    // turns the axis a quarter.
+    juce::Point<float> q;
+    for (const auto& drop : drops)
+    {
+        const float t = (float) (now - drop.born);
+        if (t <= 0.0f || t >= kRippleLife) continue;
+        const float swing = std::sin(juce::MathConstants<float>::pi * t / kRippleSwell) * std::exp(-t / kBobDecay);
+        for (const auto& [c, push] : drop.pushes)
+            if (c == cell)
+            {
+                const float m = push.getDistanceFromOrigin() * kRipplePush * swing;
+                const float twice = 2.0f * std::atan2(push.y, push.x);
+                q += { m * std::cos(twice), m * std::sin(twice) };
+            }
+    }
+    const float m = q.getDistanceFromOrigin();
+    axis = m > 0.0f ? 0.5f * std::atan2(q.y, q.x) : 0.0f;
+    return 1.0f - kBob * std::tanh(m / kBobAt);
+}
+
 void XYPad::timerCallback()
 {
     const double now = juce::Time::getMillisecondCounterHiRes() / 1000.0;
-    drops.erase(std::remove_if(drops.begin(), drops.end(), [&](const Drop& d) { return now - d.born > kRippleSwell; }),
+    drops.erase(std::remove_if(drops.begin(), drops.end(), [&](const Drop& d) { return now - d.born > kRippleLife; }),
                 drops.end());
     if (drops.empty()) stopTimer();
     repaint();
@@ -360,6 +391,7 @@ JungleEditor::JungleEditor(JungleProcessor& p) : AudioProcessorEditor(&p), proc(
     logoColour = logoFrom = logoTo = frootLoop(p.library().entry(pad.cellAt(pad.circleCentre())).colour);
     catImage = juce::ImageCache::getFromMemory(Assets::loopscat_png, Assets::loopscat_pngSize);
     cat = catTarget(); // already where it belongs when the window opens
+    catX = juce::jmap(juce::Random::getSystemRandom().nextFloat(), kCatLeft, kCatRight);
     catTick = juce::Time::getMillisecondCounterHiRes() / 1000.0;
     startTimerHz(60); // the meters' snap needs it
 }
@@ -380,6 +412,8 @@ void JungleEditor::timerCallback()
     const float catTo = catTarget();
     if (! juce::exactlyEqual(cat, catTo))
     {
+        if (cat <= 0.0f) // coming up: somewhere new
+            catX = juce::jmap(juce::Random::getSystemRandom().nextFloat(), kCatLeft, kCatRight);
         const float next = cat + (catTo - cat) * (float) (1.0 - std::exp(-(tick - catTick) / kCatEase));
         cat = std::abs(next - catTo) < 0.002f ? catTo : next;
         repaint();
@@ -466,19 +500,6 @@ void JungleEditor::paintOverChildren(juce::Graphics& g)
     g.strokePath(lip, juce::PathStrokeType(rim, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     bar.removeFromTop(0.5f * rim); // the logo sits on the bowl below the rim
 
-    // The cat, in front of the bowl and behind the logo: it slides up from
-    // the window's bottom edge, hidden below it, as the circle reaches its
-    // largest.
-    if (cat > 0.0f && catImage.isValid())
-    {
-        const float h = kCatHeight * scale, cw = h * (float) catImage.getWidth() / (float) catImage.getHeight();
-        const float top = bar.getBottom() - cat * kCatShown * h;
-        juce::Graphics::ScopedSaveState keep(g);
-        g.setOpacity(1.0f);
-        g.setImageResamplingQuality(juce::Graphics::highResamplingQuality);
-        g.drawImage(catImage, { 0.5f * (w - cw), top, cw, h }, juce::RectanglePlacement::stretchToFit);
-    }
-
     // The logo as outlines, filled with the colour of the break under the
     // circle, sunk into the bowl: a white copy sits below it by a quarter of
     // the thickness of the O's bottom, showing as a white edge along the
@@ -535,6 +556,19 @@ void JungleEditor::paintOverChildren(juce::Graphics& g)
     g.fillPath(edge);
     g.setColour(logoColour);
     g.fillPath(text);
+
+    // The cat, over the bowl and the logo: it slides up from the window's
+    // bottom edge, hidden below it, as the circle reaches its largest, until
+    // its middle is on the edge, centred where it picked as it came up.
+    if (cat > 0.0f && catImage.isValid())
+    {
+        const float h = kCatHeight * scale, cw = h * (float) catImage.getWidth() / (float) catImage.getHeight();
+        const float top = (float) getHeight() - cat * kCatShown * h;
+        juce::Graphics::ScopedSaveState keep(g);
+        g.setOpacity(1.0f);
+        g.setImageResamplingQuality(juce::Graphics::highResamplingQuality);
+        g.drawImage(catImage, { catX * w - 0.5f * cw, top, cw, h }, juce::RectanglePlacement::stretchToFit);
+    }
 }
 
 void JungleEditor::resized()
