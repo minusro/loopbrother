@@ -32,8 +32,8 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
   on the loops' grid (counted from 1.1.1, `LoopEngine::kStepBeats`), its
   ramp ending on the step. Restarts, jumps and transport starts are
   immediate and take any waiting mix with them. A fine drag (Option) is the
-  exception: `setMix(..., immediate)` ramps at once. Mute (Command over the
-  plugin, any time) waits for the 16th the same way, both ways.
+  exception: `setMix(..., immediate)` ramps at once. So is the mute (Command
+  over the plugin, any time): it acts at once, over the 5 ms ramp.
 - The mix is geometric: each break's share is the fraction of the selection
   circle (`jm::circleRadius(size)`: `jm::kPuckRadius` times the Circle Size
   parameter, 0.25 up to the circle covering half the pad) inside its

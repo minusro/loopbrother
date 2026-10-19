@@ -479,29 +479,24 @@ int main()
         CHECK(ok, "immediate mix complete one fade after the request");
     }
 
-    // 29. Mute waits for the next 16th, its ramp ending on the step; so does unmute.
+    // 29. Mute and unmute act at once, mid-step, over one fade; the loop runs
+    //     on underneath, so it comes back in place.
     {
         Fixture f;
         play(f.e, 0.0, 1100);
-        f.e.setMuted(true);
-        auto out = play(f.e, 1.1, 400);     // to beat 1.5
-        bool before = true, silent = true;
-        for (int i = 0; i < 150 - kFade; ++i) before &= near(out[i], f.A(1100 + i));
-        for (int i = 150; i < 400; ++i)      silent &= near(out[i], 0.0f);
-        CHECK(before, "plays on until the ramp before the next step");
-        CHECK(silent, "muted from the step at beat 1.25");
-        f.e.setMuted(false);                // at beat 1.5, on a step: lands there
-        play(f.e, 1.5, 10);
-        f.e.setMuted(true);                 // and again, at beat 1.51
-        f.e.setMuted(false);                // changed its mind before the step: nothing waits
-        out = play(f.e, 1.51, 400);
+        f.e.setMuted(true);                 // at beat 1.1, between steps
+        auto out = play(f.e, 1.1, 400);
+        bool silent = true;
+        for (int i = kFade + 1; i < 400; ++i) silent &= near(out[i], 0.0f);
+        CHECK(silent, "muted one fade after the request, not on the next step");
+        f.e.setMuted(false);                // at beat 1.5
+        out = play(f.e, 1.5, 400);
         bool back = true;
-        for (int i = 0; i < 400; ++i) back &= near(out[i], f.A(1510 + i));
-        CHECK(back, "unmuted on the step, a cancelled mute leaves it playing");
+        for (int i = kFade + 1; i < 400; ++i) back &= near(out[i], f.A(1500 + i));
+        CHECK(back, "unmuted one fade after, the loop where it would have been");
     }
 
-    // 30. Muted while stopped: a start is silent from its first sample; a
-    //     note-on restart takes a waiting unmute at once.
+    // 30. Muted while stopped: a start is silent from its first sample.
     {
         Fixture f;
         f.e.setMuted(true);
@@ -509,12 +504,6 @@ int main()
         bool silent = true;
         for (float v : out) silent &= near(v, 0.0f);
         CHECK(silent, "start while muted is silent");
-        f.e.setMuted(false);
-        f.e.restart();                      // at beat 0.6
-        out = play(f.e, 0.6, 400);
-        bool ok = true;
-        for (int i = kFade; i < 400; ++i) ok &= near(out[i], f.A(i));
-        CHECK(ok, "restart takes the waiting unmute");
     }
 
     if (failures == 0) std::printf("all engine tests passed\n");

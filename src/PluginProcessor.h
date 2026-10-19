@@ -40,8 +40,8 @@ public:
     // waiting for the next 16th.
     void setFineDrag(bool fine) { fineDrag_.store(fine, std::memory_order_relaxed); }
 
-    // Command held over the plugin mutes the instrument, on the next 16th
-    // (and unmutes on the next 16th once let go). Auditions included.
+    // Command held over the plugin mutes the instrument at once (and unmutes
+    // it as soon as it is let go). Auditions included.
     void setMuteHeld(bool held) { muteHeld_.store(held, std::memory_order_relaxed); }
 
     // The Circle Size parameter range: skewed so size 1 sits in the middle.

@@ -43,7 +43,7 @@ struct MixVoice { int loop; float weight; };
 // milliseconds before the step so the change is complete as the step lands.
 // A restart, a jump or a transport start takes the waiting mix at once. An
 // immediate mix (a fine drag) skips the wait and ramps from where it is.
-// Muting waits for the step crossing the same way, and so does unmuting.
+// Muting and unmuting are immediate too, over the same short ramp.
 //
 // Per block: setMix(), beginBlock() with the host transport, then render() in
 // segments, calling restart() between segments where a note-on lands.
@@ -60,7 +60,6 @@ public:
         numTaps_     = 0;
         playing_     = false;
         master_      = masterTarget_ = muted_ ? 0.0f : 1.0f;
-        hasPendingMute_ = false;
     }
 
     void setLoops(const Loop* loops, int count)
@@ -108,21 +107,13 @@ public:
     }
     void select(int index) { const MixVoice v { index, 1.0f }; setMix(&v, 1); }
 
-    // Silence everything (or bring it back). While playing, the change lands
-    // on the next step crossing like a mix; while stopped it applies at once.
+    // Silence everything (or bring it back) at once: over the usual ramp
+    // while playing, outright while stopped so a start begins muted.
     void setMuted(bool muted)
     {
-        if (! playing_)
-        {
-            muted_ = muted;
-            master_ = masterTarget_ = muted ? 0.0f : 1.0f;
-            hasPendingMute_ = false;
-            return;
-        }
-        if (muted == muted_) { hasPendingMute_ = false; return; }
-        if (hasPendingMute_) return;
-        hasPendingMute_ = true;
-        muteAt_ = nextStepCrossing();
+        muted_ = muted;
+        masterTarget_ = muted ? 0.0f : 1.0f;
+        if (! playing_) master_ = masterTarget_;
     }
     bool muted() const { return muted_; }
 
@@ -190,7 +181,6 @@ public:
         for (int i = 0; i < n; ++i)
         {
             if (hasPending_ && beat_ >= switchAt_) { takePendingMix(); applyMix(); }
-            if (hasPendingMute_ && beat_ >= muteAt_) takeMute();
             if (master_ < masterTarget_)      master_ = std::min(masterTarget_, master_ + 1.0f / fadeSamples_);
             else if (master_ > masterTarget_) master_ = std::max(masterTarget_, master_ - 1.0f / fadeSamples_);
             float l = 0.0f, r = 0.0f;
@@ -293,26 +283,14 @@ private:
         return same;
     }
 
-    // Whatever waits for the next step crossing, taken now (a start, restart
-    // or jump is a step crossing).
-    void takePending()
-    {
-        if (hasPendingMute_) takeMute();
-        takePendingMix();
-    }
+    // The waiting mix, taken now (a start, restart or jump is a step crossing).
+    void takePending() { takePendingMix(); }
     void takePendingMix()
     {
         if (! hasPending_) return;
         std::copy(pending_, pending_ + pendingCount_, mix_);
         mixCount_   = pendingCount_;
         hasPending_ = false;
-    }
-
-    void takeMute()
-    {
-        muted_ = ! muted_;
-        masterTarget_ = muted_ ? 0.0f : 1.0f;
-        hasPendingMute_ = false;
     }
 
     // When a mix asked for now should start ramping: one fade time before the
@@ -365,8 +343,6 @@ private:
     bool     hasPending_  = false;
     double   switchAt_    = 0.0;    // beat at which the waiting mix starts its ramp
     bool     muted_       = false;
-    bool     hasPendingMute_ = false; // a mute or unmute waiting for the next step crossing
-    double   muteAt_      = 0.0;
     float    master_      = 1.0f, masterTarget_ = 1.0f; // the mute's level and where it ramps to
     double   sr_          = 48000.0;
     double   bpm_         = kLoopBpm;

@@ -310,9 +310,9 @@ int main(int argc, char** argv)
         }
 
         // Command over the plugin (the editor's part, faked here): silent
-        // from the next 16th (under 9 blocks away at 162 BPM), playing again
-        // from the next 16th once let go. With the clock running, and with it
-        // stopped during an audition (the pad held).
+        // from the next block, playing again from the next block once let go.
+        // With the clock running, and with it stopped during an audition (the
+        // pad held).
         auto loudest = [&](int blocks)
         {
             float peak = 0.0f;
@@ -331,10 +331,10 @@ int main(int argc, char** argv)
             loudest(10);
             const float before = loudest(10);
             proc.setMuteHeld(true);
-            loudest(10);
+            loudest(1);                     // the 5 ms fade
             const float muted = loudest(20);
             proc.setMuteHeld(false);
-            loudest(10);
+            loudest(1);
             const float back = loudest(20);
             std::printf("  %s: playing peak %.3f, Command held %.5f, let go %.3f\n",
                         running ? "clock running" : "clock stopped, pad held", before, muted, back);
