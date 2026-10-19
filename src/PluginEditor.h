@@ -4,8 +4,9 @@
 
 namespace jmui {
 
-// A warm off-white pad (cream) with white cell borders over a slightly
-// deeper status bar (biscuit), the breaks in the Froot Loops pastels
+// A warm off-white pad (cream) with white cell borders inside a cereal
+// bowl: the status bar is its front (biscuit, a shade deeper, with a white
+// rim), the breaks in the Froot Loops pastels
 // (Cereal.h) and the logo in the colour of the one under the circle, sunk in
 // with a white lower edge. Dark brown is for any other lettering.
 const juce::Colour white  { 0xffffffff };
@@ -29,6 +30,19 @@ public:
 private:
     juce::MouseCursor saved;
 };
+
+// The status bar is the front of a cereal bowl: its top edge is the bowl's
+// near lip, an arc of an ellipse lowest at the middle of the window and
+// rising kBowlRise (at 480 px) towards its sides, over the pad's lower
+// corners. How far above the bar's top the lip is at x, for a window w wide
+// and a pad scaled by scale:
+constexpr float kBowlRise = 22.0f, kBowlReach = 0.6f; // the ellipse's half-width, in window widths
+inline float bowlLip(float x, float w, float scale)
+{
+    const float a = kBowlReach * w, u = (x - 0.5f * w) / a, end = 0.5f / kBowlReach;
+    const float b = kBowlRise * scale / (1.0f - std::sqrt(1.0f - end * end)); // so it rises kBowlRise at the sides
+    return b * (1.0f - std::sqrt(juce::jmax(0.0f, 1.0f - u * u)));
+}
 
 // The XY pad: every break sits at its similarity-layout position and owns the
 // patch of pad nearest to it. The selection circle mixes every break whose
@@ -72,6 +86,11 @@ public:
     void mouseDrag(const juce::MouseEvent&) override;
     void mouseUp(const juce::MouseEvent&) override;
     bool dragging() const { return isDragging; }
+    // Not where the bowl's lip covers it: a press there is on the bowl.
+    bool hitTest(int x, int y) override
+    {
+        return (float) y < (float) getHeight() - bowlLip((float) x, (float) getWidth(), (float) getWidth() / 480.0f);
+    }
     void setRingStyle(const RingStyle& s) { style = &s; repaint(); } // for trying looks out
 
 private:
@@ -191,6 +210,7 @@ public:
     explicit JungleEditor(JungleProcessor&);
     ~JungleEditor() override;
     void paint(juce::Graphics&) override;
+    void paintOverChildren(juce::Graphics&) override; // the bowl's front and the logo, over the pad
     void resized() override;
     void modifierKeysChanged(const juce::ModifierKeys&) override { updateMute(); }
     // For trying fonts out: the logo in this font and spacing (its height is

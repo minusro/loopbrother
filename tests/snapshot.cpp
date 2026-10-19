@@ -448,6 +448,16 @@ int main(int argc, char** argv)
             proc.setPadHeld(false);
         }
 
+        // The bowl's lip covers the pad's lower corners: a press there is on
+        // the bowl, not the pad; just above the lip's lowest point it's the pad.
+        {
+            const int h = pad->getHeight(), wi = pad->getWidth();
+            const bool corner = pad->hitTest(3, h - 3), middle = pad->hitTest(wi / 2, h - 3);
+            std::printf("  bowl lip: a press in the lower corner reaches the pad: %s; at the middle: %s\n",
+                        corner ? "yes" : "no", middle ? "yes" : "no");
+            ok &= ! corner && middle;
+        }
+
         // The logo's colour fade keeps its saturation: halfway from pastel
         // red to pastel blue round the hue wheel, where an RGB mix greys.
         {

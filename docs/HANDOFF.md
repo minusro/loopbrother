@@ -1,7 +1,6 @@
 # LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-19 — v0.9.4, a biscuit status bar so the logo's white
-edge shows. v0.9.1 is
+Updated: 2026-10-19 — v0.9.5, the status bar is the front of a cereal bowl. v0.9.1 is
 released (github.com/minusro/loopbrother/releases).
 
 ## Where things stand
@@ -86,7 +85,13 @@ bundle ID are unchanged, so saved sessions find it.
   to 1440 px wide at that ratio (default 480x524; the
   width is saved in the plugin state and everything scales with it): a
   cream pad (#fffaf6) with white cell borders (2 px at 480), and a status
-  bar a shade deeper (biscuit, #f5ede4) so the logo's white edge shows. Every size goes through
+  bar shaped as the front of a cereal bowl holding the pad: its top edge is
+  the bowl's near lip, an arc of an ellipse lowest mid-window and rising
+  22 px (at 480) towards the sides, over the pad's lower corners, with a
+  white rim and a soft shade under it (`jmui::bowlLip`, drawn over the pad
+  in `paintOverChildren`). Presses under the lip are on the bowl, not the
+  pad (`XYPad::hitTest`). The bowl's front is biscuit (#f5ede4), a shade
+  deeper than the pad, so the logo's white edge shows. Every size goes through
   `jmui::WindowConstrainer`:
   - **Edges:** an edge drag follows that edge.
   - **Corners:** a corner drag follows the corner's further-out side, so

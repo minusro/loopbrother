@@ -434,13 +434,40 @@ JungleEditor::~JungleEditor()
     proc.setMuteHeld(false);
 }
 
-void JungleEditor::paint(juce::Graphics& g)
+void JungleEditor::paint(juce::Graphics& g) { g.fillAll(cream); }
+
+void JungleEditor::paintOverChildren(juce::Graphics& g)
 {
-    const float scale = (float) getWidth() / kDesignSize;
-    const auto bar = statusBar().toFloat();
-    g.fillAll(cream);
-    g.setColour(biscuit); // a shade under the pad, so the logo's white edge shows
-    g.fillRect(bar);
+    const float scale = (float) getWidth() / kDesignSize, w = (float) getWidth();
+    auto bar = statusBar().toFloat();
+
+    // The bowl's front: its lip arcs up over the pad's lower corners. Biscuit,
+    // a shade under the pad so the logo's white edge shows, turning a touch
+    // deeper towards the foot, as a curved bowl takes the light.
+    juce::Path lip, front;
+    for (int i = 0; i <= 96; ++i)
+    {
+        const float x = w * (float) i / 96.0f;
+        const juce::Point<float> p { x, bar.getY() - bowlLip(x, w, scale) };
+        if (i == 0) lip.startNewSubPath(p);
+        else        lip.lineTo(p);
+    }
+    front = lip;
+    front.lineTo(w, bar.getBottom());
+    front.lineTo(0.0f, bar.getBottom());
+    front.closeSubPath();
+    g.setGradientFill(juce::ColourGradient(biscuit, 0.0f, bar.getY(), biscuit.darker(0.025f), 0.0f, bar.getBottom(), false));
+    g.fillPath(front);
+    // The rim: a white band along the lip, its rounded top catching the
+    // light, with a soft shade just under it where the bowl turns down.
+    const float rim = 3.5f * scale;
+    auto under = lip;
+    under.applyTransform(juce::AffineTransform::translation(0.0f, 0.5f * rim + 0.8f * scale));
+    g.setColour(biscuit.darker(0.12f).withAlpha(0.6f));
+    g.strokePath(under, juce::PathStrokeType(1.2f * scale));
+    g.setColour(white);
+    g.strokePath(lip, juce::PathStrokeType(rim, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    bar.removeFromTop(0.5f * rim); // the logo sits on the bowl below the rim
 
     // The logo as outlines, filled with the colour of the break under the
     // circle, sunk into the bar: a white copy sits below it by a quarter of
