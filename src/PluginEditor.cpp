@@ -8,7 +8,10 @@ XYPad::XYPad(JungleProcessor& p) : proc(p), lib(p.library())
     px = p.apvts.getParameter("x");
     py = p.apvts.getParameter("y");
     setMouseCursor(juce::MouseCursor::CrosshairCursor);
+    addMouseListener(&hideCursor, false);
 }
+
+XYPad::~XYPad() { removeMouseListener(&hideCursor); }
 
 juce::Point<float> XYPad::toScreen(juce::Point<float> u) const
 {
@@ -23,96 +26,95 @@ juce::Point<float> XYPad::toUnit(juce::Point<float> s) const
 
 void XYPad::resized()
 {
-    buildCells();
-    buildHighlight();
-}
-
-// Precompute which break owns each pixel and draw the cell borders once.
-void XYPad::buildCells()
-{
-    mapSize = juce::jmax(1, juce::jmin(getWidth(), getHeight()));
-    cellOf.assign((size_t) (mapSize * mapSize), 0);
-    for (int y = 0; y < mapSize; ++y)
-        for (int x = 0; x < mapSize; ++x)
-            cellOf[(size_t) (y * mapSize + x)] =
-                lib.nearest({ (x + 0.5f) / (float) mapSize, 1.0f - (y + 0.5f) / (float) mapSize });
-
-    cells = juce::Image(juce::Image::ARGB, mapSize, mapSize, true);
-    juce::Image::BitmapData bits(cells, juce::Image::BitmapData::writeOnly);
-    for (int y = 0; y < mapSize; ++y)
-        for (int x = 0; x < mapSize; ++x)
+    cellPaths.clear();
+    for (const auto& poly : lib.cells())
+    {
+        juce::Path path;
+        for (size_t i = 0; i < poly.size(); ++i)
         {
-            const int c = cellOf[(size_t) (y * mapSize + x)];
-            const bool edge = (x + 1 < mapSize && cellOf[(size_t) (y * mapSize + x + 1)] != c)
-                           || (y + 1 < mapSize && cellOf[(size_t) ((y + 1) * mapSize + x)] != c);
-            bits.setPixelColour(x, y, edge ? dark : panel);
+            const auto s = toScreen({ (float) poly[i].x, (float) poly[i].y });
+            if (i == 0) path.startNewSubPath(s);
+            else        path.lineTo(s);
         }
-}
-
-void XYPad::buildHighlight()
-{
-    if (mapSize <= 0 || cellOf.empty()) return;
-    highlight = juce::Image(juce::Image::ARGB, mapSize, mapSize, true);
-    if (selected < 0) return;
-    juce::Image::BitmapData bits(highlight, juce::Image::BitmapData::writeOnly);
-    const auto fill = accent.withAlpha(0.10f);
-    for (int y = 0; y < mapSize; ++y)
-        for (int x = 0; x < mapSize; ++x)
-            if (cellOf[(size_t) (y * mapSize + x)] == selected)
-                bits.setPixelColour(x, y, fill);
+        path.closeSubPath();
+        cellPaths.push_back(std::move(path));
+    }
 }
 
 void XYPad::refresh()
 {
+    bool changed = false;
     const juce::Point<float> u { px->getValue(), py->getValue() };
-    const int sel = lib.size() > 0 ? lib.nearest(u) : -1;
-    const int snd = proc.uiSounding();
-    const double ph = proc.uiPhase();
-    const bool changed = u != puck || sel != selected || snd != sounding
-                      || (snd >= 0 && std::abs(ph - phase) > 1e-4);
-    puck = u;
-    sounding = snd;
-    phase = ph;
-    if (sel != selected) { selected = sel; buildHighlight(); }
+    if (u != puck)
+    {
+        puck = u;
+        mixCount = lib.pad().mix({ u.x, u.y }, jm::kPuckRadius, mix, kMaxMix);
+        changed = true;
+    }
+    const int n = juce::jmin(proc.uiCount(), kMaxMix);
+    changed |= n != voiceCount;
+    for (int i = 0; i < n; ++i)
+    {
+        const Voice v { proc.uiLoop(i), proc.uiGain(i), proc.uiPhase(i) };
+        changed |= v.loop != voices[i].loop || std::abs(v.gain - voices[i].gain) > 1e-3f
+                || std::abs(v.phase - voices[i].phase) > 1e-4;
+        voices[i] = v;
+    }
+    voiceCount = n;
     if (changed) repaint();
 }
 
 void XYPad::paint(juce::Graphics& g)
 {
     const auto b = getLocalBounds().toFloat();
-    g.setImageResamplingQuality(juce::Graphics::lowResamplingQuality);
-    if (cells.isValid())     g.drawImage(cells, b);
-    if (highlight.isValid()) g.drawImage(highlight, b);
+    g.setColour(panel);
+    g.fillRect(b);
 
-    // breaks: dim dots, the selected one brighter
+    // cells under the circle, tinted by their share of the mix
+    for (int m = 0; m < mixCount; ++m)
+        if (mix[m].loop < (int) cellPaths.size())
+        {
+            g.setColour(accent.withAlpha(0.04f + 0.18f * mix[m].weight));
+            g.fillPath(cellPaths[(size_t) mix[m].loop]);
+        }
+    g.setColour(dark);
+    for (const auto& path : cellPaths)
+        g.strokePath(path, juce::PathStrokeType(1.0f));
+
+    // breaks: dim dots, the ones in the mix brighter
     for (int i = 0; i < lib.size(); ++i)
     {
+        bool inMix = false;
+        for (int m = 0; m < mixCount; ++m) inMix |= mix[m].loop == i;
         const auto c = toScreen(lib.entry(i).pos);
-        const float r = i == selected ? 3.5f : 2.0f;
-        g.setColour(i == selected ? light : dim);
+        const float r = inMix ? 3.0f : 2.0f;
+        g.setColour(inMix ? light : dim);
         g.fillEllipse(c.x - r, c.y - r, 2 * r, 2 * r);
     }
 
-    // the break being heard, with a ring tracing its playhead through the loop
-    if (sounding >= 0 && sounding < lib.size())
+    // the breaks being heard, each with a ring tracing its playhead
+    for (int i = 0; i < voiceCount; ++i)
     {
-        const auto c = toScreen(lib.entry(sounding).pos);
-        const float rr = 9.0f;
-        g.setColour(accent);
+        const auto& v = voices[i];
+        if (v.loop < 0 || v.loop >= lib.size()) continue;
+        const auto c = toScreen(lib.entry(v.loop).pos);
+        const float rr = 9.0f, a = 0.35f + 0.65f * juce::jlimit(0.0f, 1.0f, v.gain);
+        g.setColour(accent.withAlpha(a));
         g.fillEllipse(c.x - 4.5f, c.y - 4.5f, 9.0f, 9.0f);
         g.setColour(dark);
         g.drawEllipse(c.x - rr, c.y - rr, 2 * rr, 2 * rr, 2.0f);
         juce::Path arc;
         arc.addCentredArc(c.x, c.y, rr, rr, 0.0f, 0.0f,
-                          (float) (phase * juce::MathConstants<double>::twoPi), true);
-        g.setColour(accent);
+                          (float) (v.phase * juce::MathConstants<double>::twoPi), true);
+        g.setColour(accent.withAlpha(a));
         g.strokePath(arc, juce::PathStrokeType(2.0f));
     }
 
-    // the puck
+    // the selection circle, drawn at the radius that does the mixing
     const auto p = toScreen(puck);
+    const float pr = (float) jm::kPuckRadius * b.getWidth();
     g.setColour(ink);
-    g.drawEllipse(p.x - 11.0f, p.y - 11.0f, 22.0f, 22.0f, 1.5f);
+    g.drawEllipse(p.x - pr, p.y - pr, 2 * pr, 2 * pr, 1.5f);
     g.fillEllipse(p.x - 1.5f, p.y - 1.5f, 3.0f, 3.0f);
 
     g.setColour(line);

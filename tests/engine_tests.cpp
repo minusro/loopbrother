@@ -1,8 +1,10 @@
 // Plain C++ engine tests, no JUCE:
 //   g++ -std=c++17 -O2 -I src tests/engine_tests.cpp -o /tmp/jm_tests && /tmp/jm_tests
 #include "../src/engine/LoopEngine.h"
+#include "../src/engine/PadGeometry.h"
 #include <cmath>
 #include <cstdio>
+#include <random>
 #include <vector>
 
 static int failures = 0;
@@ -26,6 +28,7 @@ struct Fixture {
         loops[1] = { b.data(), b.data(), 8000, 2 };
         e.prepare(kSr);
         e.setLoops(loops, 2);
+        e.select(0);
     }
     float A(long k) const { return a[(size_t) (((k % 4000) + 4000) % 4000)]; }
     float B(long k) const { return b[(size_t) (((k % 8000) + 8000) % 8000)]; }
@@ -130,7 +133,8 @@ int main()
         bool ok = true;
         for (int i = kFade; i < 2000; ++i) ok &= near(L[i], f.B(3000 + i));
         CHECK(ok, "switch at beat 3 lands on beat 3 of the 2-bar loop");
-        CHECK(f.e.sounding() == 1, "the new loop is the one sounding");
+        int loop[4]; float gain[4]; double phase[4];
+        CHECK(f.e.sounding(loop, gain, phase, 4) == 1 && loop[0] == 1, "the new loop is the one sounding");
     }
 
     // 8. A host jump (loop region) crossfades to the new position.
@@ -174,6 +178,7 @@ int main()
         jm::LoopEngine e;
         e.prepare(48000.0);
         e.setLoops(&lp, 1);
+        e.select(0);
         std::vector<float> L(37), R(37);
         double beat = 0.0;
         const double bpm = 174.0;
@@ -184,7 +189,120 @@ int main()
             beat += 37 * bpm / 60.0 / 48000.0;
         }
         const double expect = std::fmod(beat, 4.0) / 4.0;
-        CHECK(std::abs(e.phase() - expect) < 1e-9, "phase locked to the host beat after 100k blocks");
+        int loop; float gain; double phase = -1.0;
+        e.sounding(&loop, &gain, &phase, 1);
+        CHECK(std::abs(phase - expect) < 1e-9, "phase locked to the host beat after 100k blocks");
+    }
+
+    // 12. A mix plays its loops together at their shares, all phase-locked.
+    {
+        Fixture f;
+        const jm::MixVoice mix[2] = { { 0, 0.5f }, { 1, 0.5f } };
+        f.e.setMix(mix, 2);
+        auto out = play(f.e, 0.0, 9000);
+        bool ok = true;
+        for (int i = 0; i < 9000; ++i) ok &= near(out[i], 0.5f * f.A(i) + 0.5f * f.B(i));
+        CHECK(ok, "half-and-half mix of a 1-bar and a 2-bar loop from bar 1");
+    }
+
+    // 13. Changing the shares ramps over the fade time, then holds the new mix.
+    {
+        Fixture f;
+        const jm::MixVoice mix[2] = { { 0, 0.5f }, { 1, 0.5f } };
+        f.e.setMix(mix, 2);
+        play(f.e, 0.0, 1000);
+        const jm::MixVoice next[2] = { { 0, 0.8f }, { 1, 0.2f } };
+        f.e.setMix(next, 2);
+        auto out = play(f.e, 1.0, 1000);
+        bool ok = true;
+        for (int i = kFade; i < 1000; ++i) ok &= near(out[i], 0.8f * f.A(1000 + i) + 0.2f * f.B(1000 + i));
+        CHECK(ok, "new shares reached after the ramp");
+        CHECK(! near(out[0], 0.8f * f.A(1000) + 0.2f * f.B(1000)) || near(f.A(1000), f.B(1000)),
+              "shares ramp rather than jump");
+    }
+
+    // 14. A note-on restarts every loop in the mix.
+    {
+        Fixture f;
+        const jm::MixVoice mix[2] = { { 0, 0.25f }, { 1, 0.75f } };
+        f.e.setMix(mix, 2);
+        std::vector<float> L(3000, 0.0f), R(3000, 0.0f);
+        f.e.beginBlock(true, 0.0, 60.0);
+        f.e.render(L.data(), R.data(), 1700);
+        f.e.restart();
+        f.e.render(L.data() + 1700, R.data() + 1700, 1300);
+        bool ok = true;
+        for (int k = kFade; k < 1300; ++k) ok &= near(L[1700 + k], 0.25f * f.A(k) + 0.75f * f.B(k));
+        CHECK(ok, "note-on restarts the whole mix at 1.1.1");
+    }
+
+    // 15. Circle/polygon areas.
+    {
+        const double r = 0.1, pi = std::acos(-1.0);
+        const jm::Poly big { { -1, -1 }, { 1, -1 }, { 1, 1 }, { -1, 1 } };
+        const jm::Poly small { { -0.05, -0.05 }, { 0.05, -0.05 }, { 0.05, 0.05 }, { -0.05, 0.05 } };
+        const jm::Poly half { { 0, -1 }, { 1, -1 }, { 1, 1 }, { 0, 1 } };
+        CHECK(std::abs(jm::circlePolygonArea({ 0, 0 }, r, big) - pi * r * r) < 1e-12, "circle inside a polygon: whole disc");
+        CHECK(std::abs(jm::circlePolygonArea({ 0, 0 }, r, small) - 0.01) < 1e-12, "polygon inside a circle: whole polygon");
+        CHECK(std::abs(jm::circlePolygonArea({ 0, 0 }, r, half) - pi * r * r / 2) < 1e-12, "half-plane: half the disc");
+    }
+
+    // 16. Overlap weights: one cell, an even split, a four-way corner, the pad edge.
+    {
+        jm::PadMap two, four;
+        two.setSites({ { 0.25, 0.5 }, { 0.75, 0.5 } });
+        four.setSites({ { 0.25, 0.25 }, { 0.75, 0.25 }, { 0.25, 0.75 }, { 0.75, 0.75 } });
+        jm::MixVoice m[8];
+        int n = two.mix({ 0.25, 0.5 }, jm::kPuckRadius, m, 8);
+        CHECK(n == 1 && m[0].loop == 0 && m[0].weight == 1.0f, "circle inside one cell: that break alone");
+        n = two.mix({ 0.5, 0.5 }, jm::kPuckRadius, m, 8);
+        CHECK(n == 2 && std::abs(m[0].weight - 0.5f) < 1e-6f && std::abs(m[1].weight - 0.5f) < 1e-6f,
+              "circle on the border: an even split");
+        n = four.mix({ 0.5, 0.5 }, jm::kPuckRadius, m, 8);
+        bool quarter = n == 4;
+        for (int k = 0; k < n; ++k) quarter &= std::abs(m[k].weight - 0.25f) < 1e-6f;
+        CHECK(quarter, "circle on a four-cell corner: a quarter each");
+        n = two.mix({ 0.5, 0.0 }, jm::kPuckRadius, m, 8);
+        CHECK(n == 2 && std::abs(m[0].weight - 0.5f) < 1e-6f, "circle hanging over the pad edge: still an even split");
+    }
+
+    // 17. Random pads: weights add up to 1 and match a Monte Carlo area count.
+    {
+        std::mt19937 rng(7);
+        std::uniform_real_distribution<double> u(0.0, 1.0);
+        std::vector<jm::Pt> sites;
+        for (int i = 0; i < 97; ++i) sites.push_back({ u(rng), u(rng) });
+        jm::PadMap pad;
+        pad.setSites(sites);
+        bool sums = true, matches = true;
+        for (int trial = 0; trial < 200; ++trial)
+        {
+            const jm::Pt c { u(rng), u(rng) };
+            jm::MixVoice m[8];
+            const int n = pad.mix(c, jm::kPuckRadius, m, 8);
+            float total = 0.0f;
+            for (int k = 0; k < n; ++k) total += m[k].weight;
+            sums &= std::abs(total - 1.0f) < 1e-6f;
+            if (trial % 20 == 0) // area shares by sampling the disc
+            {
+                std::vector<int> hits(sites.size(), 0);
+                int inside = 0;
+                for (int s = 0; s < 40000; ++s)
+                {
+                    const double x = c.x + jm::kPuckRadius * (2 * u(rng) - 1), y = c.y + jm::kPuckRadius * (2 * u(rng) - 1);
+                    if (std::hypot(x - c.x, y - c.y) > jm::kPuckRadius) continue;
+                    ++inside;
+                    size_t best = 0;
+                    for (size_t i = 1; i < sites.size(); ++i)
+                        if (std::hypot(x - sites[i].x, y - sites[i].y) < std::hypot(x - sites[best].x, y - sites[best].y)) best = i;
+                    ++hits[best];
+                }
+                for (int k = 0; k < n; ++k)
+                    matches &= std::abs(m[k].weight - (float) hits[(size_t) m[k].loop] / (float) inside) < 0.02f;
+            }
+        }
+        CHECK(sums, "mix weights add up to 1");
+        CHECK(matches, "mix weights match the sampled area shares");
     }
 
     if (failures == 0) std::printf("all engine tests passed\n");

@@ -31,10 +31,13 @@ public:
     juce::AudioProcessorValueTreeState apvts;
     const LoopLibrary& library() const { return *library_; }
 
-    // For the editor, published every block: the loop being heard (-1 when
-    // silent) and how far through it the playhead is (0..1).
-    int    uiSounding() const { return uiSounding_.load(std::memory_order_relaxed); }
-    double uiPhase() const    { return uiPhase_.load(std::memory_order_relaxed); }
+    // For the editor, published every block: the loops being heard, their
+    // level and how far through each the playhead is (0..1).
+    static constexpr int kMaxMix = jm::LoopEngine::kMaxMix;
+    int    uiCount() const        { return uiCount_.load(std::memory_order_relaxed); }
+    int    uiLoop(int i) const    { return uiLoop_[i].load(std::memory_order_relaxed); }
+    float  uiGain(int i) const    { return uiGain_[i].load(std::memory_order_relaxed); }
+    double uiPhase(int i) const   { return uiPhase_[i].load(std::memory_order_relaxed); }
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout layout();
@@ -43,8 +46,15 @@ private:
     jm::LoopEngine engine_;
     double sr_ = 48000.0, freeBeat_ = 0.0;
 
-    std::atomic<int>    uiSounding_ { -1 };
-    std::atomic<double> uiPhase_ { 0.0 };
+    // the mix under the puck, recomputed when it moves
+    jm::MixVoice mix_[kMaxMix] {};
+    int   mixCount_ = 0;
+    float lastX_ = -1.0f, lastY_ = -1.0f;
+
+    std::atomic<int>    uiCount_ { 0 };
+    std::atomic<int>    uiLoop_[kMaxMix] {};
+    std::atomic<float>  uiGain_[kMaxMix] {};
+    std::atomic<double> uiPhase_[kMaxMix] {};
 
     std::atomic<float>* pX = nullptr;
     std::atomic<float>* pY = nullptr;
