@@ -169,7 +169,7 @@ public:
     static constexpr int kDesignSize  = 480;  // the pad width drawing dimensions are given at
     static constexpr int kTitleHeight = 44;   // the status bar, at kDesignSize
     static constexpr float kLogoHeight = 30.0f; // its lettering, at kDesignSize
-    static juce::String logo() { return juce::CharPointer_UTF8("L\xc3\x96\xc3\x96P BR\xc3\x96THER!"); }
+    static juce::String logo() { return juce::CharPointer_UTF8("L\xc3\x96\xc3\x96P BR\xc3\x96THER"); }
     static constexpr int kDefaultSize = JungleProcessor::kDefaultEditorSize, kMinSize = 240, kMaxSize = 1440;
     static constexpr double kRatio = (double) kDesignSize / (kDesignSize + kTitleHeight); // width / height
     static int heightFor(int width) { return juce::roundToInt(width / kRatio); }
@@ -179,6 +179,9 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
     void modifierKeysChanged(const juce::ModifierKeys&) override { updateMute(); }
+    // For trying fonts out: the logo in this font and spacing (its height is
+    // set to fit).
+    void setLogoFont(const juce::Font& f) { logoFont = f; repaint(); }
 
 private:
     void timerCallback() override { pad.refresh(); updateMute(); }
@@ -189,6 +192,7 @@ private:
     WindowConstrainer window { kRatio };
     XYPad pad;
     int side = kDefaultSize;                // the last width at the right ratio
+    std::optional<juce::Font> logoFont;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(JungleEditor)
 };

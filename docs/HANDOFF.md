@@ -1,6 +1,7 @@
 # LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-19 — v0.8.8, ripples only in the cells the drag crosses.
+Updated: 2026-10-19 — v0.8.9, the logo without its "!"; logo fonts in
+context (`docs/logo-mockups.png`).
 
 ## Where things stand
 
@@ -71,7 +72,7 @@ bundle ID are unchanged, so saved sessions find it.
     pad drag: Command is global on macOS, and Command-clicks in the host
     shouldn't mute it.
 - **Window**: the pad over the status bar (44 px at 480, the logo
-  "LÖÖP BRÖTHER!" 30 px high in it), resizable by the host window from 240
+  "LÖÖP BRÖTHER" 30 px high in it), resizable by the host window from 240
   to 1440 px wide at that ratio (default 480x524; the
   width is saved in the plugin state and everything scales with it): a
   cream pad (#fffaf6) with white cell borders (2 px at 480), a cream edge
@@ -248,11 +249,16 @@ bundle ID are unchanged, so saved sessions find it.
 
 ## Next ideas
 
-- Pick the logo font from `docs/logo-fonts.png`: 23 candidates, all free to
-  embed (OFL, Luckiest Guy Apache 2.0), downloaded from github.com/google/
-  fonts; render it again with `JM_LOGO_SHEET=docs/logo-fonts.png
-  JM_LOGO_FONTS=<dir of .ttf>`. The chosen one gets compiled in (binary
-  data, with its licence file), so it looks the same on Windows.
+- Pick the logo font. `docs/logo-fonts.png` has 24 candidates on the
+  status bar, all free to embed (OFL, Luckiest Guy Apache 2.0), from
+  github.com/google/fonts (`JM_LOGO_SHEET=docs/logo-fonts.png
+  JM_LOGO_FONTS=<dir of .ttf>`). The shortlist is shown in the whole UI in
+  `docs/logo-mockups.png` (`JM_LOGO_FONT=<file> JM_LOGO_KERN=<spacing>` on a
+  snapshot): Bagel Fat One and Cherry Bomb One at spacing 0, Sniglet
+  Regular at +0.03, and the current one. Bagel and Cherry Bomb draw smaller
+  at the same height and want scaling up to match. The chosen font gets
+  compiled in (binary data, with its licence file), so it looks the same on
+  Windows.
 
 - `docs/TODO.md` holds planned work (the 2026-10-20 list is done).
 

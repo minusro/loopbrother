@@ -377,8 +377,9 @@ void JungleEditor::paint(juce::Graphics& g)
     g.setColour(cream); // the pad's lower edge
     g.fillRect(bar.withHeight(juce::jmax(1.0f, (float) getWidth() / kDesignSize)));
     g.setColour(brown);
-    g.setFont(juce::Font(juce::FontOptions(kLogoHeight * (float) getWidth() / kDesignSize, juce::Font::bold)
-                             .withKerningFactor(0.14f)));
+    const float logoHeight = kLogoHeight * (float) getWidth() / kDesignSize;
+    g.setFont(logoFont ? logoFont->withHeight(logoHeight)
+                       : juce::Font(juce::FontOptions(logoHeight, juce::Font::bold).withKerningFactor(0.14f)));
     g.drawText(logo(), bar,
                juce::Justification::centred, false);
 }
