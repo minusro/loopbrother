@@ -1,26 +1,55 @@
+diff --git a/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST3.cpp b/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST3.cpp
+index aa6b9800b..af71af0f7 100644
 --- a/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST3.cpp
 +++ b/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST3.cpp
-@@ -2012,14 +2012,17 @@
+@@ -2010,38 +2010,18 @@ private:
+ 
+                         if (! approximatelyEqual (aspectRatio, 0.0f))
                          {
-                             bool adjustWidth = (width / height > aspectRatio);
- 
+-                            bool adjustWidth = (width / height > aspectRatio);
+-
 -                            if (detail::PluginUtilities::getHostType().type == PluginHostType::SteinbergCubase9)
-+                            // junglemassive patch: follow the side the host moved - an edge
-+                            // drag moves one, a corner drag both and the bigger change wins -
-+                            // rather than always fitting the ratio to the shorter side, which
-+                            // made dragging a single window edge outwards impossible.
-                             {
+-                            {
 -                                auto currentEditorBounds = editor->getBounds().toFloat();
-+                                const auto current = editor->getLocalBounds().toFloat();
-+                                const auto dw = std::abs (width  - current.getWidth());
-+                                const auto dh = std::abs (height - current.getHeight());
- 
+-
 -                                if (approximatelyEqual (currentEditorBounds.getWidth(), width) && ! approximatelyEqual (currentEditorBounds.getHeight(), height))
 -                                    adjustWidth = true;
 -                                else if (approximatelyEqual (currentEditorBounds.getHeight(), height) && ! approximatelyEqual (currentEditorBounds.getWidth(), width))
 -                                    adjustWidth = false;
-+                                if (! approximatelyEqual (dw, dh))
-+                                    adjustWidth = dh > dw;
-                             }
+-                            }
+-
+-                            if (adjustWidth)
+-                            {
+-                                width = height * aspectRatio;
+-
+-                                if (width > maxW || width < minW)
+-                                {
+-                                    width = jlimit (minW, maxW, width);
+-                                    height = width / aspectRatio;
+-                                }
+-                            }
+-                            else
+-                            {
+-                                height = width / aspectRatio;
+-
+-                                if (height > maxH || height < minH)
+-                                {
+-                                    height = jlimit (minH, maxH, height);
+-                                    width = height * aspectRatio;
+-                                }
+-                            }
++                            // junglemassive patch: let the editor's constrainer decide, told
++                            // which sides the host changed (one for an edge drag, both for a
++                            // corner), the way JUCE's own window border tells it. JUCE fitted
++                            // the ratio to the shorter side here, so an edge could only ever
++                            // be dragged inwards.
++                            const auto current = editor->getLocalBounds();
++                            auto r = Rectangle<int> (roundToInt (width), roundToInt (height));
++                            constrainer->checkBounds (r, current, {}, false, false,
++                                                      r.getHeight() != current.getHeight(),
++                                                      r.getWidth()  != current.getWidth());
++                            width  = (float) r.getWidth();
++                            height = (float) r.getHeight();
+                         }
  
-                             if (adjustWidth)
+                         auto constrainedRect = component->getLocalArea (editor, Rectangle<float> (width, height));

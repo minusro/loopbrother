@@ -1,5 +1,6 @@
 #include "LoopLibrary.h"
 #include "BreakData.h"
+#include "engine/Loudness.h"
 
 static const char* resourceNamed(const juce::String& file, int& size)
 {
@@ -71,6 +72,10 @@ LoopLibrary::LoopLibrary()
             e.audio.setSize(2, frames);
             reader->read(&e.audio, 0, frames, 0, true, true);
             if (reader->numChannels == 1) e.audio.copyFrom(1, 0, e.audio, 0, 0, frames);
+            // Level every break to the same loudness, as it sounds looping.
+            // In float, so the loud-peaked ones keep their transients above 0 dBFS.
+            e.audio.applyGain(jm::gainFor(jm::loopLoudness(e.audio.getReadPointer(0), e.audio.getReadPointer(1),
+                                                           frames, e.rate)));
             e.meter = meterOf(e.audio, e.rate);
             entries.push_back(std::move(e));
         }

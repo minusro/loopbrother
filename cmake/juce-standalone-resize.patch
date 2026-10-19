@@ -1,0 +1,37 @@
+diff --git a/modules/juce_gui_basics/layout/juce_BorderedComponentBoundsConstrainer.cpp b/modules/juce_gui_basics/layout/juce_BorderedComponentBoundsConstrainer.cpp
+index 6c530cad2..3a0760661 100644
+--- a/modules/juce_gui_basics/layout/juce_BorderedComponentBoundsConstrainer.cpp
++++ b/modules/juce_gui_basics/layout/juce_BorderedComponentBoundsConstrainer.cpp
+@@ -46,8 +46,11 @@ void BorderedComponentBoundsConstrainer::checkBounds (Rectangle<int>& bounds,
+     if (auto* decorated = getWrappedConstrainer())
+     {
+         const auto border = getAdditionalBorder();
+-        const auto requestedBounds = bounds;
+ 
++        // junglemassive patch: keep the window where the wrapped constrainer
++        // placed it. JUCE moved it back to pin the top-left, so with a fixed
++        // aspect ratio an edge drag grew the window right and down instead of
++        // keeping the opposite edge and growing the two others half each way.
+         border.subtractFrom (bounds);
+         decorated->checkBounds (bounds,
+                                 border.subtractedFrom (previousBounds),
+@@ -57,19 +60,6 @@ void BorderedComponentBoundsConstrainer::checkBounds (Rectangle<int>& bounds,
+                                 isStretchingBottom,
+                                 isStretchingRight);
+         border.addTo (bounds);
+-        bounds = bounds.withPosition (requestedBounds.getPosition());
+-
+-        if (isStretchingTop && ! isStretchingBottom)
+-            bounds = bounds.withBottomY (previousBounds.getBottom());
+-
+-        if (! isStretchingTop && isStretchingBottom)
+-            bounds = bounds.withY (previousBounds.getY());
+-
+-        if (isStretchingLeft && ! isStretchingRight)
+-            bounds = bounds.withRightX (previousBounds.getRight());
+-
+-        if (! isStretchingLeft && isStretchingRight)
+-            bounds = bounds.withX (previousBounds.getX());
+     }
+     else
+     {

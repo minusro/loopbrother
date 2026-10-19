@@ -21,6 +21,11 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
   a MIDI note is held with the transport stopped, a free run with no
   transport at all. The processor renders in segments between note events,
   so auditions start and stop on the note's sample.
+- Every break plays at the same loudness, `jm::kBreakLufs` (-15 LUFS,
+  BS.1770 measured round the loop, `src/engine/Loudness.h`). `LoopLibrary`
+  applies the gain at load, in float, so loud-peaked breaks may peak above
+  0 dBFS; the WAVs in `breaks/` stay as they are. The host check levels its
+  reference audio the same way.
 - Pad moves are quantized: while playing, a new mix waits for the next 16th
   on the loops' grid (counted from 1.1.1, `LoopEngine::kStepBeats`), its
   ramp ending on the step. Restarts, jumps and transport starts are
@@ -37,9 +42,15 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
 - Continuous parameters need an explicit `NormalisableRange`: the short
   `AudioParameterFloat(id, name, min, max, def)` constructor snaps to 0.01.
 - JUCE is cloned into the build tree and patched (`cmake/*.patch`, applied by
-  FetchContent's PATCH_COMMAND): `juce-vst3-resize.patch` makes VST3 hosts
-  resize the square window along the dragged side. Keep patches minimal and
-  say why in the patch; a new JUCE version means re-checking each one.
+  FetchContent's PATCH_COMMAND after resetting the clone). Both patches hand
+  window sizing to the editor's `jmui::SquareConstrainer`:
+  `juce-vst3-resize.patch` makes JUCE's VST3 wrapper ask it, saying which
+  sides the host changed, and `juce-standalone-resize.patch` keeps the
+  standalone window where it places it. The constrainer keeps a corner drag
+  a corner drag until the drag ends, so an off-diagonal drag can't flicker.
+  Keep patches minimal and say why in the patch; a new JUCE version means
+  re-checking each one. Regenerate a patch with `git diff` in
+  `build/_deps/juce-src`; the files there are CRLF and so are the patches.
 - No allocation, locking or logging in `processBlock`.
 - Parameter IDs (`x`, `y`) are part of saved state. Add new ones, never rename.
 - An engine change is not done until `jm_tests` passes; add a check when you
@@ -73,7 +84,7 @@ build/jm_host_check_artefacts/Release/jm_host_check \
 # Render the editor to a PNG (no window, no audio device) to check the UI
 cmake -B build -DJM_BUILD_SNAPSHOT=ON && cmake --build build --target jm_snapshot
 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png 0.5 0.5 [size]
-JM_RESIZE_CHECK=1 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png   # window frame + edge drags
+JM_RESIZE_CHECK=1 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png   # window frame, edge + corner drags
 
 # AU validation
 auval -v aumu Jngl Mnro
