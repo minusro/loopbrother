@@ -1,25 +1,15 @@
 #pragma once
 #include "PluginProcessor.h"
+#include "Cereal.h"
 
 namespace jmui {
 
-// White, with a deeper yellow for structure (cell borders, the status bar's
-// edge) and a forest green logo. The breaks' Ö rings are cereal pastels:
-// the Froot Loops colours in rainbow order, one per similarity cluster
-// (breaks/colours.json), so similar breaks share or neighbour a colour.
+// White surfaces with light grey structure (cell borders), forest green for
+// the logo and the status bar's edge, and the breaks in the Froot Loops
+// pastels (Cereal.h).
 const juce::Colour white  { 0xffffffff };
-const juce::Colour shade  { 0xffe0a800 };
+const juce::Colour grey   { 0xffdcdcdc };
 const juce::Colour forest { 0xff2e7d32 };
-const juce::Colour frootLoops[] = {
-    juce::Colour { 0xffff8484 },  // red
-    juce::Colour { 0xffffae5e },  // orange
-    juce::Colour { 0xffffdd55 },  // yellow
-    juce::Colour { 0xff8edb6e },  // green
-    juce::Colour { 0xff6ec1f5 },  // blue
-    juce::Colour { 0xffb192f2 },  // purple
-    juce::Colour { 0xffff94ce },  // pink
-};
-inline juce::Colour frootLoop(int colour) { return frootLoops[(size_t) juce::jlimit(0, 6, colour)]; }
 
 // Hides the mouse pointer while a control is being dragged: the control's own
 // marker (a knob's pointer) shows where it is. Every draggable control gets
@@ -51,14 +41,20 @@ private:
 //   shrinks as it moves towards it. The pivot starts at the press point and
 //   moves with the circle while Shift is up.
 //
-// Each cell under the circle shows its break as an Ö: a shaded, slightly
-// grainy cereal ring in the break's colour with two dots over it. While the
-// break plays, the Ö follows its meter about the ring's centre, from half
-// size in silence to double at the loop's peak.
-class XYPad : public juce::Component {
+// Each cell under the circle shows its break as an Ö: a cereal ring in the
+// break's colour with two dots over it (Cereal.h). While the break plays,
+// the Ö follows its meter about the ring's centre, from half size in
+// silence to double at the loop's peak. Every other cell shows a crumb: a
+// round piece the size of one of the Ö's dots at rest.
+//
+// Dragging sends ripples through the pad, as through liquid: rings of small
+// waves spread from the circle and push the cells (lines, marks) a few
+// pixels as they pass. Drawing only; the sound follows the true cells.
+class XYPad : public juce::Component, private juce::Timer {
 public:
     static constexpr float kFineSpeed = 1.0f / 16.0f;
     static constexpr float kRingRadius = 8.5f;  // at 480 px
+    static constexpr float kCrumbRadius = 0.24f * kRingRadius; // an umlaut dot
 
     explicit XYPad(JungleProcessor& p);
     ~XYPad() override;
@@ -69,6 +65,7 @@ public:
     void mouseDrag(const juce::MouseEvent&) override;
     void mouseUp(const juce::MouseEvent&) override;
     bool dragging() const { return isDragging; }
+    void setRingStyle(const RingStyle& s) { style = &s; repaint(); } // for trying looks out
 
 private:
     static constexpr int kMaxMix = JungleProcessor::kMaxMix;
@@ -77,6 +74,13 @@ private:
     juce::Point<float> toUnit(juce::Point<float> s) const;
     void setPuck(juce::Point<float> u);
     void setCircleSize(float s);
+
+    // The ripples: drops let fall where the circle goes, each spreading a
+    // ring of waves that fades as it goes.
+    struct Drop { juce::Point<float> at; double born; float strength; };
+    void addDrop(float strength);
+    juce::Point<float> ripple(juce::Point<float> u, double now) const; // displacement, pad units
+    void timerCallback() override;          // animates while ripples run
 
     JungleProcessor&    proc;
     const LoopLibrary&  lib;
@@ -87,7 +91,11 @@ private:
     juce::Point<float> puck { -1.0f, -1.0f };
     float size = -1.0f;                     // Circle Size, 1 = jm::kPuckRadius
     bool  isDragging = false;
-    juce::Image grains[std::size(frootLoops)]; // the rings' texture per colour, tiled
+    CerealSprites sprites;
+    const RingStyle* style = &kRingStyle;
+    std::vector<Drop> drops;
+    double lastDrop = 0.0;
+    juce::Point<float> lastDropAt;
     juce::Point<float> last, pivot;         // the drag, in pad pixels (unbounded)
     jm::MixVoice mix[kMaxMix] {};           // what the circle covers
     int mixCount = 0;

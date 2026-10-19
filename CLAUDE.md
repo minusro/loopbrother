@@ -36,14 +36,22 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
   plugin, any time) waits for the 16th the same way, both ways.
 - The mix is geometric: each break's share is the fraction of the selection
   circle (`jm::circleRadius(size)`: `jm::kPuckRadius` times the Circle Size
-  parameter, 0.25 to 3) inside its Voronoi cell, so the shares add up to
+  parameter, 0.25 up to the circle covering half the pad) inside its
+  Voronoi cell, so the shares add up to
   exactly 1 (`src/engine/PadGeometry.h`). Gains are equal power, the square
   root of the share (`jm::equalPower`), so the squared gains add up to 1.
-- The editor palette: `jmui::white` surfaces, `shade` (deeper yellow) for
-  structure, `forest` for the logo, and the 7 pastel `frootLoops` for the
-  breaks, one per similarity cluster (`breaks/colours.json`, from
-  `colour_breaks.py`). Shade a colour with `shadowOf`, never black, which
-  turns yellow olive. New controls draw from this palette. The logo is
+- The editor palette: `jmui::white` surfaces, `grey` for structure (cell
+  lines), `forest` for the logo and its edge, and the 7 pastel
+  `frootLoops` for the breaks, one per similarity cluster
+  (`breaks/colours.json`, from `colour_breaks.py`). Shade a colour with
+  `shadowOf`, never black, which turns yellow olive. New controls draw from
+  this palette.
+- The breaks' marks live in `src/Cereal.{h,cpp}`: `RingStyle`s (the look,
+  `kRingStyle` in use, `kRingStyles` to try) and `CerealSprites`, which
+  pre-renders them; the pad must draw through the sprites, since drawing
+  65 shaded marks from scratch can't keep up with the ripple animation.
+  Regenerate `docs/ring-styles.png` (`JM_STYLE_SHEET`) after changing a
+  style. The logo is
   drawn text with umlauts; never put them in a plugin name or file name
   (the VST3 moduleinfo.json writer garbles them).
 - Every draggable control hides the mouse pointer while dragged. Knobs and
@@ -104,6 +112,9 @@ cmake -B build -DJM_BUILD_SNAPSHOT=ON && cmake --build build --target jm_snapsho
 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png 0.5 0.5 [size]
 JM_STOPPED=1 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png         # nothing playing
 JM_CIRCLE=3 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png 0.77 0.65 1200  # big circle, close-up
+JM_RING_STYLE=2 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png      # another ring style
+JM_STYLE_SHEET=docs/ring-styles.png build/jm_snapshot_artefacts/Release/jm_snapshot  # all styles, all colours
+JM_RIPPLE=1 / JM_TIME_PAINT=1 / JM_TIME_AUDIO=1                                  # mid-drag ripple, paint and audio timing
 JM_RESIZE_CHECK=1 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png   # window frame, edge + corner drags
 JM_PAD_CHECK=1 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png      # pad drags (plain/Option/Shift), mute
 

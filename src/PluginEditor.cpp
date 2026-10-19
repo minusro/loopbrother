@@ -2,110 +2,17 @@
 
 namespace jmui {
 
-// ---------------------------------------------------------------- Ö
-// A break's mark: an Ö of radius r at c. The O is a thick ring (a Froot
-// Loop), the dots sit over it as on the letter.
-struct UmlautO {
-    juce::Path ring, dots;
-    float hole;
-    UmlautO(juce::Point<float> c, float r) : hole(0.48f * r)
-    {
-        ring.addEllipse(c.x - r, c.y - r, 2 * r, 2 * r);
-        ring.addEllipse(c.x - hole, c.y - hole, 2 * hole, 2 * hole);
-        ring.setUsingNonZeroWinding(false); // the hole stays empty
-        const float d = 0.24f * r, x = 0.5f * r, y = c.y - r - 1.55f * d;
-        dots.addEllipse(c.x - x - d, y - d, 2 * d, 2 * d);
-        dots.addEllipse(c.x + x - d, y - d, 2 * d, 2 * d);
-    }
-    juce::Path all() const { juce::Path p(ring); p.addPath(dots); return p; }
-};
-
-static void drawShadow(juce::Graphics& g, juce::Point<float> c, float r)
-{
-    juce::DropShadow(juce::Colours::black.withAlpha(0.16f), juce::jmax(1, juce::roundToInt(0.35f * r)),
-                     { juce::roundToInt(0.08f * r), juce::roundToInt(0.16f * r) })
-        .drawForPath(g, UmlautO(c, r).all());
-}
-
-// The colour a cereal's shadows take: darker, richer and turned a little
-// towards red, so yellow shades to orange instead of olive.
-juce::Colour shadowOf(juce::Colour base)
-{
-    return base.withRotatedHue(-0.05f).withMultipliedSaturation(1.3f).withMultipliedBrightness(0.6f);
-}
-
-// Shaded like the bevelled letters of the old Google logo: lit from the top
-// left, the ring rounded like a tube with a gloss on its upper left, the
-// dots like little spheres, a faint grain over it all so it reads as cereal.
-static void drawFrootLoop(juce::Graphics& g, juce::Point<float> c, float r, juce::Colour base, const juce::Image& grain)
-{
-    namespace C = juce::Colours;
-    const UmlautO o(c, r);
-    const auto all = o.all();
-    const auto dark = shadowOf(base);
-    g.setColour(base);
-    g.fillPath(all);
-
-    juce::ColourGradient tube(dark.withAlpha(0.0f), c, dark.withAlpha(0.35f), { c.x + r, c.y }, true);
-    tube.addColour(o.hole / r, dark.withAlpha(0.25f));
-    tube.addColour((o.hole / r + 1.0f) / 2.0f, C::white.withAlpha(0.10f));
-    g.setGradientFill(tube);
-    g.fillPath(o.ring);
-
-    for (const float side : { -1.0f, 1.0f })
-    {
-        const float d = 0.24f * r;
-        const juce::Point<float> dot { c.x + side * 0.5f * r, c.y - r - 1.55f * d };
-        juce::ColourGradient sphere(C::white.withAlpha(0.6f), dot.translated(-0.35f * d, -0.35f * d),
-                                    dark.withAlpha(0.4f), dot.translated(d, d), true);
-        sphere.addColour(0.45, C::white.withAlpha(0.0f));
-        g.setGradientFill(sphere);
-        g.fillEllipse(dot.x - d, dot.y - d, 2 * d, 2 * d);
-    }
-
-    g.setGradientFill(juce::ColourGradient(C::white.withAlpha(0.35f), c.x - r, c.y - r,
-                                           dark.withAlpha(0.22f), c.x + r, c.y + r, false));
-    g.fillPath(all);
-
-    juce::Path gloss;
-    gloss.addCentredArc(c.x, c.y, (o.hole + r) / 2, (o.hole + r) / 2, 0.0f, -1.45f, -0.45f, true);
-    g.setColour(C::white.withAlpha(0.7f));
-    g.strokePath(gloss, juce::PathStrokeType(0.14f * r, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-
-    juce::FillType texture(grain, juce::AffineTransform::scale(r / 14.0f).translated(c));
-    texture.setOpacity(0.5f);
-    g.setFillType(texture);
-    g.fillPath(all);
-
-    g.setColour(dark.withAlpha(0.5f));
-    g.strokePath(all, juce::PathStrokeType(juce::jmax(0.6f, 0.05f * r)));
-}
-
 // ---------------------------------------------------------------- pad
 XYPad::XYPad(JungleProcessor& p) : proc(p), lib(p.library())
 {
     px = p.apvts.getParameter("x");
     py = p.apvts.getParameter("y");
     psize = p.apvts.getParameter("size");
-
-    // The cereal grain, one per colour: speckles of its shadow and of white.
-    for (size_t k = 0; k < std::size(grains); ++k)
-    {
-        const auto dark = shadowOf(frootLoops[k]);
-        auto& img = grains[k];
-        img = juce::Image(juce::Image::ARGB, 64, 64, true);
-        juce::Random rnd(1);
-        for (int y = 0; y < img.getHeight(); ++y)
-            for (int x = 0; x < img.getWidth(); ++x)
-            {
-                const float v = rnd.nextFloat();
-                img.setPixelAt(x, y, v < 0.5f ? dark.withAlpha(0.5f * (0.5f - v)) : juce::Colours::white.withAlpha(0.4f * (v - 0.5f)));
-            }
-    }
 }
 
 XYPad::~XYPad()
 {
+    stopTimer();
     proc.setPadHeld(false);
     proc.setFineDrag(false);
 }
@@ -166,26 +73,53 @@ void XYPad::refresh()
 void XYPad::paint(juce::Graphics& g)
 {
     const auto b = getLocalBounds().toFloat();
+    const float scale = b.getWidth() / (float) JungleEditor::kDesignSize; // sizes below are at 480 px
     g.fillAll(white);
+    sprites.configure(kRingRadius * scale, kCrumbRadius * scale,
+                      g.getInternalContext().getPhysicalPixelScaleFactor(), *style);
+
+    // Where everything is drawn: the layout, moved by any passing ripple.
+    const double now = juce::Time::getMillisecondCounterHiRes() / 1000.0;
+    const bool rippling = ! drops.empty();
+    auto place = [&](juce::Point<float> u) { return toScreen(rippling ? u + ripple(u, now) : u); };
+    std::vector<juce::Path> rippled;
+    if (rippling)
+        for (const auto& poly : lib.cells())
+        {
+            juce::Path path;
+            for (size_t i = 0; i < poly.size(); ++i)
+            {
+                const auto s = place({ (float) poly[i].x, (float) poly[i].y });
+                if (i == 0) path.startNewSubPath(s);
+                else        path.lineTo(s);
+            }
+            path.closeSubPath();
+            rippled.push_back(std::move(path));
+        }
+    const auto& cells = rippling ? rippled : cellPaths;
 
     // cells under the circle, washed in their break's colour by their share
+    std::vector<char> covered((size_t) lib.size(), 0);
     for (int m = 0; m < mixCount; ++m)
-        if (mix[m].loop >= 0 && mix[m].loop < (int) cellPaths.size())
+        if (mix[m].loop >= 0 && mix[m].loop < (int) cells.size())
         {
+            covered[(size_t) mix[m].loop] = 1;
             g.setColour(frootLoop(lib.entry(mix[m].loop).colour).withAlpha(0.10f + 0.35f * mix[m].weight));
-            g.fillPath(cellPaths[(size_t) mix[m].loop]);
+            g.fillPath(cells[(size_t) mix[m].loop]);
         }
-    const float scale = b.getWidth() / (float) JungleEditor::kDesignSize; // sizes below are at 480 px
-    g.setColour(shade.withAlpha(0.45f)); // on white the full shade would be a cage
-    for (const auto& path : cellPaths)
+    g.setColour(grey);
+    for (const auto& path : cells)
         g.strokePath(path, juce::PathStrokeType(juce::jmax(1.0f, scale)));
 
-    // An Ö on each cell under the circle only, its size following the
-    // break's meter while it plays: half in silence, double at the peak.
-    // Shadows first, so none falls across a neighbouring Ö.
-    struct Mark { juce::Point<float> c; float r; int colour; };
-    Mark marks[kMaxMix];
-    int n = 0;
+    // A crumb on every cell the circle doesn't cover...
+    for (int i = 0; i < lib.size(); ++i)
+        if (! covered[(size_t) i])
+            sprites.drawCrumb(g, place(lib.entry(i).pos), lib.entry(i).colour);
+
+    // ...and an Ö on each one it does, its size following the break's meter
+    // while it plays: half in silence, double at the peak.
+    struct Mark { juce::Point<float> c; float r; int loop; };
+    std::vector<Mark> marks;
     for (int m = 0; m < mixCount; ++m)
     {
         const int loop = mix[m].loop;
@@ -193,11 +127,53 @@ void XYPad::paint(juce::Graphics& g)
         float r = kRingRadius * scale;
         for (int i = 0; i < voiceCount; ++i)
             if (voices[i].loop == loop) r = kRingRadius * scale * (0.5f + 1.5f * lib.level(loop, voices[i].phase));
-        marks[n++] = { toScreen(lib.entry(loop).pos), r, juce::jlimit(0, 6, lib.entry(loop).colour) };
+        marks.push_back({ place(lib.entry(loop).pos), r, loop });
     }
-    for (int i = 0; i < n; ++i) drawShadow(g, marks[i].c, marks[i].r);
-    for (int i = 0; i < n; ++i)
-        drawFrootLoop(g, marks[i].c, marks[i].r, frootLoop(marks[i].colour), grains[(size_t) marks[i].colour]);
+    for (const auto& k : marks) sprites.drawRing(g, k.c, k.r, lib.entry(k.loop).colour, k.loop);
+}
+
+// ---------------------------------------------------------------- ripples
+// In pad units and seconds: how fast the rings spread, their wavelength,
+// the width of the train of waves, how long they take to fade and how far
+// a full-strength drop pushes things.
+constexpr float  kRippleSpeed = 0.45f, kRippleWave = 0.07f, kRippleWidth = 0.06f, kRippleAmp = 0.005f;
+constexpr double kRippleFade = 0.7;
+
+void XYPad::addDrop(float strength)
+{
+    const double now = juce::Time::getMillisecondCounterHiRes() / 1000.0;
+    drops.push_back({ puck, now, juce::jlimit(0.0f, 1.0f, strength) });
+    if (drops.size() > 24) drops.erase(drops.begin());
+    lastDrop = now;
+    lastDropAt = puck;
+    if (! isTimerRunning()) startTimerHz(60);
+}
+
+juce::Point<float> XYPad::ripple(juce::Point<float> u, double now) const
+{
+    juce::Point<float> d;
+    for (const auto& drop : drops)
+    {
+        const float age = (float) (now - drop.born);
+        const auto away = u - drop.at;
+        const float dist = away.getDistanceFromOrigin();
+        if (dist < 1e-4f) continue;
+        const float front = dist - kRippleSpeed * age; // where in the passing train
+        const float wave = std::sin(juce::MathConstants<float>::twoPi * front / kRippleWave)
+                         * std::exp(-(front / kRippleWidth) * (front / kRippleWidth));
+        const float fade = drop.strength * (float) std::exp(-age / kRippleFade) * juce::jmin(1.0f, dist / 0.02f);
+        d += away * (kRippleAmp * fade * wave / dist);
+    }
+    return d;
+}
+
+void XYPad::timerCallback()
+{
+    const double now = juce::Time::getMillisecondCounterHiRes() / 1000.0;
+    drops.erase(std::remove_if(drops.begin(), drops.end(), [&](const Drop& d) { return now - d.born > 4.0 * kRippleFade; }),
+                drops.end());
+    if (drops.empty()) stopTimer();
+    repaint();
 }
 
 void XYPad::setPuck(juce::Point<float> u)
@@ -222,6 +198,7 @@ void XYPad::mouseDown(const juce::MouseEvent& e)
     proc.setFineDrag(e.mods.isAltDown());
     if (! e.mods.isAltDown()) setPuck(toUnit(e.position));
     proc.setPadHeld(true); // after the move, so an audition starts on the pressed spot
+    addDrop(0.6f);
 }
 
 void XYPad::mouseDrag(const juce::MouseEvent& e)
@@ -242,6 +219,11 @@ void XYPad::mouseDrag(const juce::MouseEvent& e)
         pivot += toScreen(puck) - before; // with the circle, stopping where it stops
     }
     last = e.position;
+
+    // A drop where the circle is now and then, stronger the further it went.
+    const double now = juce::Time::getMillisecondCounterHiRes() / 1000.0;
+    const float moved = (puck - lastDropAt).getDistanceFromOrigin() * (float) getWidth();
+    if (now - lastDrop > 0.06 && moved > 1.0f) addDrop(moved / 30.0f);
 }
 
 void XYPad::mouseUp(const juce::MouseEvent& e)
@@ -304,7 +286,7 @@ void JungleEditor::paint(juce::Graphics& g)
 {
     g.fillAll(white);
     const auto bar = getLocalBounds().withTop(pad.getBottom()).toFloat();
-    g.setColour(shade); // the pad's lower edge
+    g.setColour(forest); // the pad's lower edge
     g.fillRect(bar.withHeight(juce::jmax(1.0f, (float) getWidth() / kDesignSize)));
     g.setColour(forest);
     g.setFont(juce::Font(juce::FontOptions(bar.getHeight() * 0.62f, juce::Font::bold).withKerningFactor(0.14f)));

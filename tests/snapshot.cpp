@@ -4,7 +4,12 @@
 //   cmake -B build -DJM_BUILD_SNAPSHOT=ON && cmake --build build --target jm_snapshot
 //   build/jm_snapshot_artefacts/Release/jm_snapshot out.png [x y [size]]
 // JM_STOPPED=1 renders with the transport stopped (nothing playing);
-// JM_CIRCLE=<size> sets the Circle Size first.
+// JM_CIRCLE=<size> sets the Circle Size first; JM_RING_STYLE=<n> draws the
+// marks in kRingStyles[n].
+// JM_STYLE_SHEET=<out.png> draws every ring style in every colour instead.
+// JM_RIPPLE=1 drags the pad (synthetic events) just before the render, so
+// it shows ripples; JM_TIME_PAINT=1 times the pad's painting and
+// JM_TIME_AUDIO=1 the processor's blocks.
 // JM_PAD_CHECK=1 drives the pad with synthetic mouse events (plain, Option
 // and Shift drags) and checks the parameters they set, and the mute.
 #include "../src/PluginProcessor.h"
@@ -23,10 +28,65 @@ struct ScriptedPlayHead : juce::AudioPlayHead {
     }
 };
 
+// Every ring style in every colour, large, with the crumb (an unselected
+// cell's mark) below each, and the marks at their real size on the right:
+// at rest, at a loop's peak, and crumbs.
+static int styleSheet(const char* path)
+{
+    using namespace jmui;
+    constexpr int labelW = 190, colW = 118, rowH = 168, realW = 200, k2 = 2;
+    const int w = labelW + kFrootLoops * colW + realW, h = kNumRingStyles * rowH + 40;
+    juce::Image img(juce::Image::ARGB, w * k2, h * k2, true);
+    juce::Graphics g(img);
+    g.addTransform(juce::AffineTransform::scale((float) k2));
+    g.fillAll(white);
+    const Grains grains;
+    g.setColour(forest);
+    g.setFont(juce::FontOptions(14.0f, juce::Font::bold));
+    g.drawText("actual size", labelW + kFrootLoops * colW, 8, realW, 24, juce::Justification::centred);
+    for (int s = 0; s < kNumRingStyles; ++s)
+    {
+        const auto& st = kRingStyles[s];
+        const float y = 40.0f + (float) s * rowH;
+        g.setColour(grey);
+        g.drawHorizontalLine((int) y, 12.0f, (float) w - 12.0f);
+        g.setColour(forest);
+        g.setFont(juce::FontOptions(17.0f, juce::Font::bold));
+        g.drawText(juce::String(s) + "  " + st.name, 16, (int) y, labelW - 20, rowH, juce::Justification::centredLeft);
+        for (int c = 0; c < kFrootLoops; ++c)
+        {
+            const juce::Point<float> at { labelW + (c + 0.5f) * colW, y + 0.52f * rowH };
+            drawRingShadow(g, at, 36.0f, st, c * 7 + s);
+            drawRing(g, at, 36.0f, c, grains, st, c * 7 + s);
+            drawCrumb(g, at.translated(0.0f, 54.0f), 0.24f * 36.0f, c, grains, st);
+        }
+        const float x0 = (float) (labelW + kFrootLoops * colW);
+        const float r0 = XYPad::kRingRadius;
+        for (int c = 0; c < 2; ++c)
+        {
+            const juce::Point<float> rest { x0 + 40.0f + c * 30.0f, y + 0.45f * rowH };
+            drawRingShadow(g, rest, r0, st, c);
+            drawRing(g, rest, r0, c * 3 + 1, grains, st, c);
+        }
+        const juce::Point<float> peak { x0 + 140.0f, y + 0.45f * rowH };
+        drawRingShadow(g, peak, 2 * r0, st, 9);
+        drawRing(g, peak, 2 * r0, 4, grains, st, 9);
+        for (int c = 0; c < kFrootLoops; ++c)
+            drawCrumb(g, { x0 + 30.0f + c * 22.0f, y + 0.82f * rowH }, XYPad::kCrumbRadius, c, grains, st);
+    }
+    juce::File out(juce::File::getCurrentWorkingDirectory().getChildFile(juce::String::fromUTF8(path)));
+    out.deleteFile();
+    juce::FileOutputStream os(out);
+    juce::PNGImageFormat().writeImageToStream(img, os);
+    std::printf("wrote %s\n", out.getFullPathName().toRawUTF8());
+    return 0;
+}
+
 int main(int argc, char** argv)
 {
-    if (argc < 2) { std::printf("usage: jm_snapshot out.png [x y [size]]\n"); return 2; }
     juce::ScopedJuceInitialiser_GUI gui;
+    if (const char* sheet = std::getenv("JM_STYLE_SHEET")) return styleSheet(sheet);
+    if (argc < 2) { std::printf("usage: jm_snapshot out.png [x y [size]]\n"); return 2; }
 
     JungleProcessor proc;
     ScriptedPlayHead head;
@@ -53,6 +113,17 @@ int main(int argc, char** argv)
         head.ppq += 512 * 162.0 / 60.0 / 48000.0;
     }
 
+    if (std::getenv("JM_TIME_AUDIO"))
+    {
+        const double t0 = juce::Time::getMillisecondCounterHiRes();
+        for (int b = 0; b < 1000; ++b)
+        {
+            proc.processBlock(buf, midi);
+            head.ppq += 512 * 162.0 / 60.0 / 48000.0;
+        }
+        const double ms = (juce::Time::getMillisecondCounterHiRes() - t0) / 1000.0;
+        std::printf("audio: %.3f ms a 512-sample block (%.1f%% of real time at 48 kHz)\n", ms, 100.0 * ms / (512.0 / 48.0));
+    }
     std::unique_ptr<juce::AudioProcessorEditor> ed(proc.createEditor());
     if (argc >= 5) ed->setSize(std::atoi(argv[4]), jmui::JungleEditor::heightFor(std::atoi(argv[4])));
 
@@ -201,7 +272,7 @@ int main(int argc, char** argv)
         report("Shift + Option, far away: a sixteenth as much",
                near(value("size"), 1.0f + (d2 - d0) / 16.0f / (float) (jm::kPuckRadius * w), 2e-3f));
         pad->mouseDrag(ev(448, 560 + 5000, Mods::shiftModifier));
-        report("Shift, very far: held at the largest circle (3x)", near(value("size"), 3.0f, 1e-3f));
+        report("Shift, very far: held at the largest circle", near(value("size"), jm::kCircleSizeMax, 2e-3f));
         proc.setPadHeld(false);
         proc.setFineDrag(false);
         pad->mouseDown(ev(10, 10, Mods::altModifier));
@@ -244,7 +315,38 @@ int main(int argc, char** argv)
         std::printf(ok ? "pad check passed\n" : "pad check FAILED\n");
         if (! ok) return 1;
     }
-    for (auto* c : ed->getChildren()) if (auto* pad = dynamic_cast<jmui::XYPad*>(c)) pad->refresh();
+    for (auto* c : ed->getChildren())
+        if (auto* pad = dynamic_cast<jmui::XYPad*>(c))
+        {
+            if (const char* st = std::getenv("JM_RING_STYLE"))
+                pad->setRingStyle(jmui::kRingStyles[juce::jlimit(0, jmui::kNumRingStyles - 1, std::atoi(st))]);
+            pad->refresh();
+            if (std::getenv("JM_RIPPLE"))
+            {
+                const auto now = juce::Time::getCurrentTime();
+                auto ev = [&](float x, float y)
+                {
+                    return juce::MouseEvent(juce::Desktop::getInstance().getMainMouseSource(), { x, y },
+                                            juce::ModifierKeys(juce::ModifierKeys::leftButtonModifier), 0.0f, 0.0f, 0.0f,
+                                            0.0f, 0.0f, pad, pad, now, { x, y }, now, 1, true);
+                };
+                const float w = (float) pad->getWidth();
+                pad->mouseDown(ev(0.30f * w, 0.55f * w));
+                for (int i = 1; i <= 8; ++i)
+                {
+                    juce::Thread::sleep(70);
+                    pad->mouseDrag(ev((0.30f + 0.03f * i) * w, (0.55f - 0.012f * i) * w));
+                }
+                juce::Thread::sleep(250);
+                proc.setPadHeld(false);
+            }
+            if (std::getenv("JM_TIME_PAINT"))
+            {
+                const double t0 = juce::Time::getMillisecondCounterHiRes();
+                for (int i = 0; i < 20; ++i) pad->createComponentSnapshot(pad->getLocalBounds(), true, 1.0f);
+                std::printf("pad paint: %.2f ms a frame at %d px\n", (juce::Time::getMillisecondCounterHiRes() - t0) / 20.0, pad->getWidth());
+            }
+        }
     const auto img = ed->createComponentSnapshot(ed->getLocalBounds(), true, 2.0f);
     juce::File out(juce::File::getCurrentWorkingDirectory().getChildFile(juce::String::fromUTF8(argv[1])));
     out.deleteFile();

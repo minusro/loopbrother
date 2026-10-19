@@ -8,7 +8,7 @@ if(APPLE AND NOT CMAKE_OSX_DEPLOYMENT_TARGET)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "" FORCE)
 endif()
 
-project(junglemassive VERSION 0.7.0 LANGUAGES C CXX)
+project(junglemassive VERSION 0.8.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -100,7 +100,8 @@ if(JM_BUILD_PLUGIN)
     target_sources(junglemassive PRIVATE
         src/LoopLibrary.cpp
         src/PluginProcessor.cpp
-        src/PluginEditor.cpp)
+        src/PluginEditor.cpp
+        src/Cereal.cpp)
 
     target_compile_definitions(junglemassive PUBLIC
         JUCE_WEB_BROWSER=0
@@ -141,7 +142,7 @@ if(JM_BUILD_PLUGIN)
     if(JM_BUILD_SNAPSHOT)
         juce_add_console_app(jm_snapshot PRODUCT_NAME "jm_snapshot")
         target_sources(jm_snapshot PRIVATE
-            tests/snapshot.cpp src/LoopLibrary.cpp src/PluginProcessor.cpp src/PluginEditor.cpp)
+            tests/snapshot.cpp src/LoopLibrary.cpp src/PluginProcessor.cpp src/PluginEditor.cpp src/Cereal.cpp)
         target_compile_definitions(jm_snapshot PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_MODAL_LOOPS_PERMITTED=1
             JucePlugin_Name="${JM_PLUGIN_NAME}")
         target_link_libraries(jm_snapshot PRIVATE

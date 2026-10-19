@@ -49,8 +49,8 @@ struct MixVoice { int loop; float weight; };
 // segments, calling restart() between segments where a note-on lands.
 class LoopEngine {
 public:
-    static constexpr int    kMaxMix    = 12;    // loops sounding at once
-    static constexpr int    kMaxTaps   = 48;    // the mix plus the tails fading out
+    static constexpr int    kMaxMix    = 128;   // loops sounding at once: every break, under the largest circle
+    static constexpr int    kMaxTaps   = 384;   // the mix plus the tails fading out
     static constexpr double kStepBeats = 0.25;  // a 16th note: mix changes land on these
 
     void prepare(double sampleRate, double fadeSeconds = 0.005)
