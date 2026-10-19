@@ -36,7 +36,9 @@ public:
     // 1.1.1 until it is let go (as does holding a MIDI note).
     void setPadHeld(bool held) { padHeld_.store(held, std::memory_order_relaxed); }
 
-    // The editor's width (it is square), kept in the plugin state.
+    // The editor's width (it is square), kept in the plugin state. A new
+    // instance, or a session saved before there was a size, opens at 480.
+    static constexpr int kDefaultEditorSize = 480;
     int  editorSize() const          { return editorSize_.load(); }
     void setEditorSize(int size)     { editorSize_.store(size); }
 
@@ -56,7 +58,7 @@ private:
     jm::TransportFollower timeline_;
     double sr_ = 48000.0;
     std::atomic<bool> padHeld_ { false };
-    std::atomic<int>  editorSize_ { 960 };
+    std::atomic<int>  editorSize_ { kDefaultEditorSize };
     bool noteDown_[16][128] {};   // held MIDI notes, per channel
     int  heldNotes_ = 0;
 
