@@ -175,7 +175,8 @@ bundle ID are unchanged, so saved sessions find it.
   `jm::TransportFollower` picks the timeline for each segment.
 - **Standalone**: no transport there, so it free-runs at 162 BPM.
 
-- **Releases** (`docs/RELEASE.md`): unsigned for now. The Mac installer
+- **Releases** (`docs/RELEASE.md`): unsigned for now, published as GitHub
+  releases by `installer/release.sh`. The Mac installer
   is built here (`installer/macos/make_pkg.sh`: universal, ad-hoc sealed,
   one .pkg with the VST3, AU, app and font licence); Windows by GitHub
   Actions (`.github/workflows/windows.yml`, Inno Setup, VST3 and app),
