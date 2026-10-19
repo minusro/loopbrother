@@ -104,6 +104,7 @@ int main(int argc, char** argv)
         }
         jm::MixVoice m[jm::LoopEngine::kMaxMix];
         const int n = pad.mix({ (double) (float) p.x, (double) (float) p.y }, jm::kPuckRadius, m, jm::LoopEngine::kMaxMix);
+        jm::equalPower(m, n);
         mix.assign(m, m + n);
     };
 
@@ -171,8 +172,8 @@ int main(int argc, char** argv)
     CHECK(matches(kFade, 9.0 + kFade * kBeatPerSample), "start at beat 9 chases the song position");
 
     // 6. The puck on and around the border with the nearest neighbour: both
-    //    breaks play, weighted by the circle's area in each cell. Off-centre
-    //    positions catch any quantisation of the pad parameters.
+    //    breaks play, at equal-power gains from the circle's area in each
+    //    cell. Off-centre positions catch any quantisation of the pad parameters.
     {
         size_t nb = 1;
         for (size_t i = 1; i < sites.size(); ++i)
@@ -190,7 +191,7 @@ int main(int argc, char** argv)
                 ok &= matches(kFade, beat + kFade * kBeatPerSample);
             }
         CHECK(split, "puck near a border overlaps two cells");
-        CHECK(ok, "border mixes play both breaks by area share");
+        CHECK(ok, "border mixes play both breaks at equal power by area share");
     }
 
     plugin->releaseResources();

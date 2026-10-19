@@ -305,6 +305,15 @@ int main()
         CHECK(matches, "mix weights match the sampled area shares");
     }
 
+    // 18. Equal power: gains are the square roots of the shares.
+    {
+        jm::MixVoice m[3] = { { 0, 0.5f }, { 1, 0.25f }, { 2, 0.25f } };
+        jm::equalPower(m, 3);
+        CHECK(std::abs(m[0].weight * m[0].weight + m[1].weight * m[1].weight + m[2].weight * m[2].weight - 1.0f) < 1e-6f,
+              "equal-power gains: squares add up to 1");
+        CHECK(std::abs(m[1].weight - 0.5f) < 1e-6f, "a quarter share plays at half amplitude");
+    }
+
     if (failures == 0) std::printf("all engine tests passed\n");
     return failures == 0 ? 0 : 1;
 }

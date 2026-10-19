@@ -92,6 +92,14 @@ inline double circlePolygonArea(Pt c, double r, const Poly& poly)
     return std::abs(area);
 }
 
+// Equal-power gains from area shares: gain = sqrt(share), so the squared
+// gains add up to 1 and a half-and-half blend of two unrelated breaks is as
+// loud as either one alone.
+inline void equalPower(MixVoice* v, int n)
+{
+    for (int i = 0; i < n; ++i) v[i].weight = std::sqrt(v[i].weight);
+}
+
 // The pad: break positions and their cells. The cells used for mixing extend
 // past the pad so a circle hanging over its edge is still fully assigned.
 class PadMap {

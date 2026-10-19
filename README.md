@@ -2,9 +2,9 @@
 
 A break-loop instrument plugin (VST3 / AU / Standalone, JUCE). 97 drum breaks,
 tuned to 162 BPM and laid out by similarity on an XY pad: the selection circle
-plays every break whose cell it covers, mixed by the area it covers. Loops
-follow the host tempo (varispeed) and transport, and any note-on restarts them
-from their first beat.
+plays every break whose cell it covers, blended at equal power by the area it
+covers. Loops follow the host tempo (varispeed) and transport, and any note-on
+restarts them from their first beat.
 
 State of the code: `docs/HANDOFF.md`. Developer guide: `CLAUDE.md`.
 
