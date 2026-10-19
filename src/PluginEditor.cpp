@@ -70,30 +70,29 @@ void XYPad::paint(juce::Graphics& g)
     g.setColour(yellow);
     g.fillRect(b);
 
-    // Cells under the circle, whitened by their share of the area. While a
-    // cell's break plays its whitening follows the break's meter: as is in
-    // silence, twice as strong at the loop's peak.
+    // cells under the circle, whitened by their share of the area
     for (int m = 0; m < mixCount; ++m)
         if (mix[m].loop < (int) cellPaths.size())
         {
-            float level = 0.0f;
-            for (int i = 0; i < voiceCount; ++i)
-                if (voices[i].loop == mix[m].loop) level = lib.level(voices[i].loop, voices[i].phase);
-            g.setColour(white.withAlpha(juce::jmin(1.0f, (0.10f + 0.40f * mix[m].weight) * (1.0f + level))));
+            g.setColour(white.withAlpha(0.12f + 0.43f * mix[m].weight));
             g.fillPath(cellPaths[(size_t) mix[m].loop]);
         }
     g.setColour(shade);
     for (const auto& path : cellPaths)
         g.strokePath(path, juce::PathStrokeType(1.0f));
 
-    // breaks: small white dots, the ones in the mix twice the size
-    for (int i = 0; i < lib.size(); ++i)
+    // Dots on the cells under the circle only. While a cell's break plays its
+    // dot follows the break's meter: half size in silence, double at the
+    // loop's peak.
+    for (int m = 0; m < mixCount; ++m)
     {
-        bool inMix = false;
-        for (int m = 0; m < mixCount; ++m) inMix |= mix[m].loop == i;
-        const auto c = toScreen(lib.entry(i).pos);
-        const float r = inMix ? 6.0f : 2.0f;
-        g.setColour(white.withAlpha(inMix ? 1.0f : 0.8f));
+        const int loop = mix[m].loop;
+        if (loop < 0 || loop >= lib.size()) continue;
+        float r = 6.0f;
+        for (int i = 0; i < voiceCount; ++i)
+            if (voices[i].loop == loop) r = 6.0f * (0.5f + 1.5f * lib.level(loop, voices[i].phase));
+        const auto c = toScreen(lib.entry(loop).pos);
+        g.setColour(white);
         g.fillEllipse(c.x - r, c.y - r, 2 * r, 2 * r);
     }
 
