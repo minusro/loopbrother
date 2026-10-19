@@ -91,7 +91,7 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
   `breaks/colours.json` with `colour_breaks.py` whenever the loops change.
 - Commit every change (see the user's standing request); commit messages:
   imperative subject, body explains the musical/design reasoning.
-- Releases are unsigned for now (`docs/RELEASE.md` has the signing
+- Releases are unsigned for now (`installer/RELEASE.md` has the signing
   checklist). The plugin codes `Mnro`/`Jngl` never change; the bundle ID is
   `com.minus.loopbrother`. Windows has never been built yet: keep code
   portable (no `M_PI`, no POSIX-only calls outside tests/tools).
@@ -131,7 +131,7 @@ JM_PAD_CHECK=1 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png      
 # AU validation
 auval -v aumu Jngl Mnro
 
-# Release (docs/RELEASE.md): universal Mac installer, unsigned for now;
+# Release (installer/RELEASE.md): universal Mac installer, unsigned for now;
 # Windows builds on GitHub Actions (.github/workflows/windows.yml)
 sh installer/macos/make_pkg.sh
 ```
