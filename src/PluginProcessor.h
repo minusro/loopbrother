@@ -2,6 +2,7 @@
 #include <juce_audio_utils/juce_audio_utils.h>
 #include "LoopLibrary.h"
 #include "engine/LoopEngine.h"
+#include "engine/Transport.h"
 
 class JungleProcessor : public juce::AudioProcessor {
 public:
@@ -31,6 +32,10 @@ public:
     juce::AudioProcessorValueTreeState apvts;
     const LoopLibrary& library() const { return *library_; }
 
+    // The pad is held: with the transport stopped, that plays the mix from
+    // 1.1.1 until it is let go (as does holding a MIDI note).
+    void setPadHeld(bool held) { padHeld_.store(held, std::memory_order_relaxed); }
+
     // For the editor, published every block: the loops being heard, their
     // level and how far through each the playhead is (0..1).
     static constexpr int kMaxMix = jm::LoopEngine::kMaxMix;
@@ -44,7 +49,11 @@ private:
 
     juce::SharedResourcePointer<LoopLibrary> library_;
     jm::LoopEngine engine_;
-    double sr_ = 48000.0, freeBeat_ = 0.0;
+    jm::TransportFollower timeline_;
+    double sr_ = 48000.0;
+    std::atomic<bool> padHeld_ { false };
+    bool noteDown_[16][128] {};   // held MIDI notes, per channel
+    int  heldNotes_ = 0;
 
     // the mix under the puck, recomputed when it moves
     jm::MixVoice mix_[kMaxMix] {};

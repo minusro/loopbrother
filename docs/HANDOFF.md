@@ -1,6 +1,6 @@
 # Jungle Massive — handoff
 
-Updated: 2026-10-19 — v0.3.1, meter-driven dots on the selected cells only.
+Updated: 2026-10-19 — v0.4.0, hold-to-audition (pad or MIDI note) while stopped, invisible selection circle.
 
 ## Where things stand
 
@@ -24,8 +24,9 @@ an instrument with stereo out and MIDI in.
   its size (6 px radius) in silence to double at the loop's peak. The meter
   is precomputed per loop at load (RMS, 10 ms attack, VU-style 300 ms
   release, run twice round the loop, scaled to the loop's peak) and read at
-  the playhead the processor publishes. The selection circle is a plain
-  white ring. The mouse pointer is hidden while dragging
+  the playhead the processor publishes. The selection circle itself is not
+  drawn - the whitened cells show what it covers. The mouse pointer is
+  hidden while dragging
   (`jmui::HideCursorWhileDragging`, meant for every future knob and slider).
 - **Playback** (`src/engine/LoopEngine.h`): the mix, every loop varispeed at
   the host tempo and locked to the same 1.1.1. Transport start syncs to the
@@ -40,11 +41,21 @@ an instrument with stereo out and MIDI in.
   and start/stop ramp over 5 ms too; a jump that lands on the same spot in a
   loop (a loop region that is a whole number of loops) is seamless. The pad
   shows the circle's new position at once, ahead of the audio.
+- **Audition**: with the host transport stopped, holding the pad or any MIDI
+  note plays the mix from 1.1.1 at the host tempo until the last hold ends
+  (a pad press starts on the pressed spot; a note starts on its exact
+  sample). Further note-ons while auditioning restart at 1.1.1 as usual. If
+  the transport starts under a hold it takes over on the song position; if
+  it stops under a hold the audition carries on seamlessly. The editor
+  reports the press (`setPadHeld`, cleared when the editor closes), the
+  processor tracks held notes per channel (all-notes-off / all-sound-off
+  clear them) and renders in segments between note events;
+  `jm::TransportFollower` picks the timeline for each segment.
 - **Standalone**: no transport there, so it free-runs at 162 BPM.
 
 ## Verified
 
-- `jm_tests` (22): song-position sync, mid-bar start, varispeed, stop,
+- `jm_tests` (25): song-position sync, mid-bar start, varispeed, stop,
   note-on restart (incl. on the bar line without a doubled downbeat), loop
   switching in phase, host jumps, start after a stopped note-on, no drift
   over 100k odd-sized blocks; mixes (shares, ramps, restart of the whole
@@ -52,12 +63,15 @@ an instrument with stereo out and MIDI in.
   four-way corner, pad edge, random pads against a Monte Carlo count);
   equal-power gains; quantized moves (held until the ramp before the next
   16th, a newer move landing on the same step, a note-on taking the waiting
-  mix, the grid following a restart).
+  mix, the grid following a restart); the timeline (press auditions from
+  1.1.1, release stops, transport take-over resyncs, a stop under a held
+  pad carries on, free run) and an audition rendered through the engine.
 - `jm_host_check`: the built VST3 hosted with a scripted transport matches
   the break files read from disk (start at bar 1 through the wrap, a note-on
   mid-block, stop, start mid-song, six puck positions around a cell border
   mixing two breaks at equal power by area, each move held until the next
-  16th and complete on it). It caught the pad parameters snapping to 0.01
+  16th and complete on it, and with the transport stopped a held note
+  auditioning from 1.1.1 on its sample until its note-off). It caught the pad parameters snapping to 0.01
   steps (JUCE's short AudioParameterFloat constructor), fixed in v0.2.0.
 - `auval -v aumu Jngl Mnro` passes.
 - The pad renders as intended (`jm_snapshot` render inspected); the hidden
@@ -69,7 +83,10 @@ an instrument with stereo out and MIDI in.
 ## Not yet verified
 
 - No DAW testing: Ableton/Logic/Bitwig transport, loop regions, tempo
-  automation, state recall, many instances.
+  automation, state recall, many instances. Auditioning needs the host to
+  keep processing the instrument while stopped; some hosts (Logic with the
+  track not selected) put idle instruments to sleep. The pad press itself is
+  not covered by the host check (it comes from the editor); held notes are.
 - Interpolation is 4-point Catmull-Rom with no anti-aliasing filter: fine near
   162 BPM, may alias a little far above it (e.g. 200+ BPM).
 

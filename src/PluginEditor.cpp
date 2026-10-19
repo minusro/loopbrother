@@ -11,7 +11,11 @@ XYPad::XYPad(JungleProcessor& p) : proc(p), lib(p.library())
     addMouseListener(&hideCursor, false);
 }
 
-XYPad::~XYPad() { removeMouseListener(&hideCursor); }
+XYPad::~XYPad()
+{
+    removeMouseListener(&hideCursor);
+    proc.setPadHeld(false);
+}
 
 juce::Point<float> XYPad::toScreen(juce::Point<float> u) const
 {
@@ -96,11 +100,6 @@ void XYPad::paint(juce::Graphics& g)
         g.fillEllipse(c.x - r, c.y - r, 2 * r, 2 * r);
     }
 
-    // the selection circle, drawn at the radius that does the mixing
-    const auto p = toScreen(puck);
-    const float pr = (float) jm::kPuckRadius * b.getWidth();
-    g.setColour(white);
-    g.drawEllipse(p.x - pr, p.y - pr, 2 * pr, 2 * pr, 2.0f);
 }
 
 void XYPad::setFromMouse(juce::Point<float> s)
@@ -116,12 +115,14 @@ void XYPad::mouseDown(const juce::MouseEvent& e)
     px->beginChangeGesture();
     py->beginChangeGesture();
     setFromMouse(e.position);
+    proc.setPadHeld(true); // after the move, so an audition starts on the pressed spot
 }
 
 void XYPad::mouseDrag(const juce::MouseEvent& e) { setFromMouse(e.position); }
 
 void XYPad::mouseUp(const juce::MouseEvent&)
 {
+    proc.setPadHeld(false);
     px->endChangeGesture();
     py->endChangeGesture();
 }

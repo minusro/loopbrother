@@ -109,9 +109,9 @@ int main(int argc, char** argv)
     };
 
     // Run blocks, collecting channel 0; noteAt >= 0 sends a note-on at that
-    // sample of the first block.
+    // sample of the first block, offBlock >= 0 its note-off at offAt.
     std::vector<float> out;
-    auto run = [&](int blocks, int noteAt = -1)
+    auto run = [&](int blocks, int noteAt = -1, int offBlock = -1, int offAt = 0)
     {
         out.clear();
         juce::AudioBuffer<float> buf(2, kBlock);
@@ -119,6 +119,7 @@ int main(int argc, char** argv)
         {
             juce::MidiBuffer midi;
             if (b == 0 && noteAt >= 0) midi.addEvent(juce::MidiMessage::noteOn(1, 60, (juce::uint8) 100), noteAt);
+            if (b == offBlock) midi.addEvent(juce::MidiMessage::noteOff(1, 60), offAt);
             buf.clear();
             plugin->processBlock(buf, midi);
             out.insert(out.end(), buf.getReadPointer(0), buf.getReadPointer(0) + kBlock);
@@ -159,7 +160,9 @@ int main(int argc, char** argv)
     CHECK(matches(0, 0.0), "playback from bar 1 equals the break, wrapped");
 
     // 3. Note-on at sample 300 of a block: the loop restarts at 1.1.1 there.
-    run(40, 300);
+    //    (Its note-off follows a block later; a held note would keep playing
+    //    through the stop below.)
+    run(40, 300, 1, 0);
     CHECK(matches(300 + kFade, kFade * kBeatPerSample), "note-on restarts the loop at its first sample");
 
     // 4. Stop: silent after the fade.
@@ -200,6 +203,20 @@ int main(int argc, char** argv)
         CHECK(split, "puck near a border overlaps two cells");
         CHECK(held, "a pad move waits for the next 16th");
         CHECK(landed, "border mixes land on the 16th, both breaks at equal power by area share");
+    }
+
+    // 7. Transport stopped: holding a note auditions the mix from 1.1.1 on the
+    //    note-on's sample, at full level; releasing it stops.
+    head.playing = false;
+    run(10); // let the transport stop fade out
+    run(40, 300, 30, 100);
+    {
+        const size_t on = 300, off = 30 * kBlock + 100;
+        bool before = true;
+        for (size_t i = 0; i < on; ++i) before &= out[i] == 0.0f;
+        CHECK(before, "stopped, no note: silent");
+        CHECK(matches(on, 0.0, off), "held note auditions the mix from 1.1.1");
+        CHECK(silentFrom(off + kFade), "note-off ends the audition");
     }
 
     plugin->releaseResources();
