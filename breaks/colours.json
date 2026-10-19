@@ -1,0 +1,390 @@
+[
+ {
+  "file": "001.wav",
+  "colour": 3
+ },
+ {
+  "file": "002.wav",
+  "colour": 3
+ },
+ {
+  "file": "003.wav",
+  "colour": 6
+ },
+ {
+  "file": "004.wav",
+  "colour": 2
+ },
+ {
+  "file": "005.wav",
+  "colour": 3
+ },
+ {
+  "file": "006.wav",
+  "colour": 6
+ },
+ {
+  "file": "007.wav",
+  "colour": 5
+ },
+ {
+  "file": "008.wav",
+  "colour": 4
+ },
+ {
+  "file": "009.wav",
+  "colour": 4
+ },
+ {
+  "file": "010.wav",
+  "colour": 5
+ },
+ {
+  "file": "011.wav",
+  "colour": 1
+ },
+ {
+  "file": "012.wav",
+  "colour": 4
+ },
+ {
+  "file": "013.wav",
+  "colour": 3
+ },
+ {
+  "file": "014.wav",
+  "colour": 6
+ },
+ {
+  "file": "015.wav",
+  "colour": 1
+ },
+ {
+  "file": "016.wav",
+  "colour": 4
+ },
+ {
+  "file": "017.wav",
+  "colour": 3
+ },
+ {
+  "file": "018.wav",
+  "colour": 4
+ },
+ {
+  "file": "019.wav",
+  "colour": 3
+ },
+ {
+  "file": "020.wav",
+  "colour": 6
+ },
+ {
+  "file": "021.wav",
+  "colour": 2
+ },
+ {
+  "file": "022.wav",
+  "colour": 1
+ },
+ {
+  "file": "023.wav",
+  "colour": 2
+ },
+ {
+  "file": "024.wav",
+  "colour": 1
+ },
+ {
+  "file": "025.wav",
+  "colour": 4
+ },
+ {
+  "file": "026.wav",
+  "colour": 1
+ },
+ {
+  "file": "027.wav",
+  "colour": 2
+ },
+ {
+  "file": "028.wav",
+  "colour": 1
+ },
+ {
+  "file": "029.wav",
+  "colour": 2
+ },
+ {
+  "file": "030.wav",
+  "colour": 4
+ },
+ {
+  "file": "031.wav",
+  "colour": 1
+ },
+ {
+  "file": "032.wav",
+  "colour": 2
+ },
+ {
+  "file": "033.wav",
+  "colour": 2
+ },
+ {
+  "file": "034.wav",
+  "colour": 2
+ },
+ {
+  "file": "035.wav",
+  "colour": 1
+ },
+ {
+  "file": "036.wav",
+  "colour": 2
+ },
+ {
+  "file": "037.wav",
+  "colour": 2
+ },
+ {
+  "file": "038.wav",
+  "colour": 2
+ },
+ {
+  "file": "039.wav",
+  "colour": 2
+ },
+ {
+  "file": "040.wav",
+  "colour": 2
+ },
+ {
+  "file": "041.wav",
+  "colour": 2
+ },
+ {
+  "file": "042.wav",
+  "colour": 2
+ },
+ {
+  "file": "043.wav",
+  "colour": 3
+ },
+ {
+  "file": "044.wav",
+  "colour": 2
+ },
+ {
+  "file": "045.wav",
+  "colour": 2
+ },
+ {
+  "file": "046.wav",
+  "colour": 3
+ },
+ {
+  "file": "047.wav",
+  "colour": 3
+ },
+ {
+  "file": "048.wav",
+  "colour": 5
+ },
+ {
+  "file": "049.wav",
+  "colour": 3
+ },
+ {
+  "file": "050.wav",
+  "colour": 5
+ },
+ {
+  "file": "051.wav",
+  "colour": 5
+ },
+ {
+  "file": "052.wav",
+  "colour": 2
+ },
+ {
+  "file": "053.wav",
+  "colour": 5
+ },
+ {
+  "file": "054.wav",
+  "colour": 2
+ },
+ {
+  "file": "055.wav",
+  "colour": 5
+ },
+ {
+  "file": "056.wav",
+  "colour": 5
+ },
+ {
+  "file": "057.wav",
+  "colour": 2
+ },
+ {
+  "file": "058.wav",
+  "colour": 2
+ },
+ {
+  "file": "059.wav",
+  "colour": 1
+ },
+ {
+  "file": "060.wav",
+  "colour": 1
+ },
+ {
+  "file": "061.wav",
+  "colour": 3
+ },
+ {
+  "file": "062.wav",
+  "colour": 3
+ },
+ {
+  "file": "063.wav",
+  "colour": 0
+ },
+ {
+  "file": "064.wav",
+  "colour": 0
+ },
+ {
+  "file": "065.wav",
+  "colour": 0
+ },
+ {
+  "file": "066.wav",
+  "colour": 1
+ },
+ {
+  "file": "067.wav",
+  "colour": 1
+ },
+ {
+  "file": "068.wav",
+  "colour": 0
+ },
+ {
+  "file": "069.wav",
+  "colour": 0
+ },
+ {
+  "file": "070.wav",
+  "colour": 1
+ },
+ {
+  "file": "071.wav",
+  "colour": 5
+ },
+ {
+  "file": "072.wav",
+  "colour": 1
+ },
+ {
+  "file": "073.wav",
+  "colour": 6
+ },
+ {
+  "file": "074.wav",
+  "colour": 0
+ },
+ {
+  "file": "075.wav",
+  "colour": 3
+ },
+ {
+  "file": "076.wav",
+  "colour": 1
+ },
+ {
+  "file": "077.wav",
+  "colour": 2
+ },
+ {
+  "file": "078.wav",
+  "colour": 6
+ },
+ {
+  "file": "079.wav",
+  "colour": 2
+ },
+ {
+  "file": "080.wav",
+  "colour": 2
+ },
+ {
+  "file": "081.wav",
+  "colour": 2
+ },
+ {
+  "file": "082.wav",
+  "colour": 2
+ },
+ {
+  "file": "083.wav",
+  "colour": 2
+ },
+ {
+  "file": "084.wav",
+  "colour": 1
+ },
+ {
+  "file": "085.wav",
+  "colour": 2
+ },
+ {
+  "file": "086.wav",
+  "colour": 1
+ },
+ {
+  "file": "087.wav",
+  "colour": 1
+ },
+ {
+  "file": "088.wav",
+  "colour": 3
+ },
+ {
+  "file": "089.wav",
+  "colour": 2
+ },
+ {
+  "file": "090.wav",
+  "colour": 2
+ },
+ {
+  "file": "091.wav",
+  "colour": 5
+ },
+ {
+  "file": "092.wav",
+  "colour": 2
+ },
+ {
+  "file": "093.wav",
+  "colour": 2
+ },
+ {
+  "file": "094.wav",
+  "colour": 4
+ },
+ {
+  "file": "095.wav",
+  "colour": 5
+ },
+ {
+  "file": "096.wav",
+  "colour": 0
+ },
+ {
+  "file": "097.wav",
+  "colour": 2
+ }
+]

@@ -94,8 +94,8 @@ void JungleProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiB
     }
     engine_.setMix(mix_, mixCount_, moved && fineDrag_.load(std::memory_order_relaxed));
 
-    // Option over the plugin mutes while the clock runs (not an audition).
-    engine_.setMuted(muteHeld_.load(std::memory_order_relaxed) && (! hasTransport || hostPlaying));
+    // Command over the plugin mutes, clock running or not (auditions too).
+    engine_.setMuted(muteHeld_.load(std::memory_order_relaxed));
 
     // Render in segments between note events, so a note-on restarts the loops
     // at 1.1.1 on its exact sample, and with the transport stopped the first
@@ -152,7 +152,6 @@ void JungleProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiB
         uiPhase_[i].store(phases[i], std::memory_order_relaxed);
     }
     uiCount_.store(count, std::memory_order_relaxed);
-    uiPlaying_.store(engine_.playing(), std::memory_order_relaxed);
 }
 
 juce::AudioProcessorEditor* JungleProcessor::createEditor() { return new jmui::JungleEditor(*this); }

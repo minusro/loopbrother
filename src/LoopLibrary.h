@@ -18,6 +18,7 @@ public:
         juce::AudioBuffer<float> audio;    // stereo, levelled
         double rate = 44100.0;             // the file's sample rate
         std::vector<float> meter;          // level through the loop, 0..1 of its peak
+        int colour = 0;                    // similarity cluster, in rainbow order (breaks/colours.json)
     };
 
     int size() const { return (int) entries.size(); }
