@@ -36,6 +36,10 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
   `addMouseListener`.
 - Continuous parameters need an explicit `NormalisableRange`: the short
   `AudioParameterFloat(id, name, min, max, def)` constructor snaps to 0.01.
+- JUCE is cloned into the build tree and patched (`cmake/*.patch`, applied by
+  FetchContent's PATCH_COMMAND): `juce-vst3-resize.patch` makes VST3 hosts
+  resize the square window along the dragged side. Keep patches minimal and
+  say why in the patch; a new JUCE version means re-checking each one.
 - No allocation, locking or logging in `processBlock`.
 - Parameter IDs (`x`, `y`) are part of saved state. Add new ones, never rename.
 - An engine change is not done until `jm_tests` passes; add a check when you
@@ -56,7 +60,8 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
 g++ -std=c++17 -O2 -I src tests/engine_tests.cpp -o /tmp/jm_tests && /tmp/jm_tests
 
 # Dev build (arm64 only, faster) - plugins install to ~/Library/Audio/Plug-Ins.
-# JM_JUCE_DIR can point at a local JUCE 8.0.4 checkout to skip the fetch.
+# JM_JUCE_DIR can point at a local JUCE git checkout to clone 8.0.4 from
+# instead of GitHub (e.g. ../canon/build/_deps/juce-src); it is never modified.
 cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64
 cmake --build build --parallel 8
 
@@ -68,7 +73,7 @@ build/jm_host_check_artefacts/Release/jm_host_check \
 # Render the editor to a PNG (no window, no audio device) to check the UI
 cmake -B build -DJM_BUILD_SNAPSHOT=ON && cmake --build build --target jm_snapshot
 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png 0.5 0.5 [size]
-JM_RESIZE_CHECK=1 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png   # host-style edge drags
+JM_RESIZE_CHECK=1 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png   # window frame + edge drags
 
 # AU validation
 auval -v aumu Jngl Mnro

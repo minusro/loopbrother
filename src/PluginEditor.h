@@ -65,12 +65,14 @@ private:
 // Square and resizable by the host window (the size is kept in the plugin
 // state); everything on the pad scales with it.
 //
-// Plugin hosts get no fixed aspect ratio: JUCE's VST3 size check squares a
-// proposed size by its shorter side, so dragging one window edge outwards
-// could only ever shrink the window. Instead the editor accepts whatever size
-// the host proposes and then squares itself, following the side the host
-// moved, so edges grow the window as well as shrink it. The standalone keeps
-// JUCE's fixed-ratio constrainer, which handles edge drags properly there.
+// The window keeps a 1:1 ratio through JUCE's constrainer. Where JUCE
+// controls the window (the standalone) that gives the expected feel:
+// dragging a corner keeps the opposite corner in place, dragging an edge
+// keeps the opposite edge and grows the two others half each way. In plugin
+// hosts the host owns the window and only asks the plugin for a size; JUCE's
+// VST3 answer is patched (cmake/juce-vst3-resize.patch) to follow the side
+// being dragged. Any non-square size that still arrives (a host that ignores
+// the constraint) is squared afterwards along the side that moved.
 class JungleEditor : public juce::AudioProcessorEditor, private juce::Timer, private juce::AsyncUpdater {
 public:
     static constexpr int kDesignSize  = 480;  // the size drawing dimensions are given at
@@ -83,7 +85,7 @@ public:
 
 private:
     void timerCallback() override { pad.refresh(); }
-    void handleAsyncUpdate() override;      // square up after a host resize
+    void handleAsyncUpdate() override;      // square up after an unconstrained host resize
 
     JungleProcessor& proc;
     XYPad pad;

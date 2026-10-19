@@ -137,8 +137,7 @@ JungleEditor::JungleEditor(JungleProcessor& p) : AudioProcessorEditor(&p), proc(
     addAndMakeVisible(pad);
     setResizable(true, false);
     setResizeLimits(kMinSize, kMinSize, kMaxSize, kMaxSize);
-    if (p.wrapperType == juce::AudioProcessor::wrapperType_Standalone)
-        getConstrainer()->setFixedAspectRatio(1.0);
+    getConstrainer()->setFixedAspectRatio(1.0);
     setSize(size, size);
     pad.refresh();
     startTimerHz(30);
@@ -154,8 +153,8 @@ void JungleEditor::resized()
     pad.setBounds(0, 0, juce::jmin(w, h), juce::jmin(w, h));
     if (w != h)
     {
-        // Mid host resize: square up once the host has finished applying it
-        // (a resize requested from inside it would not reach the host window).
+        // A host that ignored the constraint: square up once it has finished
+        // applying its size (a resize from inside it would not reach the window).
         triggerAsyncUpdate();
         return;
     }
