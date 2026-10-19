@@ -3,11 +3,16 @@
 // with bare g++.
 #include <algorithm>
 #include <cmath>
+#include <functional>
 
 namespace jm {
 
 // The tempo every break in breaks/ is tuned to.
 constexpr double kLoopBpm = 162.0;
+
+// Bit-for-bit comparison, for change detection (spelled out to keep
+// -Wfloat-equal quiet where exactness is the point).
+inline bool exactlyEqual(float a, float b) { return std::equal_to<float>()(a, b); }
 
 // One break: stereo samples spanning a whole number of 4/4 bars.
 struct Loop {
@@ -18,38 +23,61 @@ struct Loop {
     double beats() const { return 4.0 * bars; }
 };
 
-// Plays one loop at a time, phase-locked to the host beat. The read position
-// is a pure function of the beat (never a sample counter), so tempo changes and
-// transport jumps cannot make it drift. Loops are varispeed: a loop always
-// spans its bars in host beats, so at another tempo it plays faster or slower,
-// pitch included.
+// A loop in the mix and its share of the level (the shares add up to 1).
+struct MixVoice { int loop; float weight; };
+
+// Plays a mix of loops, each phase-locked to the host beat. A loop's read
+// position is a pure function of the beat (never a sample counter), so tempo
+// changes and transport jumps cannot make it drift. Loops are varispeed: a
+// loop always spans its bars in host beats, so at another tempo it plays
+// faster or slower, pitch included.
 //
 // Timeline: when the transport starts, loop 1.1.1 sits on beat 0 of the song
 // (a 2-bar loop starts over on bars 1, 3, 5 ...). restart() moves 1.1.1 to the
-// current beat. Every change of what sounds (switching loops, restarting, a
-// jump, start/stop) crossfades over a few milliseconds, so nothing clicks.
+// current beat for every loop in the mix. Every change of what sounds (the
+// mix, a restart, a jump, start/stop) ramps over a few milliseconds, so
+// nothing clicks.
 //
-// Per block: beginBlock() with the host transport, select(), then render() in
+// Per block: setMix(), beginBlock() with the host transport, then render() in
 // segments, calling restart() between segments where a note-on lands.
 class LoopEngine {
 public:
-    static constexpr int kMaxTaps = 4;
+    static constexpr int kMaxMix  = 8;   // loops sounding at once
+    static constexpr int kMaxTaps = 24;  // the mix plus the tails fading out
 
     void prepare(double sampleRate, double fadeSeconds = 0.005)
     {
-        sr_       = sampleRate;
-        fadeStep_ = (float) (1.0 / std::max(1.0, fadeSeconds * sampleRate));
-        numTaps_  = 0;
-        playing_  = false;
+        sr_          = sampleRate;
+        fadeSamples_ = (float) std::max(1.0, fadeSeconds * sampleRate);
+        numTaps_     = 0;
+        playing_     = false;
     }
 
     void setLoops(const Loop* loops, int count)
     {
         loops_    = loops;
         count_    = count;
-        selected_ = std::min(selected_, std::max(0, count - 1));
         numTaps_  = 0;
+        mixCount_ = 0;
     }
+
+    // Which loops sound and at what share. Changes ramp to the new mix at the
+    // same position in the bar.
+    void setMix(const MixVoice* v, int n)
+    {
+        MixVoice next[kMaxMix];
+        int count = 0;
+        for (int i = 0; i < n && count < kMaxMix; ++i)
+            if (v[i].loop >= 0 && v[i].loop < count_ && v[i].weight > 0.0f) next[count++] = v[i];
+        bool same = count == mixCount_;
+        for (int i = 0; same && i < count; ++i)
+            same = next[i].loop == mix_[i].loop && exactlyEqual(next[i].weight, mix_[i].weight);
+        if (same) return;
+        std::copy(next, next + count, mix_);
+        mixCount_ = count;
+        if (playing_) applyMix();
+    }
+    void select(int index) { const MixVoice v { index, 1.0f }; setMix(&v, 1); }
 
     // Host transport at the first sample of the block.
     void beginBlock(bool playing, double beat, double bpm)
@@ -58,7 +86,7 @@ public:
         if (! playing)
         {
             if (playing_)
-                for (int t = 0; t < numTaps_; ++t) taps_[t].target = 0.0f;
+                for (int t = 0; t < numTaps_; ++t) retire(taps_[t]);
             playing_ = false;
             return; // beat_ runs on so the fade-out tail stays continuous
         }
@@ -70,56 +98,37 @@ public:
             // out - unless the jump lands on the same spot in its loop (a host
             // loop region a whole number of loops long), which needs nothing.
             const double d = beat_ - beat;
-            bool liveContinues = false;
             for (int t = 0; t < numTaps_; ++t)
             {
                 Tap& tp = taps_[t];
-                if (jumped && wholeLoops(d, loops_[tp.loop].beats()))
-                {
-                    liveContinues |= tp.target > 0.0f;
-                    continue;
-                }
+                if (jumped && tp.live && wholeLoops(d, loops_[tp.loop].beats())) continue;
+                retire(tp);
                 tp.shift += d;
-                tp.target = 0.0f;
             }
             beat_    = beat;
             playing_ = true;
             if (started) anchor_ = 0.0;
-            if (! liveContinues) addLive(! atLoopTop());
+            applyMix();
         }
         beat_ = beat;
     }
 
-    // Which loop sounds. A change crossfades to the new loop at the same
-    // position in the bar.
-    void select(int index)
-    {
-        if (index < 0 || index >= count_ || index == selected_) return;
-        selected_ = index;
-        if (! playing_) return;
-        for (int t = 0; t < numTaps_; ++t) taps_[t].target = 0.0f;
-        addLive(! atLoopTop());
-    }
-
-    // Note-on: the loop starts again from 1.1.1 at the current beat. Ignored
-    // while the transport is stopped (starting it syncs to the song position).
+    // Note-on: every loop in the mix starts again from 1.1.1 at the current
+    // beat. Ignored while the transport is stopped (starting it syncs to the
+    // song position).
     void restart()
     {
         if (! playing_) return;
         const double shift = -beat_;
-        for (int t = 0; t < numTaps_; ++t) // already at 1.1.1 (a note on the bar line)
+        for (int t = 0; t < numTaps_; ++t)
         {
             Tap& tp = taps_[t];
-            if (tp.target > 0.0f && tp.loop == selected_ && wholeLoops(tp.shift - shift, loops_[tp.loop].beats()))
-            {
-                anchor_  = beat_;
-                tp.shift = shift;
-                return;
-            }
+            if (! tp.live) continue;
+            if (wholeLoops(tp.shift - shift, loops_[tp.loop].beats())) tp.shift = shift; // already at 1.1.1
+            else retire(tp);
         }
-        for (int t = 0; t < numTaps_; ++t) taps_[t].target = 0.0f;
         anchor_ = beat_;
-        addLive(false); // first sample of a loop: the crop already fades it in
+        applyMix(); // re-adds the retired loops at their first sample, which the crop already fades in
     }
 
     // Adds n samples into L and R.
@@ -132,8 +141,8 @@ public:
             for (int t = 0; t < numTaps_; ++t)
             {
                 Tap& tp = taps_[t];
-                if (tp.gain < tp.target)      tp.gain = std::min(tp.target, tp.gain + fadeStep_);
-                else if (tp.gain > tp.target) tp.gain = std::max(tp.target, tp.gain - fadeStep_);
+                if (tp.gain < tp.target)      tp.gain = std::min(tp.target, tp.gain + tp.step);
+                else if (tp.gain > tp.target) tp.gain = std::max(tp.target, tp.gain - tp.step);
                 if (tp.gain <= 0.0f) continue;
                 const Loop& lp = loops_[tp.loop];
                 double ph = (beat_ + tp.shift) / lp.beats();
@@ -148,47 +157,76 @@ public:
             R[i] += r;
             beat_ += dBeat;
         }
-        int keep = 0; // drop taps that have faded out
+        int keep = 0; // drop tails that have faded out
         for (int t = 0; t < numTaps_; ++t)
-            if (taps_[t].gain > 0.0f || taps_[t].target > 0.0f) taps_[keep++] = taps_[t];
+            if (taps_[t].live || taps_[t].gain > 0.0f) taps_[keep++] = taps_[t];
         numTaps_ = keep;
     }
 
-    // For the UI: the loop being heard (-1 when silent) and its position 0..1.
-    int sounding() const
+    // For the UI: the loops in the mix, their current level and position 0..1.
+    // Returns how many were written (0 when silent).
+    int sounding(int* loop, float* gain, double* phase, int max) const
     {
-        for (int t = numTaps_ - 1; t >= 0; --t)
-            if (taps_[t].target > 0.0f) return taps_[t].loop;
-        return -1;
+        int n = 0;
+        for (int t = 0; t < numTaps_ && n < max; ++t)
+        {
+            const Tap& tp = taps_[t];
+            if (! tp.live) continue;
+            const double ph = (beat_ + tp.shift) / loops_[tp.loop].beats();
+            loop[n] = tp.loop;
+            gain[n] = tp.gain;
+            phase[n] = ph - std::floor(ph);
+            ++n;
+        }
+        return n;
     }
-    double phase() const
-    {
-        for (int t = numTaps_ - 1; t >= 0; --t)
-            if (taps_[t].target > 0.0f)
-            {
-                const double ph = (beat_ + taps_[t].shift) / loops_[taps_[t].loop].beats();
-                return ph - std::floor(ph);
-            }
-        return 0.0;
-    }
-    int  selected() const { return selected_; }
-    bool playing() const  { return playing_; }
+    bool playing() const { return playing_; }
 
 private:
-    // One reading of a loop: position in beats = beat_ + shift.
-    struct Tap { int loop; double shift; float gain; float target; };
+    // One reading of a loop: position in beats = beat_ + shift. Live taps carry
+    // the mix; retired ones fade out along their own timeline.
+    struct Tap { int loop; double shift; float gain, target, step; bool live; };
 
-    void addLive(bool fadeIn)
+    // Every change of level is a linear ramp lasting one fade time.
+    void setTarget(Tap& tp, float target)
     {
-        if (count_ <= 0) return;
-        if (numTaps_ == kMaxTaps) // make room: drop the quietest fading tap
+        if (exactlyEqual(target, tp.target)) return;
+        tp.target = target;
+        tp.step   = std::abs(target - tp.gain) / fadeSamples_;
+    }
+    void retire(Tap& tp) { tp.live = false; setTarget(tp, 0.0f); }
+
+    // Match live taps to the mix: keep and re-level the ones still in it,
+    // retire the rest, start the loops that have no tap yet.
+    void applyMix()
+    {
+        bool used[kMaxMix] = {};
+        for (int t = 0; t < numTaps_; ++t)
         {
-            int q = 0;
-            for (int t = 1; t < numTaps_; ++t)
-                if (taps_[t].gain < taps_[q].gain) q = t;
+            Tap& tp = taps_[t];
+            if (! tp.live) continue;
+            int m = 0;
+            while (m < mixCount_ && (used[m] || mix_[m].loop != tp.loop)) ++m;
+            if (m < mixCount_) { used[m] = true; setTarget(tp, mix_[m].weight); }
+            else retire(tp);
+        }
+        for (int m = 0; m < mixCount_; ++m)
+            if (! used[m]) addLive(mix_[m].loop, mix_[m].weight, ! atLoopTop(mix_[m].loop));
+    }
+
+    void addLive(int loop, float weight, bool fadeIn)
+    {
+        if (numTaps_ == kMaxTaps) // make room: drop the quietest tail
+        {
+            int q = -1;
+            for (int t = 0; t < numTaps_; ++t)
+                if (! taps_[t].live && (q < 0 || taps_[t].gain < taps_[q].gain)) q = t;
+            if (q < 0) return;
             taps_[q] = taps_[--numTaps_];
         }
-        taps_[numTaps_++] = { selected_, -anchor_, fadeIn ? 0.0f : 1.0f, 1.0f };
+        Tap tp { loop, -anchor_, fadeIn ? 0.0f : weight, 0.0f, 0.0f, true };
+        setTarget(tp, weight);
+        taps_[numTaps_++] = tp;
     }
 
     // Half a millisecond, in beats: below this two positions count as the same.
@@ -197,16 +235,15 @@ private:
     // Is a position offset of d beats a whole number of loops?
     bool wholeLoops(double d, double beats) const
     {
-        double r = std::fmod(std::abs(d), beats);
+        const double r = std::fmod(std::abs(d), beats);
         return r < tolerance() || beats - r < tolerance();
     }
 
-    // Is the selected loop within its first millisecond? Its crop starts from
-    // silence there, so it can come in at full level.
-    bool atLoopTop() const
+    // Is the loop within its first millisecond? Its crop starts from silence
+    // there, so it can come in at full level.
+    bool atLoopTop(int loop) const
     {
-        if (count_ <= 0) return true;
-        const double beats = loops_[selected_].beats();
+        const double beats = loops_[loop].beats();
         double pos = std::fmod(beat_ - anchor_, beats);
         if (pos < 0.0) pos += beats;
         return pos * 60.0 / bpm_ < 0.001;
@@ -224,16 +261,17 @@ private:
     }
 
     const Loop* loops_ = nullptr;
-    int    count_    = 0;
-    int    selected_ = 0;
-    double sr_       = 48000.0;
-    double bpm_      = kLoopBpm;
-    double beat_     = 0.0;     // host beat at the next sample to render
-    double anchor_   = 0.0;     // beat where the loop's 1.1.1 sits
-    bool   playing_  = false;
-    float  fadeStep_ = 1.0f / 240.0f;
-    Tap    taps_[kMaxTaps] {};
-    int    numTaps_  = 0;
+    int      count_       = 0;
+    MixVoice mix_[kMaxMix] {};
+    int      mixCount_    = 0;
+    double   sr_          = 48000.0;
+    double   bpm_         = kLoopBpm;
+    double   beat_        = 0.0;     // host beat at the next sample to render
+    double   anchor_      = 0.0;     // beat where the loops' 1.1.1 sits
+    bool     playing_     = false;
+    float    fadeSamples_ = 240.0f;
+    Tap      taps_[kMaxTaps] {};
+    int      numTaps_     = 0;
 };
 
 } // namespace jm

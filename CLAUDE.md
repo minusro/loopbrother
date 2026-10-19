@@ -1,8 +1,9 @@
 # Jungle Massive — Claude Code guide
 
 Break-loop instrument plugin (JUCE; VST3 + AU + Standalone on macOS). The 97
-breaks in `breaks/` are compiled into the binary; an XY pad picks which one
-plays, in sync with the host. Start with `docs/HANDOFF.md`.
+breaks in `breaks/` are compiled into the binary; an XY pad's selection circle
+mixes the breaks whose cells it covers, in sync with the host. Start with
+`docs/HANDOFF.md`.
 
 ## Ground rules
 
@@ -13,8 +14,16 @@ plays, in sync with the host. Start with `docs/HANDOFF.md`.
   counter, so it stays phase-locked through tempo changes and jumps.
 - Loops are varispeed: every break is tuned to 162 BPM (`jm::kLoopBpm`) and
   always spans its bars in host beats, so pitch follows the host tempo.
-- Anything that changes what sounds (switch, restart, jump, start/stop)
-  crossfades over 5 ms. Don't introduce hard cuts.
+- Anything that changes what sounds (mix, restart, jump, start/stop)
+  ramps over 5 ms. Don't introduce hard cuts.
+- The mix is geometric: each break's share is the fraction of the selection
+  circle (`jm::kPuckRadius`) inside its Voronoi cell, so the shares add up to
+  exactly 1 (`src/engine/PadGeometry.h`).
+- Every draggable control (the pad now, knobs and sliders later) hides the
+  mouse pointer while dragged: give it a `jmui::HideCursorWhileDragging` via
+  `addMouseListener`.
+- Continuous parameters need an explicit `NormalisableRange`: the short
+  `AudioParameterFloat(id, name, min, max, def)` constructor snaps to 0.01.
 - No allocation, locking or logging in `processBlock`.
 - Parameter IDs (`x`, `y`) are part of saved state. Add new ones, never rename.
 - An engine change is not done until `jm_tests` passes; add a check when you
@@ -43,6 +52,10 @@ cmake --build build --parallel 8
 cmake -B build -DJM_BUILD_HOST_CHECK=ON && cmake --build build --target jm_host_check
 build/jm_host_check_artefacts/Release/jm_host_check \
     "build/junglemassive_artefacts/Release/VST3/Jungle Massive.vst3" breaks
+
+# Render the editor to a PNG (no window, no audio device) to check the UI
+cmake -B build -DJM_BUILD_SNAPSHOT=ON && cmake --build build --target jm_snapshot
+build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png 0.5 0.5
 
 # AU validation
 auval -v aumu Jngl Mnro

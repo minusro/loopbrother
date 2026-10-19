@@ -8,7 +8,7 @@ if(APPLE AND NOT CMAKE_OSX_DEPLOYMENT_TARGET)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "" FORCE)
 endif()
 
-project(junglemassive VERSION 0.1.0 LANGUAGES C CXX)
+project(junglemassive VERSION 0.2.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -110,6 +110,18 @@ if(JM_BUILD_PLUGIN)
             JUCE_PLUGINHOST_VST3=1 JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
         target_link_libraries(jm_host_check PRIVATE
             juce::juce_audio_processors juce::juce_audio_formats
+            juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+    endif()
+
+    # Renders the editor to a PNG (no window, no audio device) for UI checks.
+    option(JM_BUILD_SNAPSHOT "Build the editor snapshot tool (tests/snapshot.cpp)" OFF)
+    if(JM_BUILD_SNAPSHOT)
+        juce_add_console_app(jm_snapshot PRODUCT_NAME "jm_snapshot")
+        target_sources(jm_snapshot PRIVATE
+            tests/snapshot.cpp src/LoopLibrary.cpp src/PluginProcessor.cpp src/PluginEditor.cpp)
+        target_compile_definitions(jm_snapshot PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+        target_link_libraries(jm_snapshot PRIVATE
+            jm_engine jm_breaks juce::juce_audio_utils
             juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
     endif()
 endif()

@@ -38,22 +38,14 @@ LoopLibrary::LoopLibrary()
     }
 
     // Each break is a whole number of bars at kLoopBpm.
+    std::vector<jm::Pt> sites;
     for (const auto& e : entries)
     {
         const double framesPerBar = e.rate * 240.0 / jm::kLoopBpm;
         const int bars = juce::jmax(1, juce::roundToInt(e.audio.getNumSamples() / framesPerBar));
         loops_.push_back({ e.audio.getReadPointer(0), e.audio.getReadPointer(1), e.audio.getNumSamples(), bars });
+        sites.push_back({ e.pos.x, e.pos.y });
     }
-}
-
-int LoopLibrary::nearest(juce::Point<float> p) const
-{
-    int best = 0;
-    float bestD = std::numeric_limits<float>::max();
-    for (int i = 0; i < size(); ++i)
-    {
-        const float d = entries[(size_t) i].pos.getDistanceSquaredFrom(p);
-        if (d < bestD) { bestD = d; best = i; }
-    }
-    return best;
+    pad_.setSites(sites);
+    cells_ = jm::voronoiCells(sites, 0.0, 1.0);
 }
