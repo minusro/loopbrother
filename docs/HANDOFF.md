@@ -1,6 +1,6 @@
 # LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-19 — v0.8.7, the umlauts turn to face the drag.
+Updated: 2026-10-19 — v0.8.8, ripples only in the cells the drag crosses.
 
 ## Where things stand
 
@@ -122,16 +122,19 @@ bundle ID are unchanged, so saved sessions find it.
   movement). Only the dots move: the O, its shading and every shadow stay
   lit from the top left. `CerealSprites` keeps the O and each dot as
   separate images for this.
-  Dragging pushes the nearby cells (their lines and crumbs; the Ös under
-  the circle hold still) the way the circle goes, as through liquid: every
-  60 ms or so the circle leaves a push as long as it moved,
-  and each cell feels it once, as a single sin^2 swell out and back to
-  rest (0.22 s, never below zero, so nothing swings back and forth),
-  arriving later the further the cell is (0.5 pad/s) and fading with
-  distance (Gaussian, 0.12 of the pad). A steady drag keeps the
-  neighbours leaning forward; stop and they settle and stay still. A cell
-  moves at most 0.014 of the pad (7 px at 480); a slow drag moves its
-  neighbours 2 to 3 px. 60 Hz while any run. Drawing only: the sound follows the true cells. The meter
+  Dragging pushes the cells the circle's centre actually passes through,
+  and only those, the way the circle goes, as through liquid: every 60 ms
+  or so the circle leaves a push as long as it moved, for the cells along
+  that stretch (sampled every 0.004 of the pad, so a fast move catches
+  every cell it crosses). Each such cell feels it once, as a single sin^2
+  swell out and back to rest (0.22 s, never below zero, so nothing swings
+  back and forth): its crumb moves with it (the Ös under the circle hold
+  still), and each border corner moves by the average of the cells that
+  meet there, so the borders bend without coming apart. While the circle
+  crosses a cell it keeps leaning forward; once passed, it settles. A cell
+  moves at most 0.014 of the pad (7 px at 480); a slow drag moves it 2 to
+  3 px. 60 Hz while any run. Drawing only: the sound follows the true
+  cells. The meter
   is precomputed per loop at load (RMS, 10 ms attack, VU-style 300 ms
   release, run twice round the loop, scaled to the loop's peak) and read at
   the playhead the processor publishes. The selection circle itself is not
@@ -213,8 +216,8 @@ bundle ID are unchanged, so saved sessions find it.
   Option moves a sixteenth as far, Shift grows the circle away from the
   pivot and shrinks it back, Shift+Option a sixteenth as much, the size
   holds at the largest circle, an Option press leaves the circle in place;
-  a rightward drag pushes a nearby point right (2.5 px), never back, still
-  at the end, and a distant one not at all; the umlauts face right after
+  a rightward drag pushes the cells it crossed right (2.5 px), never back,
+  still at the end, and the nearest cell it didn't cross not at all; the umlauts face right after
   it (90 deg), go back on top after a tap (0) and face down after a drag
   down (179, the drag wobbling a pixel), staying put after the release. Through the
   processor: holding the mute silences it from the next block and letting

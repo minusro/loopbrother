@@ -339,11 +339,12 @@ int main(int argc, char** argv)
         proc.setPadHeld(false);
         proc.setFineDrag(false);
 
-        // Ripples: dragging right pushes a nearby point right, once, and it
-        // comes back to rest: never pushed the other way (no ping-pong), still
-        // at the end, and a distant point never moves.
+        // Ripples: dragging right pushes the cells the circle's centre
+        // crossed right, once, and they come back to rest: never pushed the
+        // other way (no ping-pong), still at the end. The nearest cell it
+        // didn't cross never moves.
         {
-            juce::Thread::sleep(1800); // the earlier drags' pushes settle first
+            juce::Thread::sleep(600); // the earlier drags' pushes settle first
             pad->mouseDown(ev(100, 300, 0));
             const double start = juce::Time::getMillisecondCounterHiRes() / 1000.0;
             for (int i = 1; i <= 5; ++i)
@@ -352,20 +353,39 @@ int main(int argc, char** argv)
                 pad->mouseDrag(ev(100.0f + 12.0f * i, 300, 0));
             }
             proc.setPadHeld(false);
-            const juce::Point<float> near { value("x") + 0.03f, value("y") + 0.02f }, far { near.x + 0.45f, near.y };
-            float most = 0.0f, against = 0.0f, across = 0.0f, last = 1.0f, distant = 0.0f;
-            for (double t = 0.0; t < 3.0; t += 0.01)
+            const auto& lib = proc.library();
+            const float y = 1.0f - 300.0f / w;
+            std::vector<int> crossed;
+            for (float x = 100.0f; x <= 160.0f; x += 0.5f)
             {
-                const auto d = pad->ripple(near, start + t);
-                most = std::max(most, d.x);
-                against = std::min(against, d.x);
-                across = std::max(across, std::abs(d.y));
-                last = d.getDistanceFromOrigin();
-                distant = std::max(distant, pad->ripple(far, start + t).getDistanceFromOrigin());
+                const int c = pad->cellAt({ x / w, y });
+                if (std::find(crossed.begin(), crossed.end(), c) == crossed.end()) crossed.push_back(c);
             }
-            std::printf("  ripple: nearby pushed %.2f px right, %.4f px back, %.4f px across, %.4f px at the end; distant %.4f px\n",
-                        most * w, -against * w, across * w, last * w, distant * w);
-            ok &= most * w > 1.0f && against > -1e-6f && across < 1e-4f && last < 1e-6f && distant < 1e-6f;
+            int beside = -1;
+            float besideDist = 1e9f;
+            for (int i = 0; i < lib.size(); ++i)
+            {
+                if (std::find(crossed.begin(), crossed.end(), i) != crossed.end()) continue;
+                const auto p = lib.entry(i).pos;
+                const float px = juce::jlimit(100.0f / w, 160.0f / w, p.x);
+                const float d = juce::Point<float> { px, y }.getDistanceFrom(p);
+                if (d < besideDist) { besideDist = d; beside = i; }
+            }
+            float most = 0.0f, against = 0.0f, across = 0.0f, last = 0.0f, still = 0.0f;
+            for (double t = 0.0; t < 2.0; t += 0.005)
+                for (const int c : crossed)
+                {
+                    const auto d = pad->cellShift(c, start + t);
+                    most = std::max(most, d.x);
+                    against = std::min(against, d.x);
+                    across = std::max(across, std::abs(d.y));
+                    if (t > 1.9) last = std::max(last, d.getDistanceFromOrigin());
+                    still = std::max(still, pad->cellShift(beside, start + t).getDistanceFromOrigin());
+                }
+            std::printf("  ripple: %zu crossed cells pushed up to %.2f px right, %.4f px back, %.4f px across, %.4f px at the end;"
+                        " the nearest uncrossed cell (%.0f px off the path) %.4f px\n",
+                        crossed.size(), most * w, -against * w, across * w, last * w, besideDist * w, still * w);
+            ok &= most * w > 1.0f && against > -1e-6f && across < 1e-4f && last < 1e-6f && still < 1e-6f;
 
             // The umlauts: after that drag right they face right; a tap puts
             // them back on top; a drag down turns them underneath, and they
@@ -452,7 +472,7 @@ int main(int argc, char** argv)
                     juce::Thread::sleep(70);
                     pad->mouseDrag(ev((0.30f + 0.03f * i) * w, (0.55f - 0.012f * i) * w));
                 }
-                juce::MessageManager::getInstance()->runDispatchLoopUntil(250); // ripples and umlauts move on
+                juce::MessageManager::getInstance()->runDispatchLoopUntil(std::getenv("JM_RIPPLE_WAIT") ? std::atoi(std::getenv("JM_RIPPLE_WAIT")) : 250); // ripples and umlauts move on
                 proc.setPadHeld(false);
             }
             if (std::getenv("JM_TIME_PAINT"))

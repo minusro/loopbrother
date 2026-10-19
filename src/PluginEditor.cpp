@@ -8,6 +8,28 @@ XYPad::XYPad(JungleProcessor& p) : proc(p), lib(p.library())
     px = p.apvts.getParameter("x");
     py = p.apvts.getParameter("y");
     psize = p.apvts.getParameter("size");
+
+    // Which cells meet at each corner of each cell: the ones whose breaks
+    // are nearest to it (a Voronoi corner is equally far from all of them).
+    for (const auto& poly : lib.cells())
+    {
+        std::vector<std::vector<int>> owners;
+        for (const auto& v : poly)
+        {
+            double nearest = std::numeric_limits<double>::max();
+            std::vector<double> dist;
+            for (int i = 0; i < lib.size(); ++i)
+            {
+                dist.push_back(std::hypot(v.x - lib.entry(i).pos.x, v.y - lib.entry(i).pos.y));
+                nearest = std::min(nearest, dist.back());
+            }
+            std::vector<int> meet;
+            for (int i = 0; i < lib.size(); ++i)
+                if (dist[(size_t) i] < nearest + 1e-5) meet.push_back(i);
+            owners.push_back(std::move(meet));
+        }
+        corners.push_back(std::move(owners));
+    }
 }
 
 XYPad::~XYPad()
@@ -78,18 +100,26 @@ void XYPad::paint(juce::Graphics& g)
     sprites.configure(kRingRadius * scale, kCrumbRadius * scale,
                       g.getInternalContext().getPhysicalPixelScaleFactor(), *style);
 
-    // Where everything is drawn: the layout, moved by any passing ripple.
+    // Where everything is drawn: the layout, moved by the ripples. A pushed
+    // cell's crumb moves with it; a border corner moves by the average of
+    // the cells that meet there, so the borders bend but never come apart.
     const double now = juce::Time::getMillisecondCounterHiRes() / 1000.0;
     const bool rippling = ! drops.empty();
-    auto place = [&](juce::Point<float> u) { return toScreen(rippling ? u + ripple(u, now) : u); };
+    std::vector<juce::Point<float>> shift((size_t) lib.size());
+    if (rippling)
+        for (int i = 0; i < lib.size(); ++i) shift[(size_t) i] = cellShift(i, now);
     std::vector<juce::Path> rippled;
     if (rippling)
-        for (const auto& poly : lib.cells())
+        for (size_t c = 0; c < lib.cells().size(); ++c)
         {
+            const auto& poly = lib.cells()[c];
             juce::Path path;
             for (size_t i = 0; i < poly.size(); ++i)
             {
-                const auto s = place({ (float) poly[i].x, (float) poly[i].y });
+                juce::Point<float> d;
+                for (const int m : corners[c][i]) d += shift[(size_t) m];
+                d /= (float) juce::jmax<size_t>(1, corners[c][i].size());
+                const auto s = toScreen(juce::Point<float> { (float) poly[i].x, (float) poly[i].y } + d);
                 if (i == 0) path.startNewSubPath(s);
                 else        path.lineTo(s);
             }
@@ -114,7 +144,7 @@ void XYPad::paint(juce::Graphics& g)
     // A crumb on every cell the circle doesn't cover...
     for (int i = 0; i < lib.size(); ++i)
         if (! covered[(size_t) i])
-            sprites.drawCrumb(g, place(lib.entry(i).pos), lib.entry(i).colour);
+            sprites.drawCrumb(g, toScreen(lib.entry(i).pos + shift[(size_t) i]), lib.entry(i).colour);
 
     // ...and an Ö on each one it does, its size following the break's meter
     // while it plays: half in silence, double at the peak.
@@ -133,23 +163,42 @@ void XYPad::paint(juce::Graphics& g)
 }
 
 // ---------------------------------------------------------------- ripples
-// Each step of a drag gives the cells around the circle one push the way
-// the circle went: a single smooth swell out and back to rest (sin^2, never
-// below zero, so nothing swings past and back), reaching a cell later the
-// further it is (kRippleSpeed) and only near the circle (kRippleReach). A
-// steady drag keeps the neighbours leaning forward; stop and they settle.
-// Pad units and seconds: kRipplePush is how far a cell moves per unit the
-// circle moved, kRippleMax the most any cell moves.
-constexpr float kRippleSpeed = 0.5f, kRippleReach = 0.12f, kRippleSwell = 0.22f,
-                kRipplePush = 0.14f, kRippleMax = 0.014f;
+// Each step of a drag pushes the cells the circle's centre passed through
+// since the last step, and only those, the way the circle went: a single
+// smooth swell out and back to rest (sin^2, never below zero, so nothing
+// swings past and back). While the circle crosses a cell it keeps leaning
+// forward; once it has passed, the cell settles. Pad units and seconds:
+// kRipplePush is how far a cell moves per unit the circle moved,
+// kRippleMax the most any cell moves.
+constexpr float kRippleSwell = 0.22f, kRipplePush = 0.14f, kRippleMax = 0.014f;
 
-void XYPad::addDrop(juce::Point<float> push)
+int XYPad::cellAt(juce::Point<float> u) const
+{
+    int best = 0;
+    float bestDist = std::numeric_limits<float>::max();
+    for (int i = 0; i < lib.size(); ++i)
+    {
+        const float d = u.getDistanceSquaredFrom(lib.entry(i).pos);
+        if (d < bestDist) { bestDist = d; best = i; }
+    }
+    return best;
+}
+
+void XYPad::addDrop(juce::Point<float> from, juce::Point<float> to)
 {
     const double now = juce::Time::getMillisecondCounterHiRes() / 1000.0;
-    drops.push_back({ puck, now, push });
+    Drop drop { now, to - from, {} };
+    // The cells along the way, sampled finely enough to catch a corner.
+    const int steps = juce::jmax(1, (int) std::ceil((to - from).getDistanceFromOrigin() / 0.004f));
+    for (int i = 0; i <= steps; ++i)
+    {
+        const int c = cellAt(from + (to - from) * ((float) i / (float) steps));
+        if (std::find(drop.cells.begin(), drop.cells.end(), c) == drop.cells.end()) drop.cells.push_back(c);
+    }
+    drops.push_back(std::move(drop));
     if (drops.size() > 64) drops.erase(drops.begin());
     lastDrop = now;
-    lastDropAt = puck;
+    lastDropAt = to;
     if (! isTimerRunning())
     {
         lastTick = now;
@@ -157,17 +206,16 @@ void XYPad::addDrop(juce::Point<float> push)
     }
 }
 
-juce::Point<float> XYPad::ripple(juce::Point<float> u, double now) const
+juce::Point<float> XYPad::cellShift(int cell, double now) const
 {
     juce::Point<float> d;
     for (const auto& drop : drops)
     {
-        const float dist = (u - drop.at).getDistanceFromOrigin();
-        if (dist > 3.0f * kRippleReach) continue;
-        const float t = (float) (now - drop.born) - dist / kRippleSpeed; // since the swell reached here
+        const float t = (float) (now - drop.born);
         if (t <= 0.0f || t >= kRippleSwell) continue;
+        if (std::find(drop.cells.begin(), drop.cells.end(), cell) == drop.cells.end()) continue;
         const float swell = std::sin(juce::MathConstants<float>::pi * t / kRippleSwell);
-        d += drop.push * (kRipplePush * swell * swell * std::exp(-(dist / kRippleReach) * (dist / kRippleReach)));
+        d += drop.push * (kRipplePush * swell * swell);
     }
     const float m = d.getDistanceFromOrigin(); // a fast flick moves cells further, but only so far
     return m > 0.0f ? d * (kRippleMax * std::tanh(m / kRippleMax) / m) : d;
@@ -183,8 +231,7 @@ void XYPad::timerCallback()
     const double now = juce::Time::getMillisecondCounterHiRes() / 1000.0;
     const double dt = juce::jlimit(0.0, 0.1, now - lastTick);
     lastTick = now;
-    drops.erase(std::remove_if(drops.begin(), drops.end(),
-                               [&](const Drop& d) { return now - d.born > kRippleSwell + 3.0f * kRippleReach / kRippleSpeed; }),
+    drops.erase(std::remove_if(drops.begin(), drops.end(), [&](const Drop& d) { return now - d.born > kRippleSwell; }),
                 drops.end());
     const float left = std::remainder(umlautTarget - umlautAngle, juce::MathConstants<float>::twoPi); // the short way round
     if (std::abs(left) < 1e-3f) umlautAngle = umlautTarget;
@@ -260,7 +307,7 @@ void XYPad::mouseDrag(const juce::MouseEvent& e)
     // A push where the circle is now and then, as far as it went since.
     const double now = juce::Time::getMillisecondCounterHiRes() / 1000.0;
     const auto moved = puck - lastDropAt;
-    if (now - lastDrop > 0.06 && moved.getDistanceFromOrigin() * (float) getWidth() > 1.0f) addDrop(moved);
+    if (now - lastDrop > 0.06 && moved.getDistanceFromOrigin() * (float) getWidth() > 1.0f) addDrop(lastDropAt, puck);
 }
 
 void XYPad::mouseUp(const juce::MouseEvent& e)
