@@ -19,9 +19,10 @@ const RingStyle kRingStyles[] = {
     { "Jelly",                      0.5f, 0.7f, 0.9f, 0.12f, 0.0f, 1.0f, 0.0f, 0.0f,  1.0f, 0.6f, 0.12f },
     { "Soft clay",                  1.0f, 0.6f, 0.3f, 0.35f, 0.15f, 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.2f },
     { "Flat pastel",                0.0f, 0.0f, 0.0f, 0.0f,  0.0f, 1.0f, 0.0f, 0.0f,  0.0f, 0.3f, 0.0f },
+    { "Soft clay, no gloss",        1.0f, 0.6f, 0.0f, 0.0f,  0.15f, 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.2f },
 };
 const int kNumRingStyles = (int) std::size(kRingStyles);
-const RingStyle& kRingStyle = kRingStyles[1]; // Matte cereal
+const RingStyle& kRingStyle = kRingStyles[8]; // Soft clay, no gloss
 
 Grains::Grains()
 {

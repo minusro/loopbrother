@@ -140,8 +140,8 @@ void XYPad::paint(juce::Graphics& g)
 // steady drag keeps the neighbours leaning forward; stop and they settle.
 // Pad units and seconds: kRipplePush is how far a cell moves per unit the
 // circle moved, kRippleMax the most any cell moves.
-constexpr float kRippleSpeed = 0.3f, kRippleReach = 0.12f, kRippleSwell = 0.45f,
-                kRipplePush = 0.07f, kRippleMax = 0.014f;
+constexpr float kRippleSpeed = 0.5f, kRippleReach = 0.12f, kRippleSwell = 0.22f,
+                kRipplePush = 0.14f, kRippleMax = 0.014f;
 
 void XYPad::addDrop(juce::Point<float> push)
 {

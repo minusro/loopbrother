@@ -14,7 +14,7 @@ public:
 
     struct Entry {
         juce::String name;                 // "042.wav"
-        juce::Point<float> pos;            // in [0, 1]^2, y up
+        juce::Point<float> pos;            // on the pad, [0, 1]^2, y up (jm::padSite of the layout)
         juce::AudioBuffer<float> audio;    // stereo, levelled
         double rate = 44100.0;             // the file's sample rate
         std::vector<float> meter;          // level through the loop, 0..1 of its peak

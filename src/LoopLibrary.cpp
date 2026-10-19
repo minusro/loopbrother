@@ -67,7 +67,8 @@ LoopLibrary::LoopLibrary()
         {
             Entry e;
             e.name = p["file"].toString();
-            e.pos  = { (float) (double) p["x"], (float) (double) p["y"] };
+            const auto at = jm::padSite({ (double) p["x"], (double) p["y"] });
+            e.pos  = { (float) at.x, (float) at.y };
             e.colour = colours.count(e.name) ? colours[e.name] : 0;
             const char* data = resourceNamed(e.name, size);
             if (data == nullptr) continue;
