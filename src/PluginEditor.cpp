@@ -134,10 +134,12 @@ void XYPad::paint(juce::Graphics& g)
 
 // ---------------------------------------------------------------- ripples
 // In pad units and seconds: how fast the rings spread, their wavelength,
-// the width of the train of waves, how long they take to fade and how far
-// a full-strength drop pushes things.
-constexpr float  kRippleSpeed = 0.45f, kRippleWave = 0.07f, kRippleWidth = 0.06f, kRippleAmp = 0.005f;
-constexpr double kRippleFade = 0.7;
+// the width of the train of waves, how far from the drop they still reach,
+// how long they take to fade and how far a full-strength drop pushes a mark.
+// Slow and local: the cells around the circle bob, distant ones stay still.
+constexpr float  kRippleSpeed = 0.16f, kRippleWave = 0.08f, kRippleWidth = 0.07f, kRippleReach = 0.12f,
+                 kRippleAmp = 0.006f;
+constexpr double kRippleFade = 1.2;
 
 void XYPad::addDrop(float strength)
 {
@@ -157,11 +159,12 @@ juce::Point<float> XYPad::ripple(juce::Point<float> u, double now) const
         const float age = (float) (now - drop.born);
         const auto away = u - drop.at;
         const float dist = away.getDistanceFromOrigin();
-        if (dist < 1e-4f) continue;
+        if (dist < 1e-4f || dist > 3.0f * kRippleReach) continue;
         const float front = dist - kRippleSpeed * age; // where in the passing train
         const float wave = std::sin(juce::MathConstants<float>::twoPi * front / kRippleWave)
                          * std::exp(-(front / kRippleWidth) * (front / kRippleWidth));
-        const float fade = drop.strength * (float) std::exp(-age / kRippleFade) * juce::jmin(1.0f, dist / 0.02f);
+        const float fade = drop.strength * (float) std::exp(-age / kRippleFade) * juce::jmin(1.0f, dist / 0.02f)
+                         * std::exp(-(dist / kRippleReach) * (dist / kRippleReach));
         d += away * (kRippleAmp * fade * wave / dist);
     }
     return d;
@@ -286,9 +289,9 @@ void JungleEditor::paint(juce::Graphics& g)
 {
     g.fillAll(white);
     const auto bar = getLocalBounds().withTop(pad.getBottom()).toFloat();
-    g.setColour(forest); // the pad's lower edge
+    g.setColour(mid); // the pad's lower edge
     g.fillRect(bar.withHeight(juce::jmax(1.0f, (float) getWidth() / kDesignSize)));
-    g.setColour(forest);
+    g.setColour(mid);
     g.setFont(juce::Font(juce::FontOptions(bar.getHeight() * 0.62f, juce::Font::bold).withKerningFactor(0.14f)));
     g.drawText(juce::String(juce::CharPointer_UTF8("L\xc3\x96\xc3\x96P BR\xc3\x96THER")), bar,
                juce::Justification::centred, false);

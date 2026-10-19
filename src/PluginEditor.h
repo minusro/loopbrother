@@ -4,12 +4,12 @@
 
 namespace jmui {
 
-// White surfaces with light grey structure (cell borders), forest green for
+// White surfaces with light grey structure (cell borders), medium grey for
 // the logo and the status bar's edge, and the breaks in the Froot Loops
 // pastels (Cereal.h).
 const juce::Colour white  { 0xffffffff };
 const juce::Colour grey   { 0xffdcdcdc };
-const juce::Colour forest { 0xff2e7d32 };
+const juce::Colour mid    { 0xff808080 };
 
 // Hides the mouse pointer while a control is being dragged: the control's own
 // marker (a knob's pointer) shows where it is. Every draggable control gets
@@ -47,9 +47,10 @@ private:
 // silence to double at the loop's peak. Every other cell shows a crumb: a
 // round piece the size of one of the Ö's dots at rest.
 //
-// Dragging sends ripples through the pad, as through liquid: rings of small
-// waves spread from the circle and push the cells (lines, marks) a few
-// pixels as they pass. Drawing only; the sound follows the true cells.
+// Dragging sends ripples through the pad, as through liquid: slow rings of
+// small waves spread from the circle and push the nearby cells (lines and
+// marks) a few pixels as they pass, dying out before the distant ones.
+// Drawing only; the sound follows the true cells.
 class XYPad : public juce::Component, private juce::Timer {
 public:
     static constexpr float kFineSpeed = 1.0f / 16.0f;

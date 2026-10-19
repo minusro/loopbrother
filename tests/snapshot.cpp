@@ -41,7 +41,7 @@ static int styleSheet(const char* path)
     g.addTransform(juce::AffineTransform::scale((float) k2));
     g.fillAll(white);
     const Grains grains;
-    g.setColour(forest);
+    g.setColour(mid);
     g.setFont(juce::FontOptions(14.0f, juce::Font::bold));
     g.drawText("actual size", labelW + kFrootLoops * colW, 8, realW, 24, juce::Justification::centred);
     for (int s = 0; s < kNumRingStyles; ++s)
@@ -50,7 +50,7 @@ static int styleSheet(const char* path)
         const float y = 40.0f + (float) s * rowH;
         g.setColour(grey);
         g.drawHorizontalLine((int) y, 12.0f, (float) w - 12.0f);
-        g.setColour(forest);
+        g.setColour(mid);
         g.setFont(juce::FontOptions(17.0f, juce::Font::bold));
         g.drawText(juce::String(s) + "  " + st.name, 16, (int) y, labelW - 20, rowH, juce::Justification::centredLeft);
         for (int c = 0; c < kFrootLoops; ++c)

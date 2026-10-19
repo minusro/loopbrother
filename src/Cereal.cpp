@@ -21,7 +21,7 @@ const RingStyle kRingStyles[] = {
     { "Flat pastel",                0.0f, 0.0f, 0.0f, 0.0f,  0.0f, 1.0f, 0.0f, 0.0f,  0.0f, 0.3f, 0.0f },
 };
 const int kNumRingStyles = (int) std::size(kRingStyles);
-const RingStyle& kRingStyle = kRingStyles[0];
+const RingStyle& kRingStyle = kRingStyles[1]; // Matte cereal
 
 Grains::Grains()
 {
