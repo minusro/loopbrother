@@ -1,8 +1,7 @@
 # LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-19 — v0.8.0, a circle up to half the pad, crumbs on every
-cell, ripples while dragging, grey lines, ring styles to choose from
-(`docs/ring-styles.png`).
+Updated: 2026-10-19 — v0.8.1, matte cereal marks, slow local ripples, a
+medium grey logo, company name "minus".
 
 ## Where things stand
 
@@ -27,7 +26,7 @@ bundle ID are unchanged, so saved sessions find it.
   +5.5 dBFS. Fine inside a host's float mix, but they could clip the
   standalone's audio device. The WAVs on disk are unchanged.
 - **Pad** (the UI, white, over a small white status bar with the
-  forest-green LÖÖP BRÖTHER logo): every break sits at its
+  medium grey LÖÖP BRÖTHER logo): every break sits at its
   similarity-layout position and owns the nearest patch of pad (drawn as
   Voronoi cells). The selection circle is three continuous automatable
   parameters: `x`, `y` and `size` (Circle Size, 0.25x of `jm::kPuckRadius`
@@ -73,7 +72,7 @@ bundle ID are unchanged, so saved sessions find it.
 - **Window**: the pad over the status bar (24 px at 480), resizable by the
   host window from 240 to 1440 px wide at that ratio (default 480x504; the
   width is saved in the plugin state and everything scales with it), white
-  with light grey cell lines and a forest-green edge over the status bar.
+  with light grey cell lines and a medium grey edge over the status bar.
   Every size goes through
   `jmui::WindowConstrainer`:
   - **Edges:** an edge drag follows that edge.
@@ -102,8 +101,8 @@ bundle ID are unchanged, so saved sessions find it.
   the size of one of those dots. The look is a `jmui::RingStyle`
   (`src/Cereal.{h,cpp}`); `kRingStyles` holds eight to try
   (`docs/ring-styles.png`, from `JM_STYLE_SHEET`), `kRingStyle` is the one
-  in use: for now 0, "Glossy bevel", shaded like the bevelled letters of
-  the old Google logo. Shadows take a darker tone of the colour turned
+  in use: 1, "Matte cereal" (tube-shaded and lit from the top left, no
+  gloss, a strong soft grain, a slightly uneven edge). Shadows take a darker tone of the colour turned
   slightly towards red (`shadowOf`), so yellow shades to gold rather than
   olive; the grain is tileable value noise in octaves, so a coarse grain
   stays soft. The marks are pre-rendered (`jmui::CerealSprites`: per
@@ -116,9 +115,10 @@ bundle ID are unchanged, so saved sessions find it.
   full size.
   Dragging sends ripples through the pad: every 60 ms or so a drop falls
   where the circle is, stronger the further it moved, and its ring of
-  small waves spreads (0.45 pad/s, 0.07 wavelength) and fades (0.7 s),
-  pushing the cell lines, crumbs and Ös a few pixels as it passes (60 Hz
-  while any run). Drawing only: the sound follows the true cells. The meter
+  small waves spreads slowly (0.16 pad/s, 0.08 wavelength) and fades
+  (1.2 s), pushing the cell lines, crumbs and Ös a few pixels as it
+  passes. It reaches only nearby cells (a Gaussian falloff, 0.12 of the
+  pad): distant ones stay still. 60 Hz while any run. Drawing only: the sound follows the true cells. The meter
   is precomputed per loop at load (RMS, 10 ms attack, VU-style 300 ms
   release, run twice round the loop, scaled to the loop's peak) and read at
   the playhead the processor publishes. The selection circle itself is not
