@@ -3,6 +3,13 @@
 
 using APVTS = juce::AudioProcessorValueTreeState;
 
+juce::NormalisableRange<float> JungleProcessor::circleSizeRange()
+{
+    juce::NormalisableRange<float> r { jm::kCircleSizeMin, jm::kCircleSizeMax };
+    r.setSkewForCentre(1.0f);
+    return r;
+}
+
 APVTS::ParameterLayout JungleProcessor::layout()
 {
     // Continuous: the short AudioParameterFloat constructor would snap to
@@ -13,6 +20,11 @@ APVTS::ParameterLayout JungleProcessor::layout()
         juce::ParameterID { "x", 1 }, "Pad X", unit, 0.5f));
     p.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "y", 1 }, "Pad Y", unit, 0.5f));
+    p.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "size", 1 }, "Circle Size", circleSizeRange(), 1.0f,
+        juce::AudioParameterFloatAttributes()
+            .withStringFromValueFunction([](float v, int) { return juce::String(v, 2) + "x"; })
+            .withValueFromStringFunction([](const juce::String& s) { return s.retainCharacters("0123456789.").getFloatValue(); })));
     return { p.begin(), p.end() };
 }
 
@@ -22,6 +34,7 @@ JungleProcessor::JungleProcessor()
 {
     pX = apvts.getRawParameterValue("x");
     pY = apvts.getRawParameterValue("y");
+    pSize = apvts.getRawParameterValue("size");
     engine_.setLoops(library_->loops(), library_->size());
 }
 
@@ -67,16 +80,22 @@ void JungleProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiB
 
     // The mix: every break the selection circle overlaps, its share the area
     // covered, blended at equal power. Set before the timeline so a start
-    // begins straight on it.
-    const float x = pX->load(), y = pY->load();
-    if (! juce::exactlyEqual(x, lastX_) || ! juce::exactlyEqual(y, lastY_))
+    // begins straight on it. A fine drag's changes apply at once.
+    const float x = pX->load(), y = pY->load(), size = pSize->load();
+    bool moved = false;
+    if (! juce::exactlyEqual(x, lastX_) || ! juce::exactlyEqual(y, lastY_) || ! juce::exactlyEqual(size, lastSize_))
     {
         lastX_ = x;
         lastY_ = y;
-        mixCount_ = library_->pad().mix({ x, y }, jm::kPuckRadius, mix_, kMaxMix);
+        lastSize_ = size;
+        mixCount_ = library_->pad().mix({ x, y }, jm::circleRadius(size), mix_, kMaxMix);
         jm::equalPower(mix_, mixCount_);
+        moved = true;
     }
-    engine_.setMix(mix_, mixCount_);
+    engine_.setMix(mix_, mixCount_, moved && fineDrag_.load(std::memory_order_relaxed));
+
+    // Option over the plugin mutes while the clock runs (not an audition).
+    engine_.setMuted(muteHeld_.load(std::memory_order_relaxed) && (! hasTransport || hostPlaying));
 
     // Render in segments between note events, so a note-on restarts the loops
     // at 1.1.1 on its exact sample, and with the transport stopped the first
@@ -133,6 +152,7 @@ void JungleProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiB
         uiPhase_[i].store(phases[i], std::memory_order_relaxed);
     }
     uiCount_.store(count, std::memory_order_relaxed);
+    uiPlaying_.store(engine_.playing(), std::memory_order_relaxed);
 }
 
 juce::AudioProcessorEditor* JungleProcessor::createEditor() { return new jmui::JungleEditor(*this); }

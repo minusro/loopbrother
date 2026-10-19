@@ -7,13 +7,13 @@ XYPad::XYPad(JungleProcessor& p) : proc(p), lib(p.library())
 {
     px = p.apvts.getParameter("x");
     py = p.apvts.getParameter("y");
-    addMouseListener(&hideCursor, false);
+    psize = p.apvts.getParameter("size");
 }
 
 XYPad::~XYPad()
 {
-    removeMouseListener(&hideCursor);
     proc.setPadHeld(false);
+    proc.setFineDrag(false);
 }
 
 juce::Point<float> XYPad::toScreen(juce::Point<float> u) const
@@ -47,13 +47,17 @@ void XYPad::resized()
 void XYPad::refresh()
 {
     bool changed = false;
-    const juce::Point<float> u { px->getValue(), py->getValue() };
-    if (u != puck)
+    const juce::Point<float> u { px->convertFrom0to1(px->getValue()), py->convertFrom0to1(py->getValue()) };
+    const float s = psize->convertFrom0to1(psize->getValue());
+    if (u != puck || ! juce::exactlyEqual(s, size))
     {
         puck = u;
-        mixCount = lib.pad().mix({ u.x, u.y }, jm::kPuckRadius, mix, kMaxMix);
+        size = s;
+        mixCount = lib.pad().mix({ u.x, u.y }, jm::circleRadius(s), mix, kMaxMix);
         changed = true;
     }
+    changed |= proc.uiPlaying() != playing;
+    playing = proc.uiPlaying();
     const int n = juce::jmin(proc.uiCount(), kMaxMix);
     changed |= n != voiceCount;
     for (int i = 0; i < n; ++i)
@@ -85,9 +89,9 @@ void XYPad::paint(juce::Graphics& g)
     for (const auto& path : cellPaths)
         g.strokePath(path, juce::PathStrokeType(juce::jmax(1.0f, scale)));
 
-    // Dots on the cells under the circle only. While a cell's break plays its
-    // dot follows the break's meter: half size in silence, double at the
-    // loop's peak.
+    // Dots on the cells under the circle only: white while nothing plays,
+    // green while the loops play. While a cell's break plays its dot follows
+    // the break's meter: half size in silence, double at the loop's peak.
     for (int m = 0; m < mixCount; ++m)
     {
         const int loop = mix[m].loop;
@@ -96,39 +100,71 @@ void XYPad::paint(juce::Graphics& g)
         for (int i = 0; i < voiceCount; ++i)
             if (voices[i].loop == loop) r = 6.0f * scale * (0.5f + 1.5f * lib.level(loop, voices[i].phase));
         const auto c = toScreen(lib.entry(loop).pos);
-        g.setColour(green);
+        g.setColour(playing ? green : white);
         g.fillEllipse(c.x - r, c.y - r, 2 * r, 2 * r);
     }
-
 }
 
-void XYPad::setFromMouse(juce::Point<float> s)
+void XYPad::setPuck(juce::Point<float> u)
 {
-    const auto u = toUnit(s);
     px->setValueNotifyingHost(px->convertTo0to1(u.x));
     py->setValueNotifyingHost(py->convertTo0to1(u.y));
     refresh();
 }
 
+void XYPad::setCircleSize(float s)
+{
+    psize->setValueNotifyingHost(psize->convertTo0to1(juce::jlimit(jm::kCircleSizeMin, jm::kCircleSizeMax, s)));
+    refresh();
+}
+
 void XYPad::mouseDown(const juce::MouseEvent& e)
 {
-    px->beginChangeGesture();
-    py->beginChangeGesture();
-    setFromMouse(e.position);
+    for (auto* p : { px, py, psize }) p->beginChangeGesture();
+    isDragging = true;
+    last = pivot = e.position;
+    e.source.enableUnboundedMouseMovement(true);
+    proc.setFineDrag(e.mods.isCommandDown());
+    if (! e.mods.isCommandDown()) setPuck(toUnit(e.position));
     proc.setPadHeld(true); // after the move, so an audition starts on the pressed spot
 }
 
-void XYPad::mouseDrag(const juce::MouseEvent& e) { setFromMouse(e.position); }
+void XYPad::mouseDrag(const juce::MouseEvent& e)
+{
+    const bool fine = e.mods.isCommandDown();
+    proc.setFineDrag(fine); // before the change, so it applies at once
+    const float speed = fine ? kFineSpeed : 1.0f;
+    if (e.mods.isShiftDown())
+    {
+        // Moving away from the pivot grows the circle by as much (in pixels).
+        const float grow = (e.position.getDistanceFrom(pivot) - last.getDistanceFrom(pivot)) * speed;
+        setCircleSize(size + grow / (float) (jm::kPuckRadius * getWidth()));
+    }
+    else
+    {
+        const auto before = toScreen(puck);
+        setPuck(toUnit(before + (e.position - last) * speed));
+        pivot += toScreen(puck) - before; // with the circle, stopping where it stops
+    }
+    last = e.position;
+}
 
-void XYPad::mouseUp(const juce::MouseEvent&)
+void XYPad::mouseUp(const juce::MouseEvent& e)
 {
     proc.setPadHeld(false);
-    px->endChangeGesture();
-    py->endChangeGesture();
+    proc.setFineDrag(false);
+    isDragging = false;
+    for (auto* p : { px, py, psize }) p->endChangeGesture();
+    // Show the pointer again on the circle's centre. The unbounded drag ends
+    // first: ending it afterwards, JUCE would put the pointer back near
+    // where it left the pad.
+    auto source = e.source; // a handle: the copy moves the same pointer
+    source.enableUnboundedMouseMovement(false);
+    source.setScreenPosition(localPointToGlobal(toScreen(puck)));
 }
 
 // ---------------------------------------------------------------- window
-void SquareConstrainer::checkBounds(juce::Rectangle<int>& bounds, const juce::Rectangle<int>& previous,
+void WindowConstrainer::checkBounds(juce::Rectangle<int>& bounds, const juce::Rectangle<int>& previous,
                                     const juce::Rectangle<int>& limits,
                                     bool top, bool left, bool bottom, bool right)
 {
@@ -152,29 +188,45 @@ void SquareConstrainer::checkBounds(juce::Rectangle<int>& bounds, const juce::Re
 JungleEditor::JungleEditor(JungleProcessor& p) : AudioProcessorEditor(&p), proc(p), pad(p)
 {
     // Read the saved size before anything resizes the editor: resized()
-    // records every square it sees.
-    const int size = juce::jlimit(kMinSize, kMaxSize, p.editorSize());
+    // records every width it sees.
+    const int width = juce::jlimit(kMinSize, kMaxSize, p.editorSize());
     addAndMakeVisible(pad);
-    square.setSizeLimits(kMinSize, kMinSize, kMaxSize, kMaxSize);
-    setConstrainer(&square);
+    window.setSizeLimits(kMinSize, heightFor(kMinSize), kMaxSize, heightFor(kMaxSize));
+    setConstrainer(&window);
     setResizable(true, false);
-    setSize(size, size);
+    setSize(width, heightFor(width));
     pad.refresh();
     startTimerHz(30);
 }
 
-JungleEditor::~JungleEditor() { stopTimer(); }
+JungleEditor::~JungleEditor()
+{
+    stopTimer();
+    proc.setMuteHeld(false);
+}
 
-void JungleEditor::paint(juce::Graphics& g) { g.fillAll(yellow); }
+void JungleEditor::paint(juce::Graphics& g)
+{
+    g.fillAll(yellow);
+    const auto bar = getLocalBounds().withBottom(pad.getY()).toFloat();
+    g.setColour(white);
+    g.fillRect(bar);
+    g.setColour(forest);
+    g.setFont(juce::Font(juce::FontOptions(bar.getHeight() * 0.62f, juce::Font::bold).withKerningFactor(0.14f)));
+    g.drawText(juce::String(juce::CharPointer_UTF8("L\xc3\x96\xc3\x96P BR\xc3\x96THER")), bar,
+               juce::Justification::centred, false);
+}
 
 void JungleEditor::resized()
 {
     const int w = getWidth(), h = getHeight();
-    pad.setBounds(0, 0, juce::jmin(w, h), juce::jmin(w, h));
-    if (w != h)
+    const int padSide = juce::jmin(w, h);
+    pad.setBounds(0, h - padSide, padSide, padSide); // the title bar takes the rest
+    if (std::abs(h - heightFor(w)) > 1)
     {
-        // A host that ignored the constraint: square up once it has finished
-        // applying its size (a resize from inside it would not reach the window).
+        // A host that ignored the constraint: fix the ratio once it has
+        // finished applying its size (a resize from inside it would not
+        // reach the window).
         triggerAsyncUpdate();
         return;
     }
@@ -185,10 +237,17 @@ void JungleEditor::resized()
 void JungleEditor::handleAsyncUpdate()
 {
     auto r = getLocalBounds();
-    if (r.getWidth() == r.getHeight()) return;
-    // The sides that differ from the last square are the ones dragged.
-    square.checkBounds(r, { side, side }, {}, false, false, r.getHeight() != side, r.getWidth() != side);
+    if (std::abs(r.getHeight() - heightFor(r.getWidth())) <= 1) return;
+    // The sides that differ from the last good size are the ones dragged.
+    const juce::Rectangle<int> was { side, heightFor(side) };
+    window.checkBounds(r, was, {}, false, false, r.getHeight() != was.getHeight(), r.getWidth() != side);
     setSize(r.getWidth(), r.getHeight());
+}
+
+void JungleEditor::updateMute()
+{
+    const bool option = juce::ModifierKeys::getCurrentModifiersRealtime().isAltDown();
+    proc.setMuteHeld(option && (isMouseOver(true) || pad.dragging()));
 }
 
 } // namespace jmui

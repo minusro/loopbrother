@@ -3,6 +3,9 @@
 // live playback state.
 //   cmake -B build -DJM_BUILD_SNAPSHOT=ON && cmake --build build --target jm_snapshot
 //   build/jm_snapshot_artefacts/Release/jm_snapshot out.png [x y [size]]
+// JM_STOPPED=1 renders with the transport stopped (nothing playing).
+// JM_PAD_CHECK=1 drives the pad with synthetic mouse events (plain, Command
+// and Shift drags) and checks the parameters they set.
 #include "../src/PluginProcessor.h"
 #include "../src/PluginEditor.h"
 
@@ -13,7 +16,7 @@ struct ScriptedPlayHead : juce::AudioPlayHead {
         PositionInfo p;
         p.setBpm(162.0);
         p.setPpqPosition(ppq);
-        p.setIsPlaying(true);
+        p.setIsPlaying(std::getenv("JM_STOPPED") == nullptr);
         return p;
     }
 };
@@ -46,32 +49,39 @@ int main(int argc, char** argv)
     std::unique_ptr<juce::AudioProcessorEditor> ed(proc.createEditor());
     if (argc >= 5) ed->setSize(std::atoi(argv[4]), std::atoi(argv[4]));
 
-    // Window resizing, by every route a new size takes.
+    // Window resizing, by every route a new size takes. The window is the
+    // pad plus a title bar, at a fixed ratio: H(w) is the height for a width,
+    // W(h) the width for a height.
     if (std::getenv("JM_RESIZE_CHECK"))
     {
+        using Ed = jmui::JungleEditor;
+        auto H = [](int w) { return Ed::heightFor(w); };
+        auto W = [](int h) { return juce::roundToInt(h * Ed::kRatio); };
         bool ok = true;
-        auto newDrag = [] { juce::Thread::sleep((int) jmui::SquareConstrainer::kDragGapMs + 50); };
+        auto newDrag = [] { juce::Thread::sleep((int) jmui::WindowConstrainer::kDragGapMs + 50); };
 
-        // A host that ignores the constraint: the editor squares itself
+        // A host that ignores the constraint: the editor fixes the ratio
         // afterwards along the side that moved.
         auto drag = [&](int w, int h, int want)
         {
             ed->setSize(w, h);
             juce::MessageManager::getInstance()->runDispatchLoopUntil(50);
-            std::printf("  host %dx%d -> editor %dx%d (want %d)\n", w, h, ed->getWidth(), ed->getHeight(), want);
-            ok &= ed->getWidth() == want && ed->getHeight() == want;
+            std::printf("  host %dx%d -> editor %dx%d (want %dx%d)\n", w, h, ed->getWidth(), ed->getHeight(), want, H(want));
+            ok &= ed->getWidth() == want && std::abs(ed->getHeight() - H(want)) <= 1; // a height-driven size keeps its height
         };
         const int s0 = ed->getWidth();
-        drag(s0 + 200, s0, s0 + 200);           // right edge out: grows
-        drag(s0 + 200, s0 + 440, s0 + 440);     // bottom edge out: grows
-        drag(s0 + 240, s0 + 440, s0 + 240);     // right edge in: shrinks
-        drag(1500, s0 + 240, 1440);             // past the maximum: held at it
+        ok &= s0 == Ed::kDefaultSize && ed->getHeight() == H(s0);
+        drag(s0 + 200, H(s0), s0 + 200);                    // right edge out: grows
+        drag(s0 + 200, H(s0 + 200) + 240, W(H(s0 + 200) + 240)); // bottom edge out: grows
+        const int s1 = ed->getWidth();
+        drag(s1 - 200, H(s1), s1 - 200);                    // right edge in: shrinks
+        drag(1500, H(s1 - 200), Ed::kMaxSize);              // past the maximum: held at it
         newDrag();
-        ed->setSize(s0, s0);
+        ed->setSize(s0, H(s0));
         newDrag();
-        drag(s0 + 20, s0 + 5, s0 + 20);         // corner, off the diagonal: the further side
-        drag(s0 + 20, s0 + 10, s0 + 20);        // only the nearer side moved: still the corner
-        drag(s0 + 30, s0 + 10, s0 + 30);
+        drag(s0 + 20, H(s0) + 5, s0 + 20);                  // corner, off the diagonal: the further side
+        drag(s0 + 20, H(s0) + 10, s0 + 20);                 // only the nearer side moved: still the corner
+        drag(s0 + 30, H(s0) + 10, s0 + 30);
         newDrag();
 
         // The standalone: JUCE's window frame asks through a bordered
@@ -85,21 +95,29 @@ int main(int argc, char** argv)
             juce::BorderSize<int> getAdditionalBorder() const override { return border; }
         } window;
         window.editor = ed->getConstrainer();
-        auto frame = [&](juce::Rectangle<int> proposed, bool top, bool left, bool bottom, bool right, juce::Rectangle<int> want)
+        const juce::Rectangle<int> old { 100, 100, 960, H(960) };
+        auto frame = [&](const char* what, juce::Rectangle<int> proposed, bool top, bool left, bool bottom, bool right,
+                         std::function<bool(juce::Rectangle<int>)> want)
         {
             newDrag();
-            const auto old = window.border.addedTo(juce::Rectangle<int> { 100, 100, 960, 960 });
             auto r = window.border.addedTo(proposed);
-            window.checkBounds(r, old, {}, top, left, bottom, right);
+            window.checkBounds(r, window.border.addedTo(old), {}, top, left, bottom, right);
             r = window.border.subtractedFrom(r);
-            std::printf("  frame %s -> %s (want %s)\n", proposed.toString().toRawUTF8(), r.toString().toRawUTF8(), want.toString().toRawUTF8());
-            ok &= r == want;
+            const bool good = want(r) && std::abs(r.getHeight() - H(r.getWidth())) <= 1;
+            std::printf("  %s: %s -> %s%s\n", what, proposed.toString().toRawUTF8(), r.toString().toRawUTF8(), good ? "" : "  WRONG");
+            ok &= good;
         };
-        frame({ 100, 100, 1060, 960 }, false, false, false, true,  { 100,  50, 1060, 1060 }); // right edge out
-        frame({  40, 100, 1020, 960 }, false, true,  false, false, {  40,  70, 1020, 1020 }); // left edge out
-        frame({ 100, 100,  960, 860 }, false, false, true,  false, { 150, 100,  860,  860 }); // bottom edge in
-        frame({   0,  60, 1060, 1000 }, true, true,  false, false, {   0,   0, 1060, 1060 }); // top-left corner out
-        frame({ 100, 100,  900,  920 }, false, false, true,  true, { 100, 100,  920,  920 }); // bottom-right corner in
+        auto near = [](int a, int b) { return std::abs(a - b) <= 1; };
+        frame("right edge out", { 100, 100, 1060, old.getHeight() }, false, false, false, true, [&](auto r)
+              { return r.getX() == old.getX() && r.getWidth() == 1060 && near(r.getCentreY(), old.getCentreY()); });
+        frame("left edge out", { 40, 100, 1020, old.getHeight() }, false, true, false, false, [&](auto r)
+              { return r.getRight() == old.getRight() && r.getWidth() == 1020 && near(r.getCentreY(), old.getCentreY()); });
+        frame("bottom edge in", { 100, 100, 960, 908 }, false, false, true, false, [&](auto r)
+              { return r.getY() == old.getY() && r.getHeight() == 908 && near(r.getCentreX(), old.getCentreX()); });
+        frame("top-left corner out", { 0, 60, 1060, 1048 }, true, true, false, false, [&](auto r)
+              { return r.getRight() == old.getRight() && r.getBottom() == old.getBottom() && r.getWidth() == 1060; });
+        frame("bottom-right corner in", { 100, 100, 900, 920 }, false, false, true, true, [&](auto r)
+              { return r.getPosition() == old.getPosition() && r.getWidth() == 900; });
 
         // Plugin hosts: the window is the host's; it asks for the size the
         // mouse points at and says which sides changed (JUCE's VST3 wrapper,
@@ -110,24 +128,106 @@ int main(int argc, char** argv)
         auto ask = [&](int w, int h, int want)
         {
             juce::Rectangle<int> r { w, h };
-            const juce::Rectangle<int> current { side, side };
-            ed->getConstrainer()->checkBounds(r, current, {}, false, false, h != side, w != side);
-            std::printf("  ask %dx%d at %d -> %dx%d (want %d)\n", w, h, side, r.getWidth(), r.getHeight(), want);
-            ok &= r.getWidth() == want && r.getHeight() == want;
+            const juce::Rectangle<int> current { side, H(side) };
+            ed->getConstrainer()->checkBounds(r, current, {}, false, false, h != current.getHeight(), w != side);
+            std::printf("  ask %dx%d at %dx%d -> %dx%d (want %dx%d)\n", w, h, side, H(side), r.getWidth(), r.getHeight(), want, H(want));
+            ok &= r.getWidth() == want && std::abs(r.getHeight() - H(want)) <= 1;
             side = r.getWidth();
         };
-        ask(980, 965, 980);     // corner out, x ahead
-        ask(980, 970, 980);     // the mouse moved down only
-        ask(990, 970, 990);     // across only
-        ask(990, 975, 990);
-        ask(1000, 1010, 1010);  // y overtakes
-        ask(1000, 1005, 1005);  // corner back in
-        ask(990, 1005, 1005);   // across only: y still the further side
-        ask(990, 995, 995);
+        ask(980, 1013, 980);            // corner out, x ahead
+        ask(980, 1018, 980);            // the mouse moved down only
+        ask(990, 1018, 990);            // across only
+        ask(990, 1070, W(1070));        // down only, and y overtakes
+        ask(1000, 1065, W(1065));       // corner back in, y ahead
+        ask(990, 1065, W(1065));        // across only: y still the further side
+        ask(990, 1050, W(1050));
         newDrag();
-        ask(1040, 995, 1040);   // a new drag: an edge again
-        ask(1040, 900, 900);
+        ask(1040, H(1000), 1040);       // a new drag: an edge again
+        ask(1040, 900, W(900));
         std::printf(ok ? "resize check passed\n" : "resize check FAILED\n");
+        if (! ok) return 1;
+    }
+    if (std::getenv("JM_PAD_CHECK"))
+    {
+        jmui::XYPad* pad = nullptr;
+        for (auto* c : ed->getChildren()) if (auto* p = dynamic_cast<jmui::XYPad*>(c)) pad = p;
+        auto value = [&](const char* id) { return proc.apvts.getRawParameterValue(id)->load(); };
+        using Mods = juce::ModifierKeys;
+        auto ev = [&](float x, float y, int mods)
+        {
+            const auto now = juce::Time::getCurrentTime();
+            return juce::MouseEvent(juce::Desktop::getInstance().getMainMouseSource(), { x, y },
+                                    Mods(Mods::leftButtonModifier | mods), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                    pad, pad, now, { x, y }, now, 1, false);
+        };
+        const float w = (float) pad->getWidth();
+        bool ok = pad != nullptr && std::abs(w - 480.0f) < 0.5f;
+        auto near = [](float a, float b, float tol = 2e-4f) { return std::abs(a - b) < tol; };
+        auto report = [&](const char* what, bool good)
+        {
+            std::printf("  %-52s x %.4f y %.4f size %.3f%s\n", what, value("x"), value("y"), value("size"), good ? "" : "  WRONG");
+            ok &= good;
+        };
+        // (No mouseUp: it would move the real pointer onto the circle.)
+        pad->mouseDown(ev(240, 240, 0));
+        report("press in the middle: the circle goes there", near(value("x"), 0.5f) && near(value("y"), 0.5f));
+        pad->mouseDrag(ev(288, 240, 0));
+        report("drag 48 px right: follows", near(value("x"), 0.6f));
+        pad->mouseDrag(ev(388, 240, Mods::commandModifier));
+        report("Command, 100 px right: a tenth as far", near(value("x"), 0.6f + 10.0f / w));
+        pad->mouseDrag(ev(388, 190, Mods::commandModifier));
+        report("Command, 50 px up: a tenth as far", near(value("y"), 0.5f + 5.0f / w));
+        const float x0 = value("x"), y0 = value("y");
+        // The pivot moved with the circle: from the press, 48 + 10 px right
+        // and 5 px up, so it sits 42 px left and 45 px below the pointer.
+        const juce::Point<float> pivot { 240.0f + 58.0f, 240.0f - 5.0f };
+        const float d0 = juce::Point<float> { 388, 190 }.getDistanceFrom(pivot);
+        pad->mouseDrag(ev(388, 160, Mods::shiftModifier));
+        const float d1 = juce::Point<float> { 388, 160 }.getDistanceFrom(pivot);
+        const float s1 = 1.0f + (d1 - d0) / (float) (jm::kPuckRadius * w);
+        report("Shift, away from the pivot: grows, circle stays", near(value("size"), s1, 2e-3f) && value("size") > 1.0f
+               && near(value("x"), x0) && near(value("y"), y0));
+        pad->mouseDrag(ev(388, 190, Mods::shiftModifier));
+        report("Shift, back towards it: shrinks back", near(value("size"), 1.0f, 2e-3f));
+        pad->mouseDrag(ev(388, 190 + 400, Mods::shiftModifier | Mods::commandModifier));
+        const float d2 = juce::Point<float> { 388, 590 }.getDistanceFrom(pivot);
+        report("Shift + Command, far away: a tenth as much",
+               near(value("size"), 1.0f + 0.1f * (d2 - d0) / (float) (jm::kPuckRadius * w), 2e-3f));
+        pad->mouseDrag(ev(388, 590 + 5000, Mods::shiftModifier));
+        report("Shift, very far: held at the largest circle", near(value("size"), jm::kCircleSizeMax, 1e-3f));
+        proc.setPadHeld(false);
+        proc.setFineDrag(false);
+        pad->mouseDown(ev(10, 10, Mods::commandModifier));
+        report("Command press: the circle stays where it was", near(value("x"), x0) && near(value("y"), y0));
+        proc.setPadHeld(false);
+        proc.setFineDrag(false);
+
+        // Option over the plugin (the editor's part, faked here): with the
+        // clock running, silent from the next 16th (under 9 blocks away at
+        // 162 BPM), playing again from the next 16th once let go.
+        if (std::getenv("JM_STOPPED") == nullptr)
+        {
+            auto loudest = [&](int blocks)
+            {
+                float peak = 0.0f;
+                for (int b = 0; b < blocks; ++b)
+                {
+                    proc.processBlock(buf, midi);
+                    peak = std::max(peak, buf.getMagnitude(0, 0, buf.getNumSamples()));
+                    head.ppq += 512 * 162.0 / 60.0 / 48000.0;
+                }
+                return peak;
+            };
+            proc.setMuteHeld(true);
+            loudest(10);
+            const float muted = loudest(20);
+            proc.setMuteHeld(false);
+            loudest(10);
+            const float back = loudest(20);
+            std::printf("  Option held: peak %.5f; let go: peak %.3f\n", muted, back);
+            ok &= muted < 1e-6f && back > 0.05f;
+        }
+        std::printf(ok ? "pad check passed\n" : "pad check FAILED\n");
         if (! ok) return 1;
     }
     for (auto* c : ed->getChildren()) if (auto* pad = dynamic_cast<jmui::XYPad*>(c)) pad->refresh();

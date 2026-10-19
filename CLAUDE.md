@@ -1,6 +1,8 @@
-# Jungle Massive — Claude Code guide
+# LÖÖP BRÖTHER — Claude Code guide
 
-Break-loop instrument plugin (JUCE; VST3 + AU + Standalone on macOS). The 97
+LÖÖP BRÖTHER (formerly Jungle Massive; files and hosts see the ASCII name
+LOOP BROTHER) is a break-loop instrument plugin (JUCE; VST3 + AU +
+Standalone on macOS). The 97
 breaks in `breaks/` are compiled into the binary; an XY pad's selection circle
 mixes the breaks whose cells it covers, in sync with the host. Start with
 `docs/HANDOFF.md`; planned work is in `docs/TODO.md`.
@@ -29,21 +31,33 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
 - Pad moves are quantized: while playing, a new mix waits for the next 16th
   on the loops' grid (counted from 1.1.1, `LoopEngine::kStepBeats`), its
   ramp ending on the step. Restarts, jumps and transport starts are
-  immediate and take any waiting mix with them.
+  immediate and take any waiting mix with them. A fine drag (Command) is the
+  exception: `setMix(..., immediate)` ramps at once. Mute (Option over the
+  plugin, clock running) waits for the 16th the same way, both ways.
 - The mix is geometric: each break's share is the fraction of the selection
-  circle (`jm::kPuckRadius`) inside its Voronoi cell, so the shares add up to
+  circle (`jm::circleRadius(size)`: `jm::kPuckRadius` times the Circle Size
+  parameter, 0.25 to 4) inside its Voronoi cell, so the shares add up to
   exactly 1 (`src/engine/PadGeometry.h`). Gains are equal power, the square
   root of the share (`jm::equalPower`), so the squared gains add up to 1.
 - The editor palette is yellow, white and green (`jmui::yellow`, `white`,
-  `shade`, `green`); new controls draw from it.
-- Every draggable control (the pad now, knobs and sliders later) hides the
-  mouse pointer while dragged: give it a `jmui::HideCursorWhileDragging` via
-  `addMouseListener`.
+  `shade`, `green` for playing dots, `forest` for the logo); new controls
+  draw from it. The logo is drawn text with umlauts; never put them in a
+  plugin name or file name (the VST3 moduleinfo.json writer garbles them).
+- Every draggable control hides the mouse pointer while dragged. Knobs and
+  sliders: give them a `jmui::HideCursorWhileDragging` via
+  `addMouseListener`. The pad uses JUCE's unbounded mouse movement instead
+  (fine drags run far past the screen edge), and on release puts the
+  pointer back on the circle's centre.
+- Pad modifiers: Command (Control on Windows) = 10x slower and immediate;
+  Shift = resize the circle around a pivot; Option (Alt) = mute while held
+  with the pointer over the plugin. Option is global on macOS, hence the
+  pointer condition.
 - Continuous parameters need an explicit `NormalisableRange`: the short
   `AudioParameterFloat(id, name, min, max, def)` constructor snaps to 0.01.
 - JUCE is cloned into the build tree and patched (`cmake/*.patch`, applied by
   FetchContent's PATCH_COMMAND after resetting the clone). Both patches hand
-  window sizing to the editor's `jmui::SquareConstrainer`:
+  window sizing to the editor's `jmui::WindowConstrainer` (a fixed ratio:
+  the square pad plus the title bar):
   `juce-vst3-resize.patch` makes JUCE's VST3 wrapper ask it, saying which
   sides the host changed, and `juce-standalone-resize.patch` keeps the
   standalone window where it places it. The constrainer keeps a corner drag
@@ -52,7 +66,7 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
   re-checking each one. Regenerate a patch with `git diff` in
   `build/_deps/juce-src`; the files there are CRLF and so are the patches.
 - No allocation, locking or logging in `processBlock`.
-- Parameter IDs (`x`, `y`) are part of saved state. Add new ones, never rename.
+- Parameter IDs (`x`, `y`, `size`) are part of saved state. Add new ones, never rename.
 - An engine change is not done until `jm_tests` passes; add a check when you
   add behaviour. Plumbing changes (transport, MIDI, loading) should also pass
   the host check below.
@@ -79,12 +93,14 @@ cmake --build build --parallel 8
 # End-to-end: host the built VST3 with a scripted transport + MIDI
 cmake -B build -DJM_BUILD_HOST_CHECK=ON && cmake --build build --target jm_host_check
 build/jm_host_check_artefacts/Release/jm_host_check \
-    "build/junglemassive_artefacts/Release/VST3/Jungle Massive.vst3" breaks
+    "build/junglemassive_artefacts/Release/VST3/LOOP BROTHER.vst3" breaks
 
 # Render the editor to a PNG (no window, no audio device) to check the UI
 cmake -B build -DJM_BUILD_SNAPSHOT=ON && cmake --build build --target jm_snapshot
 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png 0.5 0.5 [size]
+JM_STOPPED=1 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png         # nothing playing
 JM_RESIZE_CHECK=1 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png   # window frame, edge + corner drags
+JM_PAD_CHECK=1 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png      # pad drags (plain/Command/Shift), mute
 
 # AU validation
 auval -v aumu Jngl Mnro
