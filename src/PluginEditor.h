@@ -3,15 +3,11 @@
 
 namespace jmui {
 
-// The house palette (shared with canon / dirty630).
-const juce::Colour bg     { 0xff111111 };
-const juce::Colour panel  { 0xff161616 };
-const juce::Colour line   { 0xff222222 };
-const juce::Colour dark   { 0xff2c2c2c };
-const juce::Colour dim    { 0xff707070 };
-const juce::Colour light  { 0xffd0d0d0 };
-const juce::Colour ink    { 0xffffffff };
-const juce::Colour accent { 0xff30e6aa };
+// Yellow and white: a yellow pad in a white frame, white for everything that
+// moves or sounds, a deeper yellow for structure (cell borders, ring tracks).
+const juce::Colour white  { 0xffffffff };
+const juce::Colour yellow { 0xffffc800 };
+const juce::Colour shade  { 0xffe0a800 };
 
 // Hides the mouse pointer while a control is being dragged: the control's own
 // marker (the puck, a knob's pointer) shows where it is. Every draggable

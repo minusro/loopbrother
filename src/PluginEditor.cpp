@@ -67,28 +67,28 @@ void XYPad::refresh()
 void XYPad::paint(juce::Graphics& g)
 {
     const auto b = getLocalBounds().toFloat();
-    g.setColour(panel);
+    g.setColour(yellow);
     g.fillRect(b);
 
-    // cells under the circle, tinted by their share of the mix
+    // cells under the circle, whitened by their share of the area
     for (int m = 0; m < mixCount; ++m)
         if (mix[m].loop < (int) cellPaths.size())
         {
-            g.setColour(accent.withAlpha(0.04f + 0.18f * mix[m].weight));
+            g.setColour(white.withAlpha(0.12f + 0.43f * mix[m].weight));
             g.fillPath(cellPaths[(size_t) mix[m].loop]);
         }
-    g.setColour(dark);
+    g.setColour(shade);
     for (const auto& path : cellPaths)
         g.strokePath(path, juce::PathStrokeType(1.0f));
 
-    // breaks: dim dots, the ones in the mix brighter
+    // breaks: small white dots, the ones in the mix bigger
     for (int i = 0; i < lib.size(); ++i)
     {
         bool inMix = false;
         for (int m = 0; m < mixCount; ++m) inMix |= mix[m].loop == i;
         const auto c = toScreen(lib.entry(i).pos);
         const float r = inMix ? 3.0f : 2.0f;
-        g.setColour(inMix ? light : dim);
+        g.setColour(white.withAlpha(inMix ? 1.0f : 0.8f));
         g.fillEllipse(c.x - r, c.y - r, 2 * r, 2 * r);
     }
 
@@ -99,25 +99,25 @@ void XYPad::paint(juce::Graphics& g)
         if (v.loop < 0 || v.loop >= lib.size()) continue;
         const auto c = toScreen(lib.entry(v.loop).pos);
         const float rr = 9.0f, a = 0.35f + 0.65f * juce::jlimit(0.0f, 1.0f, v.gain);
-        g.setColour(accent.withAlpha(a));
+        g.setColour(white.withAlpha(a));
         g.fillEllipse(c.x - 4.5f, c.y - 4.5f, 9.0f, 9.0f);
-        g.setColour(dark);
+        g.setColour(shade);
         g.drawEllipse(c.x - rr, c.y - rr, 2 * rr, 2 * rr, 2.0f);
         juce::Path arc;
         arc.addCentredArc(c.x, c.y, rr, rr, 0.0f, 0.0f,
                           (float) (v.phase * juce::MathConstants<double>::twoPi), true);
-        g.setColour(accent.withAlpha(a));
+        g.setColour(white.withAlpha(a));
         g.strokePath(arc, juce::PathStrokeType(2.0f));
     }
 
     // the selection circle, drawn at the radius that does the mixing
     const auto p = toScreen(puck);
     const float pr = (float) jm::kPuckRadius * b.getWidth();
-    g.setColour(ink);
-    g.drawEllipse(p.x - pr, p.y - pr, 2 * pr, 2 * pr, 1.5f);
-    g.fillEllipse(p.x - 1.5f, p.y - 1.5f, 3.0f, 3.0f);
+    g.setColour(white);
+    g.drawEllipse(p.x - pr, p.y - pr, 2 * pr, 2 * pr, 2.0f);
+    g.fillEllipse(p.x - 2.0f, p.y - 2.0f, 4.0f, 4.0f);
 
-    g.setColour(line);
+    g.setColour(shade);
     g.drawRect(b, 1.0f);
 }
 
@@ -155,7 +155,7 @@ JungleEditor::JungleEditor(JungleProcessor& p) : AudioProcessorEditor(&p), pad(p
 
 JungleEditor::~JungleEditor() { stopTimer(); }
 
-void JungleEditor::paint(juce::Graphics& g) { g.fillAll(bg); }
+void JungleEditor::paint(juce::Graphics& g) { g.fillAll(white); }
 
 void JungleEditor::resized() { pad.setBounds(getLocalBounds().reduced(16)); }
 

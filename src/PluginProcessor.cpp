@@ -60,14 +60,16 @@ void JungleProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiB
             }
         }
 
-    // The mix: every break the selection circle overlaps, by area covered.
-    // Set before the transport so a start begins straight on it.
+    // The mix: every break the selection circle overlaps, its share the area
+    // covered, blended at equal power. Set before the transport so a start
+    // begins straight on it.
     const float x = pX->load(), y = pY->load();
     if (! juce::exactlyEqual(x, lastX_) || ! juce::exactlyEqual(y, lastY_))
     {
         lastX_ = x;
         lastY_ = y;
         mixCount_ = library_->pad().mix({ x, y }, jm::kPuckRadius, mix_, kMaxMix);
+        jm::equalPower(mix_, mixCount_);
     }
     engine_.setMix(mix_, mixCount_);
     engine_.beginBlock(playing, beat, bpm);
