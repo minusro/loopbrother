@@ -49,10 +49,10 @@ private:
 // silence to double at the loop's peak. Every other cell shows a crumb: a
 // round piece the size of one of the Ö's dots at rest.
 //
-// Dragging pushes the nearby cells (lines and marks) a few pixels the way
-// the circle goes, as through liquid: once, then back to rest, no swinging
-// to and fro; distant cells stay still. Drawing only; the sound follows the
-// true cells.
+// Dragging pushes the cells the circle's centre passes through (their
+// borders and crumbs) a few pixels the way it goes, as through liquid: once,
+// then back to rest, no swinging to and fro; cells it didn't cross stay
+// still. Drawing only; the sound follows the true cells.
 class XYPad : public juce::Component, private juce::Timer {
 public:
     static constexpr float kFineSpeed = 1.0f / 16.0f;
@@ -78,16 +78,18 @@ private:
     void setPuck(juce::Point<float> u);
     void setCircleSize(float s);
 
-    // The ripples: pushes left where the circle goes, each the way and as
-    // far as it moved since the last.
-    struct Drop { juce::Point<float> at; double born; juce::Point<float> push; };
-    void addDrop(juce::Point<float> push);
+    // The ripples: one push per step of a drag, the way and as far as the
+    // circle moved, for the cells its centre passed through.
+    struct Drop { double born; juce::Point<float> push; std::vector<int> cells; };
+    void addDrop(juce::Point<float> from, juce::Point<float> to);
     void timerCallback() override;          // animates ripples and turning umlauts
     void turnUmlauts(float angle);
 
 public:
-    // How far the ripples move a point of the pad at a time (pad units).
-    juce::Point<float> ripple(juce::Point<float> u, double now) const;
+    // The break whose cell a point of the pad is in, and how far the ripples
+    // move that cell at a time (pad units).
+    int cellAt(juce::Point<float> u) const;
+    juce::Point<float> cellShift(int cell, double now) const;
     // Where the umlauts sit round the ring (radians, clockwise, 0 = on top).
     float umlautTurn() const { return umlautAngle; }
 
@@ -120,6 +122,7 @@ private:
     int voiceCount = 0;
 
     std::vector<juce::Path> cellPaths;      // in component pixels
+    std::vector<std::vector<std::vector<int>>> corners; // per cell, per corner: the cells meeting there
 };
 
 // The window's constrainer: a fixed ratio, an edge drag follows that edge, a corner
