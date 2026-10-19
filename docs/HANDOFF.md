@@ -1,7 +1,7 @@
 # LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-19 — v0.6.0, the checklist done: fine drag, circle size,
-mute, dot colours, the rename and a title bar.
+Updated: 2026-10-19 — v0.7.0, Froot Loop Ö marks coloured by similarity
+cluster, a white pad, Option/Command swapped, mute any time.
 
 ## Where things stand
 
@@ -25,41 +25,53 @@ bundle ID are unchanged, so saved sessions find it.
   applied in float, and 9 breaks now peak above 0 dBFS, the highest at
   +5.5 dBFS. Fine inside a host's float mix, but they could clip the
   standalone's audio device. The WAVs on disk are unchanged.
-- **Pad** (the UI, under a small white title bar with the forest-green
-  LÖÖP BRÖTHER logo): every break sits at its similarity-layout position
-  and owns the nearest patch of pad (drawn as Voronoi cells). The selection
-  circle is three continuous automatable parameters: `x`, `y` and `size`
-  (Circle Size, 0.25x to 4x of `jm::kPuckRadius` = 12.375/480 of the pad,
-  skewed so 1x sits mid-range). Every break whose cell the circle covers
-  plays. Its share is the fraction of the circle's area in its cell
-  (`src/engine/PadGeometry.h`: exact circle/polygon intersection, shares add
-  up to exactly 1; at most 12 breaks, and the largest circle covers up to
-  10) and its gain is equal power, the square root of the share, so a
-  half-and-half blend is as loud as either break alone.
+- **Pad** (the UI, white, over a small white status bar with the
+  forest-green LÖÖP BRÖTHER logo): every break sits at its
+  similarity-layout position and owns the nearest patch of pad (drawn as
+  Voronoi cells). The selection circle is three continuous automatable
+  parameters: `x`, `y` and `size` (Circle Size, 0.25x to 3x of
+  `jm::kPuckRadius` = 12.375/480 of the pad, skewed so 1x sits mid-range).
+  Every break whose cell the circle covers plays. Its share is the fraction
+  of the circle's area in its cell (`src/engine/PadGeometry.h`: exact
+  circle/polygon intersection, shares add up to exactly 1; at most 12
+  breaks, and the largest circle covers up to 8) and its gain is equal
+  power, the square root of the share, so a half-and-half blend is as loud
+  as either break alone.
+- **Colours**: each break has one of the 7 Froot Loops colours (pastel red,
+  orange, yellow, green, blue, purple, pink), from
+  `tools/break_analysis/colour_breaks.py` into `breaks/colours.json`. It
+  clusters the breaks with k-means in the same feature space as the layout
+  (timbre, groove, dynamics), then orders the clusters along the rainbow by
+  the shortest path through their centres, so neighbouring colours are
+  neighbouring sounds. The clusters are soft (silhouette 0.14; 7 scored
+  best in 3 to 8): the breaks are a continuum, and the colours mark regions
+  of it. On the pad they form patches: 55% of neighbouring cells share a
+  colour, against 19% shuffled.
 - **Pad gestures** (`jmui::XYPad`): a press puts the circle there, and
   dragging moves it by as much as the mouse moves (relative, so the
   modifiers below can change speed mid-drag). The pointer is hidden and the
   drag can run past the screen edge (JUCE's unbounded mouse movement). On
   release the pointer reappears on the circle's centre.
-  - **Command** (Control on Windows): 10x slower, and the change applies at
-    once instead of on the next 16th (`setFineDrag`, then
-    `LoopEngine::setMix(..., immediate)`). A Command press leaves the circle
+  - **Option** (Alt): 16x slower, and the change applies at once instead
+    of on the next 16th (`setFineDrag`, then
+    `LoopEngine::setMix(..., immediate)`). An Option press leaves the circle
     where it is.
   - **Shift**: the circle grows by as many pixels as the mouse moves away
     from the pivot and shrinks as it comes back. The pivot starts at the
     press point and moves with the circle while Shift is up, so in a plain
     drag it sits under the pointer: a Shift-drag first grows the circle, and
-    shrinking below where it started needs a Command move (or a hit on the
-    pad edge) to put distance between pointer and pivot first. With Command
-    as well, a tenth as much.
-  - **Option** (Alt): with the clock running, mutes while held, on the next
-    16th both ways (`LoopEngine::setMuted`). It only counts with the pointer
-    over the plugin or during a pad drag: Option is global on macOS, and
-    Option-clicks in the host shouldn't mute it. Not during auditions.
-- **Window**: the pad plus the title bar (24 px at 480), resizable by the
+    shrinking below where it started needs an Option move (or a hit on the
+    pad edge) to put distance between pointer and pivot first. With Option
+    as well, a sixteenth as much.
+  - **Command** (Control on Windows): mutes while held, on the next 16th
+    both ways (`LoopEngine::setMuted`), with the clock running or during an
+    audition. It only counts with the pointer over the plugin or during a
+    pad drag: Command is global on macOS, and Command-clicks in the host
+    shouldn't mute it.
+- **Window**: the pad over the status bar (24 px at 480), resizable by the
   host window from 240 to 1440 px wide at that ratio (default 480x504; the
-  width is saved in the plugin state and everything scales with it), yellow
-  with deeper-yellow cell borders. Every size goes through
+  width is saved in the plugin state and everything scales with it), white
+  with half-strength deeper-yellow cell borders. Every size goes through
   `jmui::WindowConstrainer`:
   - **Edges:** an edge drag follows that edge.
   - **Corners:** a corner drag follows the corner's further-out side, so
@@ -81,15 +93,20 @@ bundle ID are unchanged, so saved sessions find it.
   - **Hosts that ignore the constraint:** off-ratio sizes are corrected
     afterwards by the same rules.
 
-  Covered cells whiten by share and only they carry a dot: white while
-  nothing plays (clock stopped, no note or pad held), green (`jmui::green`,
-  #17BE19, midway between #2E7D32 and pure green) while the loops play;
-  while a covered break plays, its dot follows the break's meter, from half
-  its size (6 px radius at 480) in silence to double at the loop's peak. The meter
+  Covered cells take a wash of their break's colour by share, and only they
+  carry a mark: an Ö drawn as a Froot Loop (a thick ring, 8.5 px radius at
+  480, with the umlaut dots over it). It is shaded like the bevelled
+  letters of the old Google logo: lit from the top left, tube-shaded with a
+  gloss, the dots as spheres, a soft drop shadow and a faint per-colour
+  grain. Shadows take a darker tone of the colour turned slightly towards
+  red (`shadowOf`), so yellow shades to gold rather than olive. While a
+  covered break plays, its Ö follows the break's meter about the ring's
+  centre, from half size in silence to double at the loop's peak; when
+  nothing plays it rests at full size. The meter
   is precomputed per loop at load (RMS, 10 ms attack, VU-style 300 ms
   release, run twice round the loop, scaled to the loop's peak) and read at
   the playhead the processor publishes. The selection circle itself is not
-  drawn - the whitened cells show what it covers. Over the pad the pointer
+  drawn - the washed cells show what it covers. Over the pad the pointer
   is the default arrow. (`jmui::HideCursorWhileDragging` hides it on future
   knobs and sliders.)
 - **Playback** (`src/engine/LoopEngine.h`): the mix, every loop varispeed at
@@ -143,7 +160,7 @@ bundle ID are unchanged, so saved sessions find it.
   the break files read from disk and levelled the same way (start at bar 1 through the wrap, a note-on
   mid-block, stop, start mid-song, six puck positions around a cell border
   mixing two breaks at equal power by area, each move held until the next
-  16th and complete on it; Circle Size grown to 3.5x covering more cells
+  16th and complete on it; Circle Size grown to 2.8x covering more cells (4 against 2)
   and shrunk to 0.3x, each change on the 16th at the new area shares; and
   with the transport stopped a held note
   auditioning from 1.1.1 on its sample until its note-off). It caught the pad parameters snapping to 0.01
@@ -165,15 +182,17 @@ bundle ID are unchanged, so saved sessions find it.
   - Not yet dragged by hand, in the standalone or a DAW.
 - Pad gestures (`JM_PAD_CHECK=1 jm_snapshot`, synthetic mouse events on
   the real editor): a press places the circle, a plain drag follows 1:1,
-  Command moves a tenth as far, Shift grows the circle away from the pivot
-  and shrinks it back, Shift+Command a tenth as much, the size holds at
-  4x, a Command press leaves the circle in place. Through the processor:
-  holding the mute silences it from the next 16th, letting go brings it
-  back. Not covered: real modifier keys (the Option-over-the-plugin
-  polling), the pointer hiding, unbounded movement and the pointer landing
-  on the circle at release - those need hands on a mouse.
-- The pad renders as intended (`jm_snapshot` renders inspected, playing and
-  `JM_STOPPED=1` idle: green and white dots, the logo); the hidden
+  Option moves a sixteenth as far, Shift grows the circle away from the
+  pivot and shrinks it back, Shift+Option a sixteenth as much, the size
+  holds at 3x, an Option press leaves the circle in place. Through the
+  processor: holding the mute silences it from the next 16th and letting go
+  brings it back, with the clock running and during an audition. Not
+  covered: real modifier keys (the Command-over-the-plugin polling), the
+  pointer hiding, unbounded movement and the pointer landing on the circle
+  at release - those need hands on a mouse.
+- The pad renders as intended (`jm_snapshot` renders inspected, close-ups
+  at 1200 px with `JM_CIRCLE=3` over five colours: the Ö marks, their
+  shading and grain, the colour washes, the logo bar at the bottom); the hidden
   pointer while dragging and the dots pulsing in time have not been seen on
   screen yet. Dense breaks keep the meter between about half and full, so
   their dots swing between roughly 1.25x and 2x; a faster release would

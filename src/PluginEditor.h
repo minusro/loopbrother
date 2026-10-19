@@ -3,15 +3,23 @@
 
 namespace jmui {
 
-// Yellow, white and green: a yellow pad, white for what the circle covers
-// and for the breaks' dots while nothing plays, green for the dots while
-// the loops play, a deeper yellow for structure (cell borders), and a
-// forest green logo on the white title bar.
+// White, with a deeper yellow for structure (cell borders, the status bar's
+// edge) and a forest green logo. The breaks' Ö rings are cereal pastels:
+// the Froot Loops colours in rainbow order, one per similarity cluster
+// (breaks/colours.json), so similar breaks share or neighbour a colour.
 const juce::Colour white  { 0xffffffff };
-const juce::Colour yellow { 0xffffc800 };
 const juce::Colour shade  { 0xffe0a800 };
-const juce::Colour green  { 0xff17be19 };  // midway between forest and pure green
 const juce::Colour forest { 0xff2e7d32 };
+const juce::Colour frootLoops[] = {
+    juce::Colour { 0xffff8484 },  // red
+    juce::Colour { 0xffffae5e },  // orange
+    juce::Colour { 0xffffdd55 },  // yellow
+    juce::Colour { 0xff8edb6e },  // green
+    juce::Colour { 0xff6ec1f5 },  // blue
+    juce::Colour { 0xffb192f2 },  // purple
+    juce::Colour { 0xffff94ce },  // pink
+};
+inline juce::Colour frootLoop(int colour) { return frootLoops[(size_t) juce::jlimit(0, 6, colour)]; }
 
 // Hides the mouse pointer while a control is being dragged: the control's own
 // marker (a knob's pointer) shows where it is. Every draggable control gets
@@ -37,15 +45,20 @@ private:
 // A press puts the circle's centre there; dragging then moves it by as much
 // as the mouse moves. The pointer is hidden and the drag can run past the
 // screen edge. On release the pointer reappears on the circle's centre.
-// - Command (Control on Windows): 10 times slower, and the changes apply at
-//   once instead of on the next 16th. A Command press leaves the circle
-//   where it is.
+// - Option (Alt): 16 times slower, and the changes apply at once instead of
+//   on the next 16th. An Option press leaves the circle where it is.
 // - Shift: the circle grows as the mouse moves away from the pivot and
 //   shrinks as it moves towards it. The pivot starts at the press point and
 //   moves with the circle while Shift is up.
+//
+// Each cell under the circle shows its break as an Ö: a shaded, slightly
+// grainy cereal ring in the break's colour with two dots over it. While the
+// break plays, the Ö follows its meter about the ring's centre, from half
+// size in silence to double at the loop's peak.
 class XYPad : public juce::Component {
 public:
-    static constexpr float kFineSpeed = 0.1f;
+    static constexpr float kFineSpeed = 1.0f / 16.0f;
+    static constexpr float kRingRadius = 8.5f;  // at 480 px
 
     explicit XYPad(JungleProcessor& p);
     ~XYPad() override;
@@ -73,8 +86,8 @@ private:
 
     juce::Point<float> puck { -1.0f, -1.0f };
     float size = -1.0f;                     // Circle Size, 1 = jm::kPuckRadius
-    bool  playing = false;
     bool  isDragging = false;
+    juce::Image grains[std::size(frootLoops)]; // the rings' texture per colour, tiled
     juce::Point<float> last, pivot;         // the drag, in pad pixels (unbounded)
     jm::MixVoice mix[kMaxMix] {};           // what the circle covers
     int mixCount = 0;
@@ -108,12 +121,12 @@ private:
     bool cTop = false, cLeft = false, cBottom = false, cRight = false; // ...of this corner
 };
 
-// A small white title bar with the logo over the square pad, resizable by
-// the host window at that fixed ratio (the width is kept in the plugin
-// state); everything scales with it. Holding Option (Alt) with the pointer
-// over the plugin mutes it while the clock runs. Option is global on macOS,
-// so it only counts over the plugin (or during a pad drag, when the hidden
-// pointer can be anywhere): Option-clicks in the host don't mute it.
+// The square pad over a small status bar with the logo, resizable by the
+// host window at that fixed ratio (the width is kept in the plugin state);
+// everything scales with it. Holding Command (Control on Windows) with the
+// pointer over the plugin mutes it. Command is global on macOS, so it only
+// counts over the plugin (or during a pad drag, when the hidden pointer can
+// be anywhere): Command-clicks in the host don't mute it.
 //
 // Every route to a new window size asks the WindowConstrainer. In the
 // standalone, JUCE draws the window frame and also places the window: a
@@ -127,7 +140,7 @@ private:
 class JungleEditor : public juce::AudioProcessorEditor, private juce::Timer, private juce::AsyncUpdater {
 public:
     static constexpr int kDesignSize  = 480;  // the pad width drawing dimensions are given at
-    static constexpr int kTitleHeight = 24;   // at kDesignSize
+    static constexpr int kTitleHeight = 24;   // the status bar, at kDesignSize
     static constexpr int kDefaultSize = JungleProcessor::kDefaultEditorSize, kMinSize = 240, kMaxSize = 1440;
     static constexpr double kRatio = (double) kDesignSize / (kDesignSize + kTitleHeight); // width / height
     static int heightFor(int width) { return juce::roundToInt(width / kRatio); }

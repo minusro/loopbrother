@@ -31,33 +31,36 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
 - Pad moves are quantized: while playing, a new mix waits for the next 16th
   on the loops' grid (counted from 1.1.1, `LoopEngine::kStepBeats`), its
   ramp ending on the step. Restarts, jumps and transport starts are
-  immediate and take any waiting mix with them. A fine drag (Command) is the
-  exception: `setMix(..., immediate)` ramps at once. Mute (Option over the
-  plugin, clock running) waits for the 16th the same way, both ways.
+  immediate and take any waiting mix with them. A fine drag (Option) is the
+  exception: `setMix(..., immediate)` ramps at once. Mute (Command over the
+  plugin, any time) waits for the 16th the same way, both ways.
 - The mix is geometric: each break's share is the fraction of the selection
   circle (`jm::circleRadius(size)`: `jm::kPuckRadius` times the Circle Size
-  parameter, 0.25 to 4) inside its Voronoi cell, so the shares add up to
+  parameter, 0.25 to 3) inside its Voronoi cell, so the shares add up to
   exactly 1 (`src/engine/PadGeometry.h`). Gains are equal power, the square
   root of the share (`jm::equalPower`), so the squared gains add up to 1.
-- The editor palette is yellow, white and green (`jmui::yellow`, `white`,
-  `shade`, `green` for playing dots, `forest` for the logo); new controls
-  draw from it. The logo is drawn text with umlauts; never put them in a
-  plugin name or file name (the VST3 moduleinfo.json writer garbles them).
+- The editor palette: `jmui::white` surfaces, `shade` (deeper yellow) for
+  structure, `forest` for the logo, and the 7 pastel `frootLoops` for the
+  breaks, one per similarity cluster (`breaks/colours.json`, from
+  `colour_breaks.py`). Shade a colour with `shadowOf`, never black, which
+  turns yellow olive. New controls draw from this palette. The logo is
+  drawn text with umlauts; never put them in a plugin name or file name
+  (the VST3 moduleinfo.json writer garbles them).
 - Every draggable control hides the mouse pointer while dragged. Knobs and
   sliders: give them a `jmui::HideCursorWhileDragging` via
   `addMouseListener`. The pad uses JUCE's unbounded mouse movement instead
   (fine drags run far past the screen edge), and on release puts the
   pointer back on the circle's centre.
-- Pad modifiers: Command (Control on Windows) = 10x slower and immediate;
-  Shift = resize the circle around a pivot; Option (Alt) = mute while held
-  with the pointer over the plugin. Option is global on macOS, hence the
-  pointer condition.
+- Pad modifiers: Option (Alt) = 16x slower and immediate; Shift = resize
+  the circle around a pivot; Command (Control on Windows) = mute while
+  held with the pointer over the plugin. Command is global on macOS, hence
+  the pointer condition.
 - Continuous parameters need an explicit `NormalisableRange`: the short
   `AudioParameterFloat(id, name, min, max, def)` constructor snaps to 0.01.
 - JUCE is cloned into the build tree and patched (`cmake/*.patch`, applied by
   FetchContent's PATCH_COMMAND after resetting the clone). Both patches hand
   window sizing to the editor's `jmui::WindowConstrainer` (a fixed ratio:
-  the square pad plus the title bar):
+  the square pad over the status bar):
   `juce-vst3-resize.patch` makes JUCE's VST3 wrapper ask it, saying which
   sides the host changed, and `juce-standalone-resize.patch` keeps the
   standalone window where it places it. The constrainer keeps a corner drag
@@ -70,9 +73,10 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
 - An engine change is not done until `jm_tests` passes; add a check when you
   add behaviour. Plumbing changes (transport, MIDI, loading) should also pass
   the host check below.
-- The breaks and their pad layout come from `tools/break_analysis/` (crop,
-  tune to 162 BPM, similarity layout). Regenerate `breaks/layout.json` with
-  `layout_breaks.py` whenever the loops change.
+- The breaks, their pad layout and colours come from `tools/break_analysis/`
+  (crop, tune to 162 BPM, similarity layout, similarity colours).
+  Regenerate `breaks/layout.json` with `layout_breaks.py` and
+  `breaks/colours.json` with `colour_breaks.py` whenever the loops change.
 - Commit every change (see the user's standing request); commit messages:
   imperative subject, body explains the musical/design reasoning.
 - Versioning: from `project(... VERSION)`; patch for small fixes, minor for a
@@ -99,8 +103,9 @@ build/jm_host_check_artefacts/Release/jm_host_check \
 cmake -B build -DJM_BUILD_SNAPSHOT=ON && cmake --build build --target jm_snapshot
 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png 0.5 0.5 [size]
 JM_STOPPED=1 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png         # nothing playing
+JM_CIRCLE=3 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png 0.77 0.65 1200  # big circle, close-up
 JM_RESIZE_CHECK=1 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png   # window frame, edge + corner drags
-JM_PAD_CHECK=1 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png      # pad drags (plain/Command/Shift), mute
+JM_PAD_CHECK=1 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png      # pad drags (plain/Option/Shift), mute
 
 # AU validation
 auval -v aumu Jngl Mnro

@@ -1,6 +1,7 @@
 #include "LoopLibrary.h"
 #include "BreakData.h"
 #include "engine/Loudness.h"
+#include <map>
 
 static const char* resourceNamed(const juce::String& file, int& size)
 {
@@ -52,7 +53,12 @@ float LoopLibrary::level(int loop, double phase) const
 LoopLibrary::LoopLibrary()
 {
     int size = 0;
-    const char* json = resourceNamed("layout.json", size);
+    const char* json = resourceNamed("colours.json", size);
+    std::map<juce::String, int> colours;
+    const auto colourList = juce::JSON::parse(juce::String::fromUTF8(json, size));
+    if (const auto* list = colourList.getArray())
+        for (const auto& c : *list) colours[c["file"].toString()] = (int) c["colour"];
+    json = resourceNamed("layout.json", size);
     const auto layout = juce::JSON::parse(juce::String::fromUTF8(json, size));
     if (const auto* points = layout.getArray())
     {
@@ -62,6 +68,7 @@ LoopLibrary::LoopLibrary()
             Entry e;
             e.name = p["file"].toString();
             e.pos  = { (float) (double) p["x"], (float) (double) p["y"] };
+            e.colour = colours.count(e.name) ? colours[e.name] : 0;
             const char* data = resourceNamed(e.name, size);
             if (data == nullptr) continue;
             std::unique_ptr<juce::AudioFormatReader> reader(

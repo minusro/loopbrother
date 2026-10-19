@@ -3,20 +3,22 @@
 // live playback state.
 //   cmake -B build -DJM_BUILD_SNAPSHOT=ON && cmake --build build --target jm_snapshot
 //   build/jm_snapshot_artefacts/Release/jm_snapshot out.png [x y [size]]
-// JM_STOPPED=1 renders with the transport stopped (nothing playing).
-// JM_PAD_CHECK=1 drives the pad with synthetic mouse events (plain, Command
-// and Shift drags) and checks the parameters they set.
+// JM_STOPPED=1 renders with the transport stopped (nothing playing);
+// JM_CIRCLE=<size> sets the Circle Size first.
+// JM_PAD_CHECK=1 drives the pad with synthetic mouse events (plain, Option
+// and Shift drags) and checks the parameters they set, and the mute.
 #include "../src/PluginProcessor.h"
 #include "../src/PluginEditor.h"
 
 struct ScriptedPlayHead : juce::AudioPlayHead {
     double ppq = 0.0;
+    bool playing = std::getenv("JM_STOPPED") == nullptr;
     juce::Optional<PositionInfo> getPosition() const override
     {
         PositionInfo p;
         p.setBpm(162.0);
         p.setPpqPosition(ppq);
-        p.setIsPlaying(std::getenv("JM_STOPPED") == nullptr);
+        p.setIsPlaying(playing);
         return p;
     }
 };
@@ -36,6 +38,11 @@ int main(int argc, char** argv)
         proc.apvts.getParameter("x")->setValueNotifyingHost((float) std::atof(argv[2]));
         proc.apvts.getParameter("y")->setValueNotifyingHost((float) std::atof(argv[3]));
     }
+    if (const char* c = std::getenv("JM_CIRCLE"))
+    {
+        auto* size = proc.apvts.getParameter("size");
+        size->setValueNotifyingHost(size->convertTo0to1((float) std::atof(c)));
+    }
 
     // Play about a bar and a half so the playhead rings are partway round.
     juce::AudioBuffer<float> buf(2, 512);
@@ -47,7 +54,7 @@ int main(int argc, char** argv)
     }
 
     std::unique_ptr<juce::AudioProcessorEditor> ed(proc.createEditor());
-    if (argc >= 5) ed->setSize(std::atoi(argv[4]), std::atoi(argv[4]));
+    if (argc >= 5) ed->setSize(std::atoi(argv[4]), jmui::JungleEditor::heightFor(std::atoi(argv[4])));
 
     // Window resizing, by every route a new size takes. The window is the
     // pad plus a title bar, at a fixed ratio: H(w) is the height for a width,
@@ -173,60 +180,67 @@ int main(int argc, char** argv)
         report("press in the middle: the circle goes there", near(value("x"), 0.5f) && near(value("y"), 0.5f));
         pad->mouseDrag(ev(288, 240, 0));
         report("drag 48 px right: follows", near(value("x"), 0.6f));
-        pad->mouseDrag(ev(388, 240, Mods::commandModifier));
-        report("Command, 100 px right: a tenth as far", near(value("x"), 0.6f + 10.0f / w));
-        pad->mouseDrag(ev(388, 190, Mods::commandModifier));
-        report("Command, 50 px up: a tenth as far", near(value("y"), 0.5f + 5.0f / w));
+        pad->mouseDrag(ev(448, 240, Mods::altModifier));
+        report("Option, 160 px right: a sixteenth as far", near(value("x"), 0.6f + 10.0f / w));
+        pad->mouseDrag(ev(448, 160, Mods::altModifier));
+        report("Option, 80 px up: a sixteenth as far", near(value("y"), 0.5f + 5.0f / w));
         const float x0 = value("x"), y0 = value("y");
         // The pivot moved with the circle: from the press, 48 + 10 px right
-        // and 5 px up, so it sits 42 px left and 45 px below the pointer.
+        // and 5 px up.
         const juce::Point<float> pivot { 240.0f + 58.0f, 240.0f - 5.0f };
-        const float d0 = juce::Point<float> { 388, 190 }.getDistanceFrom(pivot);
-        pad->mouseDrag(ev(388, 160, Mods::shiftModifier));
-        const float d1 = juce::Point<float> { 388, 160 }.getDistanceFrom(pivot);
+        const float d0 = juce::Point<float> { 448, 160 }.getDistanceFrom(pivot);
+        pad->mouseDrag(ev(448, 130, Mods::shiftModifier));
+        const float d1 = juce::Point<float> { 448, 130 }.getDistanceFrom(pivot);
         const float s1 = 1.0f + (d1 - d0) / (float) (jm::kPuckRadius * w);
         report("Shift, away from the pivot: grows, circle stays", near(value("size"), s1, 2e-3f) && value("size") > 1.0f
                && near(value("x"), x0) && near(value("y"), y0));
-        pad->mouseDrag(ev(388, 190, Mods::shiftModifier));
+        pad->mouseDrag(ev(448, 160, Mods::shiftModifier));
         report("Shift, back towards it: shrinks back", near(value("size"), 1.0f, 2e-3f));
-        pad->mouseDrag(ev(388, 190 + 400, Mods::shiftModifier | Mods::commandModifier));
-        const float d2 = juce::Point<float> { 388, 590 }.getDistanceFrom(pivot);
-        report("Shift + Command, far away: a tenth as much",
-               near(value("size"), 1.0f + 0.1f * (d2 - d0) / (float) (jm::kPuckRadius * w), 2e-3f));
-        pad->mouseDrag(ev(388, 590 + 5000, Mods::shiftModifier));
-        report("Shift, very far: held at the largest circle", near(value("size"), jm::kCircleSizeMax, 1e-3f));
+        pad->mouseDrag(ev(448, 160 + 400, Mods::shiftModifier | Mods::altModifier));
+        const float d2 = juce::Point<float> { 448, 560 }.getDistanceFrom(pivot);
+        report("Shift + Option, far away: a sixteenth as much",
+               near(value("size"), 1.0f + (d2 - d0) / 16.0f / (float) (jm::kPuckRadius * w), 2e-3f));
+        pad->mouseDrag(ev(448, 560 + 5000, Mods::shiftModifier));
+        report("Shift, very far: held at the largest circle (3x)", near(value("size"), 3.0f, 1e-3f));
         proc.setPadHeld(false);
         proc.setFineDrag(false);
-        pad->mouseDown(ev(10, 10, Mods::commandModifier));
-        report("Command press: the circle stays where it was", near(value("x"), x0) && near(value("y"), y0));
+        pad->mouseDown(ev(10, 10, Mods::altModifier));
+        report("Option press: the circle stays where it was", near(value("x"), x0) && near(value("y"), y0));
         proc.setPadHeld(false);
         proc.setFineDrag(false);
 
-        // Option over the plugin (the editor's part, faked here): with the
-        // clock running, silent from the next 16th (under 9 blocks away at
-        // 162 BPM), playing again from the next 16th once let go.
-        if (std::getenv("JM_STOPPED") == nullptr)
+        // Command over the plugin (the editor's part, faked here): silent
+        // from the next 16th (under 9 blocks away at 162 BPM), playing again
+        // from the next 16th once let go. With the clock running, and with it
+        // stopped during an audition (the pad held).
+        auto loudest = [&](int blocks)
         {
-            auto loudest = [&](int blocks)
+            float peak = 0.0f;
+            for (int b = 0; b < blocks; ++b)
             {
-                float peak = 0.0f;
-                for (int b = 0; b < blocks; ++b)
-                {
-                    proc.processBlock(buf, midi);
-                    peak = std::max(peak, buf.getMagnitude(0, 0, buf.getNumSamples()));
-                    head.ppq += 512 * 162.0 / 60.0 / 48000.0;
-                }
-                return peak;
-            };
+                proc.processBlock(buf, midi);
+                peak = std::max(peak, buf.getMagnitude(0, 0, buf.getNumSamples()));
+                if (head.playing) head.ppq += 512 * 162.0 / 60.0 / 48000.0;
+            }
+            return peak;
+        };
+        for (const bool running : { true, false })
+        {
+            head.playing = running;
+            proc.setPadHeld(! running);
+            loudest(10);
+            const float before = loudest(10);
             proc.setMuteHeld(true);
             loudest(10);
             const float muted = loudest(20);
             proc.setMuteHeld(false);
             loudest(10);
             const float back = loudest(20);
-            std::printf("  Option held: peak %.5f; let go: peak %.3f\n", muted, back);
-            ok &= muted < 1e-6f && back > 0.05f;
+            std::printf("  %s: playing peak %.3f, Command held %.5f, let go %.3f\n",
+                        running ? "clock running" : "clock stopped, pad held", before, muted, back);
+            ok &= before > 0.05f && muted < 1e-6f && back > 0.05f;
         }
+        proc.setPadHeld(false);
         std::printf(ok ? "pad check passed\n" : "pad check FAILED\n");
         if (! ok) return 1;
     }

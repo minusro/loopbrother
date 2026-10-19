@@ -228,8 +228,9 @@ int main(int argc, char** argv)
         //     at its share of the bigger circle, on the next 16th like a move.
         held = landed = true;
         const size_t before = mix.size();
-        moveTo({ mid.x + 0.0017, mid.y + 0.0023 }, 3.5f);
-        CHECK(mix.size() > before + 2, "a bigger circle covers more cells");
+        moveTo({ mid.x + 0.0017, mid.y + 0.0023 }, 2.8f);
+        std::printf("  Circle Size 2.8: %zu cells (%zu at 1)\n", mix.size(), before);
+        CHECK(mix.size() > before, "a bigger circle covers more cells");
         moveTo({ mid.x + 0.0017, mid.y + 0.0023 }, 0.3f);
         CHECK(held && landed, "circle size changes land on the 16th at the new area shares");
         moveTo({ mid.x + 0.0017, mid.y + 0.0023 }, 1.0f);

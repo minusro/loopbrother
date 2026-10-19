@@ -2,12 +2,106 @@
 
 namespace jmui {
 
+// ---------------------------------------------------------------- Ö
+// A break's mark: an Ö of radius r at c. The O is a thick ring (a Froot
+// Loop), the dots sit over it as on the letter.
+struct UmlautO {
+    juce::Path ring, dots;
+    float hole;
+    UmlautO(juce::Point<float> c, float r) : hole(0.48f * r)
+    {
+        ring.addEllipse(c.x - r, c.y - r, 2 * r, 2 * r);
+        ring.addEllipse(c.x - hole, c.y - hole, 2 * hole, 2 * hole);
+        ring.setUsingNonZeroWinding(false); // the hole stays empty
+        const float d = 0.24f * r, x = 0.5f * r, y = c.y - r - 1.55f * d;
+        dots.addEllipse(c.x - x - d, y - d, 2 * d, 2 * d);
+        dots.addEllipse(c.x + x - d, y - d, 2 * d, 2 * d);
+    }
+    juce::Path all() const { juce::Path p(ring); p.addPath(dots); return p; }
+};
+
+static void drawShadow(juce::Graphics& g, juce::Point<float> c, float r)
+{
+    juce::DropShadow(juce::Colours::black.withAlpha(0.16f), juce::jmax(1, juce::roundToInt(0.35f * r)),
+                     { juce::roundToInt(0.08f * r), juce::roundToInt(0.16f * r) })
+        .drawForPath(g, UmlautO(c, r).all());
+}
+
+// The colour a cereal's shadows take: darker, richer and turned a little
+// towards red, so yellow shades to orange instead of olive.
+juce::Colour shadowOf(juce::Colour base)
+{
+    return base.withRotatedHue(-0.05f).withMultipliedSaturation(1.3f).withMultipliedBrightness(0.6f);
+}
+
+// Shaded like the bevelled letters of the old Google logo: lit from the top
+// left, the ring rounded like a tube with a gloss on its upper left, the
+// dots like little spheres, a faint grain over it all so it reads as cereal.
+static void drawFrootLoop(juce::Graphics& g, juce::Point<float> c, float r, juce::Colour base, const juce::Image& grain)
+{
+    namespace C = juce::Colours;
+    const UmlautO o(c, r);
+    const auto all = o.all();
+    const auto dark = shadowOf(base);
+    g.setColour(base);
+    g.fillPath(all);
+
+    juce::ColourGradient tube(dark.withAlpha(0.0f), c, dark.withAlpha(0.35f), { c.x + r, c.y }, true);
+    tube.addColour(o.hole / r, dark.withAlpha(0.25f));
+    tube.addColour((o.hole / r + 1.0f) / 2.0f, C::white.withAlpha(0.10f));
+    g.setGradientFill(tube);
+    g.fillPath(o.ring);
+
+    for (const float side : { -1.0f, 1.0f })
+    {
+        const float d = 0.24f * r;
+        const juce::Point<float> dot { c.x + side * 0.5f * r, c.y - r - 1.55f * d };
+        juce::ColourGradient sphere(C::white.withAlpha(0.6f), dot.translated(-0.35f * d, -0.35f * d),
+                                    dark.withAlpha(0.4f), dot.translated(d, d), true);
+        sphere.addColour(0.45, C::white.withAlpha(0.0f));
+        g.setGradientFill(sphere);
+        g.fillEllipse(dot.x - d, dot.y - d, 2 * d, 2 * d);
+    }
+
+    g.setGradientFill(juce::ColourGradient(C::white.withAlpha(0.35f), c.x - r, c.y - r,
+                                           dark.withAlpha(0.22f), c.x + r, c.y + r, false));
+    g.fillPath(all);
+
+    juce::Path gloss;
+    gloss.addCentredArc(c.x, c.y, (o.hole + r) / 2, (o.hole + r) / 2, 0.0f, -1.45f, -0.45f, true);
+    g.setColour(C::white.withAlpha(0.7f));
+    g.strokePath(gloss, juce::PathStrokeType(0.14f * r, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+
+    juce::FillType texture(grain, juce::AffineTransform::scale(r / 14.0f).translated(c));
+    texture.setOpacity(0.5f);
+    g.setFillType(texture);
+    g.fillPath(all);
+
+    g.setColour(dark.withAlpha(0.5f));
+    g.strokePath(all, juce::PathStrokeType(juce::jmax(0.6f, 0.05f * r)));
+}
+
 // ---------------------------------------------------------------- pad
 XYPad::XYPad(JungleProcessor& p) : proc(p), lib(p.library())
 {
     px = p.apvts.getParameter("x");
     py = p.apvts.getParameter("y");
     psize = p.apvts.getParameter("size");
+
+    // The cereal grain, one per colour: speckles of its shadow and of white.
+    for (size_t k = 0; k < std::size(grains); ++k)
+    {
+        const auto dark = shadowOf(frootLoops[k]);
+        auto& img = grains[k];
+        img = juce::Image(juce::Image::ARGB, 64, 64, true);
+        juce::Random rnd(1);
+        for (int y = 0; y < img.getHeight(); ++y)
+            for (int x = 0; x < img.getWidth(); ++x)
+            {
+                const float v = rnd.nextFloat();
+                img.setPixelAt(x, y, v < 0.5f ? dark.withAlpha(0.5f * (0.5f - v)) : juce::Colours::white.withAlpha(0.4f * (v - 0.5f)));
+            }
+    }
 }
 
 XYPad::~XYPad()
@@ -56,8 +150,6 @@ void XYPad::refresh()
         mixCount = lib.pad().mix({ u.x, u.y }, jm::circleRadius(s), mix, kMaxMix);
         changed = true;
     }
-    changed |= proc.uiPlaying() != playing;
-    playing = proc.uiPlaying();
     const int n = juce::jmin(proc.uiCount(), kMaxMix);
     changed |= n != voiceCount;
     for (int i = 0; i < n; ++i)
@@ -74,35 +166,38 @@ void XYPad::refresh()
 void XYPad::paint(juce::Graphics& g)
 {
     const auto b = getLocalBounds().toFloat();
-    g.setColour(yellow);
-    g.fillRect(b);
+    g.fillAll(white);
 
-    // cells under the circle, whitened by their share of the area
+    // cells under the circle, washed in their break's colour by their share
     for (int m = 0; m < mixCount; ++m)
-        if (mix[m].loop < (int) cellPaths.size())
+        if (mix[m].loop >= 0 && mix[m].loop < (int) cellPaths.size())
         {
-            g.setColour(white.withAlpha(0.12f + 0.43f * mix[m].weight));
+            g.setColour(frootLoop(lib.entry(mix[m].loop).colour).withAlpha(0.10f + 0.35f * mix[m].weight));
             g.fillPath(cellPaths[(size_t) mix[m].loop]);
         }
     const float scale = b.getWidth() / (float) JungleEditor::kDesignSize; // sizes below are at 480 px
-    g.setColour(shade);
+    g.setColour(shade.withAlpha(0.45f)); // on white the full shade would be a cage
     for (const auto& path : cellPaths)
         g.strokePath(path, juce::PathStrokeType(juce::jmax(1.0f, scale)));
 
-    // Dots on the cells under the circle only: white while nothing plays,
-    // green while the loops play. While a cell's break plays its dot follows
-    // the break's meter: half size in silence, double at the loop's peak.
+    // An Ö on each cell under the circle only, its size following the
+    // break's meter while it plays: half in silence, double at the peak.
+    // Shadows first, so none falls across a neighbouring Ö.
+    struct Mark { juce::Point<float> c; float r; int colour; };
+    Mark marks[kMaxMix];
+    int n = 0;
     for (int m = 0; m < mixCount; ++m)
     {
         const int loop = mix[m].loop;
         if (loop < 0 || loop >= lib.size()) continue;
-        float r = 6.0f * scale;
+        float r = kRingRadius * scale;
         for (int i = 0; i < voiceCount; ++i)
-            if (voices[i].loop == loop) r = 6.0f * scale * (0.5f + 1.5f * lib.level(loop, voices[i].phase));
-        const auto c = toScreen(lib.entry(loop).pos);
-        g.setColour(playing ? green : white);
-        g.fillEllipse(c.x - r, c.y - r, 2 * r, 2 * r);
+            if (voices[i].loop == loop) r = kRingRadius * scale * (0.5f + 1.5f * lib.level(loop, voices[i].phase));
+        marks[n++] = { toScreen(lib.entry(loop).pos), r, juce::jlimit(0, 6, lib.entry(loop).colour) };
     }
+    for (int i = 0; i < n; ++i) drawShadow(g, marks[i].c, marks[i].r);
+    for (int i = 0; i < n; ++i)
+        drawFrootLoop(g, marks[i].c, marks[i].r, frootLoop(marks[i].colour), grains[(size_t) marks[i].colour]);
 }
 
 void XYPad::setPuck(juce::Point<float> u)
@@ -124,14 +219,14 @@ void XYPad::mouseDown(const juce::MouseEvent& e)
     isDragging = true;
     last = pivot = e.position;
     e.source.enableUnboundedMouseMovement(true);
-    proc.setFineDrag(e.mods.isCommandDown());
-    if (! e.mods.isCommandDown()) setPuck(toUnit(e.position));
+    proc.setFineDrag(e.mods.isAltDown());
+    if (! e.mods.isAltDown()) setPuck(toUnit(e.position));
     proc.setPadHeld(true); // after the move, so an audition starts on the pressed spot
 }
 
 void XYPad::mouseDrag(const juce::MouseEvent& e)
 {
-    const bool fine = e.mods.isCommandDown();
+    const bool fine = e.mods.isAltDown();
     proc.setFineDrag(fine); // before the change, so it applies at once
     const float speed = fine ? kFineSpeed : 1.0f;
     if (e.mods.isShiftDown())
@@ -207,10 +302,10 @@ JungleEditor::~JungleEditor()
 
 void JungleEditor::paint(juce::Graphics& g)
 {
-    g.fillAll(yellow);
-    const auto bar = getLocalBounds().withBottom(pad.getY()).toFloat();
-    g.setColour(white);
-    g.fillRect(bar);
+    g.fillAll(white);
+    const auto bar = getLocalBounds().withTop(pad.getBottom()).toFloat();
+    g.setColour(shade); // the pad's lower edge
+    g.fillRect(bar.withHeight(juce::jmax(1.0f, (float) getWidth() / kDesignSize)));
     g.setColour(forest);
     g.setFont(juce::Font(juce::FontOptions(bar.getHeight() * 0.62f, juce::Font::bold).withKerningFactor(0.14f)));
     g.drawText(juce::String(juce::CharPointer_UTF8("L\xc3\x96\xc3\x96P BR\xc3\x96THER")), bar,
@@ -221,7 +316,7 @@ void JungleEditor::resized()
 {
     const int w = getWidth(), h = getHeight();
     const int padSide = juce::jmin(w, h);
-    pad.setBounds(0, h - padSide, padSide, padSide); // the title bar takes the rest
+    pad.setBounds(0, 0, padSide, padSide); // the status bar takes the rest
     if (std::abs(h - heightFor(w)) > 1)
     {
         // A host that ignored the constraint: fix the ratio once it has
@@ -246,8 +341,8 @@ void JungleEditor::handleAsyncUpdate()
 
 void JungleEditor::updateMute()
 {
-    const bool option = juce::ModifierKeys::getCurrentModifiersRealtime().isAltDown();
-    proc.setMuteHeld(option && (isMouseOver(true) || pad.dragging()));
+    const bool command = juce::ModifierKeys::getCurrentModifiersRealtime().isCommandDown();
+    proc.setMuteHeld(command && (isMouseOver(true) || pad.dragging()));
 }
 
 } // namespace jmui
