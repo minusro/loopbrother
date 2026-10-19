@@ -45,6 +45,27 @@ int main(int argc, char** argv)
 
     std::unique_ptr<juce::AudioProcessorEditor> ed(proc.createEditor());
     if (argc >= 5) ed->setSize(std::atoi(argv[4]), std::atoi(argv[4]));
+
+    // Host-style resizes (one edge dragged out, then in, then the other):
+    // the editor must square itself along the side that moved.
+    if (std::getenv("JM_RESIZE_CHECK"))
+    {
+        bool ok = true;
+        auto drag = [&](int w, int h, int want)
+        {
+            ed->setSize(w, h);
+            juce::MessageManager::getInstance()->runDispatchLoopUntil(50);
+            std::printf("  host %dx%d -> editor %dx%d (want %d)\n", w, h, ed->getWidth(), ed->getHeight(), want);
+            ok &= ed->getWidth() == want && ed->getHeight() == want;
+        };
+        const int s0 = ed->getWidth();
+        drag(s0 + 200, s0, s0 + 200);           // right edge out: grows
+        drag(s0 + 200, s0 + 440, s0 + 440);     // bottom edge out: grows
+        drag(s0 + 240, s0 + 440, s0 + 240);     // right edge in: shrinks
+        drag(1500, s0 + 240, 1440);             // past the maximum: held at it
+        std::printf(ok ? "resize check passed\n" : "resize check FAILED\n");
+        if (! ok) return 1;
+    }
     for (auto* c : ed->getChildren()) if (auto* pad = dynamic_cast<jmui::XYPad*>(c)) pad->refresh();
     const auto img = ed->createComponentSnapshot(ed->getLocalBounds(), true, 2.0f);
     juce::File out(juce::File::getCurrentWorkingDirectory().getChildFile(juce::String::fromUTF8(argv[1])));

@@ -68,6 +68,7 @@ build/jm_host_check_artefacts/Release/jm_host_check \
 # Render the editor to a PNG (no window, no audio device) to check the UI
 cmake -B build -DJM_BUILD_SNAPSHOT=ON && cmake --build build --target jm_snapshot
 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png 0.5 0.5 [size]
+JM_RESIZE_CHECK=1 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png   # host-style edge drags
 
 # AU validation
 auval -v aumu Jngl Mnro

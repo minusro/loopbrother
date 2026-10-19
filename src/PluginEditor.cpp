@@ -81,7 +81,7 @@ void XYPad::paint(juce::Graphics& g)
             g.setColour(white.withAlpha(0.12f + 0.43f * mix[m].weight));
             g.fillPath(cellPaths[(size_t) mix[m].loop]);
         }
-    const float scale = b.getWidth() / (float) JungleEditor::kDefaultSize; // sizes below are at 480 px
+    const float scale = b.getWidth() / (float) JungleEditor::kDesignSize; // sizes below are at 480 px
     g.setColour(shade);
     for (const auto& path : cellPaths)
         g.strokePath(path, juce::PathStrokeType(juce::jmax(1.0f, scale)));
@@ -131,11 +131,14 @@ void XYPad::mouseUp(const juce::MouseEvent&)
 // ---------------------------------------------------------------- editor
 JungleEditor::JungleEditor(JungleProcessor& p) : AudioProcessorEditor(&p), proc(p), pad(p)
 {
+    // Read the saved size first: setResizeLimits resizes the still-empty
+    // editor to the minimum, and resized() records every square it sees.
+    const int size = juce::jlimit(kMinSize, kMaxSize, p.editorSize());
     addAndMakeVisible(pad);
     setResizable(true, false);
     setResizeLimits(kMinSize, kMinSize, kMaxSize, kMaxSize);
-    getConstrainer()->setFixedAspectRatio(1.0);
-    const int size = juce::jlimit(kMinSize, kMaxSize, p.editorSize());
+    if (p.wrapperType == juce::AudioProcessor::wrapperType_Standalone)
+        getConstrainer()->setFixedAspectRatio(1.0);
     setSize(size, size);
     pad.refresh();
     startTimerHz(30);
@@ -147,8 +150,27 @@ void JungleEditor::paint(juce::Graphics& g) { g.fillAll(yellow); }
 
 void JungleEditor::resized()
 {
-    pad.setBounds(getLocalBounds());
-    proc.setEditorSize(getWidth());
+    const int w = getWidth(), h = getHeight();
+    pad.setBounds(0, 0, juce::jmin(w, h), juce::jmin(w, h));
+    if (w != h)
+    {
+        // Mid host resize: square up once the host has finished applying it
+        // (a resize requested from inside it would not reach the host window).
+        triggerAsyncUpdate();
+        return;
+    }
+    side = w;
+    proc.setEditorSize(w);
+}
+
+void JungleEditor::handleAsyncUpdate()
+{
+    const int w = getWidth(), h = getHeight();
+    if (w == h) return;
+    // An edge drag changes one side, a corner drag both: follow the bigger change.
+    const int next = std::abs(w - side) >= std::abs(h - side) ? w : h;
+    const int size = juce::jlimit(kMinSize, kMaxSize, next);
+    setSize(size, size);
 }
 
 } // namespace jmui

@@ -1,6 +1,6 @@
 # Jungle Massive — handoff
 
-Updated: 2026-10-19 — v0.4.1, smaller selection circle, resizable square window.
+Updated: 2026-10-19 — v0.4.2, 960 px default window that grows from its edges.
 
 ## Where things stand
 
@@ -19,9 +19,12 @@ an instrument with stereo out and MIDI in.
   up to exactly 1; at most 8 breaks) and its gain is equal power, the square
   root of the share, so a half-and-half blend is as loud as either break
   alone. The pad fills the window, square and resizable by the host window
-  from 240 to 1440 px (default 480; the size is saved in the plugin state
+  from 240 to 1440 px (default 960; the size is saved in the plugin state
   and everything on the pad scales with it), yellow with deeper-yellow cell
-  borders. Covered cells whiten by share and only they carry a dot;
+  borders. In plugin hosts the editor takes whatever size the host proposes
+  and squares itself afterwards along the side that moved: JUCE's VST3 size
+  check with a fixed aspect ratio squares by the shorter side, which made
+  edge drags shrink-only. The standalone keeps the fixed-ratio constrainer. Covered cells whiten by share and only they carry a dot;
   while a covered break plays, its dot follows the break's meter, from half
   its size (6 px radius at 480) in silence to double at the loop's peak. The meter
   is precomputed per loop at load (RMS, 10 ms attack, VU-style 300 ms
@@ -76,6 +79,9 @@ an instrument with stereo out and MIDI in.
   auditioning from 1.1.1 on its sample until its note-off). It caught the pad parameters snapping to 0.01
   steps (JUCE's short AudioParameterFloat constructor), fixed in v0.2.0.
 - `auval -v aumu Jngl Mnro` passes.
+- Window squaring: `JM_RESIZE_CHECK=1 jm_snapshot ...` drives host-style
+  edge drags (out, in, past the maximum) and checks the editor squares along
+  the moved side. Not yet seen in a real host.
 - The pad renders as intended (`jm_snapshot` render inspected); the hidden
   pointer while dragging and the dots pulsing in time have not been seen on
   screen yet. Dense breaks keep the meter between about half and full, so
