@@ -100,7 +100,7 @@ private:
 class JungleEditor : public juce::AudioProcessorEditor, private juce::Timer, private juce::AsyncUpdater {
 public:
     static constexpr int kDesignSize  = 480;  // the size drawing dimensions are given at
-    static constexpr int kDefaultSize = 960, kMinSize = 240, kMaxSize = 1440;
+    static constexpr int kDefaultSize = JungleProcessor::kDefaultEditorSize, kMinSize = 240, kMaxSize = 1440;
 
     explicit JungleEditor(JungleProcessor&);
     ~JungleEditor() override;

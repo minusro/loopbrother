@@ -1,6 +1,6 @@
 # Jungle Massive — handoff
 
-Updated: 2026-10-19 — v0.5.0, breaks levelled to -15 LUFS; corner drags no longer flicker.
+Updated: 2026-10-19 — v0.5.1, the default arrow pointer over the pad; opens at 480 px.
 
 ## Where things stand
 
@@ -28,7 +28,7 @@ an instrument with stereo out and MIDI in.
   up to exactly 1; at most 8 breaks) and its gain is equal power, the square
   root of the share, so a half-and-half blend is as loud as either break
   alone. The pad fills the window, square and resizable by the host window
-  from 240 to 1440 px (default 960; the size is saved in the plugin state
+  from 240 to 1440 px (default 480; the size is saved in the plugin state
   and everything on the pad scales with it), yellow with deeper-yellow cell
   borders. Every size goes through `jmui::SquareConstrainer`:
   - **Edges:** an edge drag follows that edge.
@@ -57,8 +57,8 @@ an instrument with stereo out and MIDI in.
   is precomputed per loop at load (RMS, 10 ms attack, VU-style 300 ms
   release, run twice round the loop, scaled to the loop's peak) and read at
   the playhead the processor publishes. The selection circle itself is not
-  drawn - the whitened cells show what it covers. The mouse pointer is
-  hidden while dragging
+  drawn - the whitened cells show what it covers. Over the pad the pointer
+  is the default arrow, hidden while dragging
   (`jmui::HideCursorWhileDragging`, meant for every future knob and slider).
 - **Playback** (`src/engine/LoopEngine.h`): the mix, every loop varispeed at
   the host tempo and locked to the same 1.1.1. Transport start syncs to the

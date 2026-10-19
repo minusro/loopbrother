@@ -7,7 +7,6 @@ XYPad::XYPad(JungleProcessor& p) : proc(p), lib(p.library())
 {
     px = p.apvts.getParameter("x");
     py = p.apvts.getParameter("y");
-    setMouseCursor(juce::MouseCursor::CrosshairCursor);
     addMouseListener(&hideCursor, false);
 }
 
