@@ -74,7 +74,7 @@ void XYPad::paint(juce::Graphics& g)
 {
     const auto b = getLocalBounds().toFloat();
     const float scale = b.getWidth() / (float) JungleEditor::kDesignSize; // sizes below are at 480 px
-    g.fillAll(white);
+    g.fillAll(cream);
     sprites.configure(kRingRadius * scale, kCrumbRadius * scale,
                       g.getInternalContext().getPhysicalPixelScaleFactor(), *style);
 
@@ -107,7 +107,7 @@ void XYPad::paint(juce::Graphics& g)
             g.setColour(frootLoop(lib.entry(mix[m].loop).colour).withAlpha(0.10f + 0.35f * mix[m].weight));
             g.fillPath(cells[(size_t) mix[m].loop]);
         }
-    g.setColour(grey);
+    g.setColour(white);
     for (const auto& path : cells)
         g.strokePath(path, juce::PathStrokeType(juce::jmax(1.0f, scale)));
 
@@ -289,7 +289,7 @@ void JungleEditor::paint(juce::Graphics& g)
 {
     g.fillAll(white);
     const auto bar = getLocalBounds().withTop(pad.getBottom()).toFloat();
-    g.setColour(mid); // the pad's lower edge
+    g.setColour(cream); // the pad's lower edge
     g.fillRect(bar.withHeight(juce::jmax(1.0f, (float) getWidth() / kDesignSize)));
     g.setColour(mid);
     g.setFont(juce::Font(juce::FontOptions(bar.getHeight() * 0.62f, juce::Font::bold).withKerningFactor(0.14f)));

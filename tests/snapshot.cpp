@@ -48,7 +48,7 @@ static int styleSheet(const char* path)
     {
         const auto& st = kRingStyles[s];
         const float y = 40.0f + (float) s * rowH;
-        g.setColour(grey);
+        g.setColour(juce::Colour(0xffdcdcdc));
         g.drawHorizontalLine((int) y, 12.0f, (float) w - 12.0f);
         g.setColour(mid);
         g.setFont(juce::FontOptions(17.0f, juce::Font::bold));

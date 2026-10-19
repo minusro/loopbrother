@@ -1,7 +1,6 @@
 # LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-19 — v0.8.1, matte cereal marks, slow local ripples, a
-medium grey logo, company name "minus".
+Updated: 2026-10-19 — v0.8.2, a cream pad with white cell borders.
 
 ## Where things stand
 
@@ -71,9 +70,9 @@ bundle ID are unchanged, so saved sessions find it.
     shouldn't mute it.
 - **Window**: the pad over the status bar (24 px at 480), resizable by the
   host window from 240 to 1440 px wide at that ratio (default 480x504; the
-  width is saved in the plugin state and everything scales with it), white
-  with light grey cell lines and a medium grey edge over the status bar.
-  Every size goes through
+  width is saved in the plugin state and everything scales with it): a
+  cream pad (#fffaf6) with white cell borders, a cream edge over the white
+  status bar. Every size goes through
   `jmui::WindowConstrainer`:
   - **Edges:** an edge drag follows that edge.
   - **Corners:** a corner drag follows the corner's further-out side, so

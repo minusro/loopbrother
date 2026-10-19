@@ -40,8 +40,9 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
   Voronoi cell, so the shares add up to
   exactly 1 (`src/engine/PadGeometry.h`). Gains are equal power, the square
   root of the share (`jm::equalPower`), so the squared gains add up to 1.
-- The editor palette: `jmui::white` surfaces, `grey` for structure (cell
-  lines), `mid` (medium grey) for the logo and its edge, and the 7 pastel
+- The editor palette: `jmui::cream` (#fffaf6) for the pad and its edge,
+  `white` for cell borders and the status bar, `mid` (medium grey) for the
+  logo, and the 7 pastel
   `frootLoops` for the breaks, one per similarity cluster
   (`breaks/colours.json`, from `colour_breaks.py`). Shade a colour with
   `shadowOf`, never black, which turns yellow olive. New controls draw from

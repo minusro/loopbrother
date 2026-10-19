@@ -4,11 +4,11 @@
 
 namespace jmui {
 
-// White surfaces with light grey structure (cell borders), medium grey for
-// the logo and the status bar's edge, and the breaks in the Froot Loops
-// pastels (Cereal.h).
+// A warm off-white pad (cream) parted by white cell borders, a white status
+// bar under a cream edge, medium grey for the logo, and the breaks in the
+// Froot Loops pastels (Cereal.h).
 const juce::Colour white  { 0xffffffff };
-const juce::Colour grey   { 0xffdcdcdc };
+const juce::Colour cream  { 0xfffffaf6 };
 const juce::Colour mid    { 0xff808080 };
 
 // Hides the mouse pointer while a control is being dragged: the control's own
