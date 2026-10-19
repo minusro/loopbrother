@@ -81,9 +81,10 @@ void XYPad::paint(juce::Graphics& g)
             g.setColour(white.withAlpha(0.12f + 0.43f * mix[m].weight));
             g.fillPath(cellPaths[(size_t) mix[m].loop]);
         }
+    const float scale = b.getWidth() / (float) JungleEditor::kDefaultSize; // sizes below are at 480 px
     g.setColour(shade);
     for (const auto& path : cellPaths)
-        g.strokePath(path, juce::PathStrokeType(1.0f));
+        g.strokePath(path, juce::PathStrokeType(juce::jmax(1.0f, scale)));
 
     // Dots on the cells under the circle only. While a cell's break plays its
     // dot follows the break's meter: half size in silence, double at the
@@ -92,9 +93,9 @@ void XYPad::paint(juce::Graphics& g)
     {
         const int loop = mix[m].loop;
         if (loop < 0 || loop >= lib.size()) continue;
-        float r = 6.0f;
+        float r = 6.0f * scale;
         for (int i = 0; i < voiceCount; ++i)
-            if (voices[i].loop == loop) r = 6.0f * (0.5f + 1.5f * lib.level(loop, voices[i].phase));
+            if (voices[i].loop == loop) r = 6.0f * scale * (0.5f + 1.5f * lib.level(loop, voices[i].phase));
         const auto c = toScreen(lib.entry(loop).pos);
         g.setColour(white);
         g.fillEllipse(c.x - r, c.y - r, 2 * r, 2 * r);
@@ -128,10 +129,14 @@ void XYPad::mouseUp(const juce::MouseEvent&)
 }
 
 // ---------------------------------------------------------------- editor
-JungleEditor::JungleEditor(JungleProcessor& p) : AudioProcessorEditor(&p), pad(p)
+JungleEditor::JungleEditor(JungleProcessor& p) : AudioProcessorEditor(&p), proc(p), pad(p)
 {
     addAndMakeVisible(pad);
-    setSize(480, 480);
+    setResizable(true, false);
+    setResizeLimits(kMinSize, kMinSize, kMaxSize, kMaxSize);
+    getConstrainer()->setFixedAspectRatio(1.0);
+    const int size = juce::jlimit(kMinSize, kMaxSize, p.editorSize());
+    setSize(size, size);
     pad.refresh();
     startTimerHz(30);
 }
@@ -140,6 +145,10 @@ JungleEditor::~JungleEditor() { stopTimer(); }
 
 void JungleEditor::paint(juce::Graphics& g) { g.fillAll(yellow); }
 
-void JungleEditor::resized() { pad.setBounds(getLocalBounds()); }
+void JungleEditor::resized()
+{
+    pad.setBounds(getLocalBounds());
+    proc.setEditorSize(getWidth());
+}
 
 } // namespace jmui
