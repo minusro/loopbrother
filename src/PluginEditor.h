@@ -5,11 +5,11 @@
 namespace jmui {
 
 // A warm off-white pad (cream) parted by white cell borders, a white status
-// bar under a cream edge, medium grey for the logo, and the breaks in the
-// Froot Loops pastels (Cereal.h).
+// bar under a cream edge, a dark brown logo, and the breaks in the Froot
+// Loops pastels (Cereal.h).
 const juce::Colour white  { 0xffffffff };
 const juce::Colour cream  { 0xfffffaf6 };
-const juce::Colour mid    { 0xff808080 };
+const juce::Colour brown  { 0xff3e2723 };
 
 // Hides the mouse pointer while a control is being dragged: the control's own
 // marker (a knob's pointer) shows where it is. Every draggable control gets
@@ -47,10 +47,10 @@ private:
 // silence to double at the loop's peak. Every other cell shows a crumb: a
 // round piece the size of one of the Ö's dots at rest.
 //
-// Dragging sends ripples through the pad, as through liquid: slow rings of
-// small waves spread from the circle and push the nearby cells (lines and
-// marks) a few pixels as they pass, dying out before the distant ones.
-// Drawing only; the sound follows the true cells.
+// Dragging pushes the nearby cells (lines and marks) a few pixels the way
+// the circle goes, as through liquid: once, then back to rest, no swinging
+// to and fro; distant cells stay still. Drawing only; the sound follows the
+// true cells.
 class XYPad : public juce::Component, private juce::Timer {
 public:
     static constexpr float kFineSpeed = 1.0f / 16.0f;
@@ -76,12 +76,17 @@ private:
     void setPuck(juce::Point<float> u);
     void setCircleSize(float s);
 
-    // The ripples: drops let fall where the circle goes, each spreading a
-    // ring of waves that fades as it goes.
-    struct Drop { juce::Point<float> at; double born; float strength; };
-    void addDrop(float strength);
-    juce::Point<float> ripple(juce::Point<float> u, double now) const; // displacement, pad units
+    // The ripples: pushes left where the circle goes, each the way and as
+    // far as it moved since the last.
+    struct Drop { juce::Point<float> at; double born; juce::Point<float> push; };
+    void addDrop(juce::Point<float> push);
     void timerCallback() override;          // animates while ripples run
+
+public:
+    // How far the ripples move a point of the pad at a time (pad units).
+    juce::Point<float> ripple(juce::Point<float> u, double now) const;
+
+private:
 
     JungleProcessor&    proc;
     const LoopLibrary&  lib;

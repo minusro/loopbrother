@@ -109,7 +109,7 @@ void XYPad::paint(juce::Graphics& g)
         }
     g.setColour(white);
     for (const auto& path : cells)
-        g.strokePath(path, juce::PathStrokeType(juce::jmax(1.0f, scale)));
+        g.strokePath(path, juce::PathStrokeType(juce::jmax(2.0f, 2.0f * scale)));
 
     // A crumb on every cell the circle doesn't cover...
     for (int i = 0; i < lib.size(); ++i)
@@ -133,19 +133,21 @@ void XYPad::paint(juce::Graphics& g)
 }
 
 // ---------------------------------------------------------------- ripples
-// In pad units and seconds: how fast the rings spread, their wavelength,
-// the width of the train of waves, how far from the drop they still reach,
-// how long they take to fade and how far a full-strength drop pushes a mark.
-// Slow and local: the cells around the circle bob, distant ones stay still.
-constexpr float  kRippleSpeed = 0.16f, kRippleWave = 0.08f, kRippleWidth = 0.07f, kRippleReach = 0.12f,
-                 kRippleAmp = 0.006f;
-constexpr double kRippleFade = 1.2;
+// Each step of a drag gives the cells around the circle one push the way
+// the circle went: a single smooth swell out and back to rest (sin^2, never
+// below zero, so nothing swings past and back), reaching a cell later the
+// further it is (kRippleSpeed) and only near the circle (kRippleReach). A
+// steady drag keeps the neighbours leaning forward; stop and they settle.
+// Pad units and seconds: kRipplePush is how far a cell moves per unit the
+// circle moved, kRippleMax the most any cell moves.
+constexpr float kRippleSpeed = 0.3f, kRippleReach = 0.12f, kRippleSwell = 0.45f,
+                kRipplePush = 0.07f, kRippleMax = 0.014f;
 
-void XYPad::addDrop(float strength)
+void XYPad::addDrop(juce::Point<float> push)
 {
     const double now = juce::Time::getMillisecondCounterHiRes() / 1000.0;
-    drops.push_back({ puck, now, juce::jlimit(0.0f, 1.0f, strength) });
-    if (drops.size() > 24) drops.erase(drops.begin());
+    drops.push_back({ puck, now, push });
+    if (drops.size() > 64) drops.erase(drops.begin());
     lastDrop = now;
     lastDropAt = puck;
     if (! isTimerRunning()) startTimerHz(60);
@@ -156,24 +158,22 @@ juce::Point<float> XYPad::ripple(juce::Point<float> u, double now) const
     juce::Point<float> d;
     for (const auto& drop : drops)
     {
-        const float age = (float) (now - drop.born);
-        const auto away = u - drop.at;
-        const float dist = away.getDistanceFromOrigin();
-        if (dist < 1e-4f || dist > 3.0f * kRippleReach) continue;
-        const float front = dist - kRippleSpeed * age; // where in the passing train
-        const float wave = std::sin(juce::MathConstants<float>::twoPi * front / kRippleWave)
-                         * std::exp(-(front / kRippleWidth) * (front / kRippleWidth));
-        const float fade = drop.strength * (float) std::exp(-age / kRippleFade) * juce::jmin(1.0f, dist / 0.02f)
-                         * std::exp(-(dist / kRippleReach) * (dist / kRippleReach));
-        d += away * (kRippleAmp * fade * wave / dist);
+        const float dist = (u - drop.at).getDistanceFromOrigin();
+        if (dist > 3.0f * kRippleReach) continue;
+        const float t = (float) (now - drop.born) - dist / kRippleSpeed; // since the swell reached here
+        if (t <= 0.0f || t >= kRippleSwell) continue;
+        const float swell = std::sin(juce::MathConstants<float>::pi * t / kRippleSwell);
+        d += drop.push * (kRipplePush * swell * swell * std::exp(-(dist / kRippleReach) * (dist / kRippleReach)));
     }
-    return d;
+    const float m = d.getDistanceFromOrigin(); // a fast flick moves cells further, but only so far
+    return m > 0.0f ? d * (kRippleMax * std::tanh(m / kRippleMax) / m) : d;
 }
 
 void XYPad::timerCallback()
 {
     const double now = juce::Time::getMillisecondCounterHiRes() / 1000.0;
-    drops.erase(std::remove_if(drops.begin(), drops.end(), [&](const Drop& d) { return now - d.born > 4.0 * kRippleFade; }),
+    drops.erase(std::remove_if(drops.begin(), drops.end(),
+                               [&](const Drop& d) { return now - d.born > kRippleSwell + 3.0f * kRippleReach / kRippleSpeed; }),
                 drops.end());
     if (drops.empty()) stopTimer();
     repaint();
@@ -201,7 +201,7 @@ void XYPad::mouseDown(const juce::MouseEvent& e)
     proc.setFineDrag(e.mods.isAltDown());
     if (! e.mods.isAltDown()) setPuck(toUnit(e.position));
     proc.setPadHeld(true); // after the move, so an audition starts on the pressed spot
-    addDrop(0.6f);
+    lastDropAt = puck;
 }
 
 void XYPad::mouseDrag(const juce::MouseEvent& e)
@@ -223,10 +223,10 @@ void XYPad::mouseDrag(const juce::MouseEvent& e)
     }
     last = e.position;
 
-    // A drop where the circle is now and then, stronger the further it went.
+    // A push where the circle is now and then, as far as it went since.
     const double now = juce::Time::getMillisecondCounterHiRes() / 1000.0;
-    const float moved = (puck - lastDropAt).getDistanceFromOrigin() * (float) getWidth();
-    if (now - lastDrop > 0.06 && moved > 1.0f) addDrop(moved / 30.0f);
+    const auto moved = puck - lastDropAt;
+    if (now - lastDrop > 0.06 && moved.getDistanceFromOrigin() * (float) getWidth() > 1.0f) addDrop(moved);
 }
 
 void XYPad::mouseUp(const juce::MouseEvent& e)
@@ -291,7 +291,7 @@ void JungleEditor::paint(juce::Graphics& g)
     const auto bar = getLocalBounds().withTop(pad.getBottom()).toFloat();
     g.setColour(cream); // the pad's lower edge
     g.fillRect(bar.withHeight(juce::jmax(1.0f, (float) getWidth() / kDesignSize)));
-    g.setColour(mid);
+    g.setColour(brown);
     g.setFont(juce::Font(juce::FontOptions(bar.getHeight() * 0.62f, juce::Font::bold).withKerningFactor(0.14f)));
     g.drawText(juce::String(juce::CharPointer_UTF8("L\xc3\x96\xc3\x96P BR\xc3\x96THER")), bar,
                juce::Justification::centred, false);

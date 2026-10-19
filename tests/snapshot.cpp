@@ -41,7 +41,7 @@ static int styleSheet(const char* path)
     g.addTransform(juce::AffineTransform::scale((float) k2));
     g.fillAll(white);
     const Grains grains;
-    g.setColour(mid);
+    g.setColour(jmui::brown);
     g.setFont(juce::FontOptions(14.0f, juce::Font::bold));
     g.drawText("actual size", labelW + kFrootLoops * colW, 8, realW, 24, juce::Justification::centred);
     for (int s = 0; s < kNumRingStyles; ++s)
@@ -50,7 +50,7 @@ static int styleSheet(const char* path)
         const float y = 40.0f + (float) s * rowH;
         g.setColour(juce::Colour(0xffdcdcdc));
         g.drawHorizontalLine((int) y, 12.0f, (float) w - 12.0f);
-        g.setColour(mid);
+        g.setColour(jmui::brown);
         g.setFont(juce::FontOptions(17.0f, juce::Font::bold));
         g.drawText(juce::String(s) + "  " + st.name, 16, (int) y, labelW - 20, rowH, juce::Justification::centredLeft);
         for (int c = 0; c < kFrootLoops; ++c)
@@ -279,6 +279,35 @@ int main(int argc, char** argv)
         report("Option press: the circle stays where it was", near(value("x"), x0) && near(value("y"), y0));
         proc.setPadHeld(false);
         proc.setFineDrag(false);
+
+        // Ripples: dragging right pushes a nearby point right, once, and it
+        // comes back to rest: never pushed the other way (no ping-pong), still
+        // at the end, and a distant point never moves.
+        {
+            juce::Thread::sleep(1800); // the earlier drags' pushes settle first
+            pad->mouseDown(ev(100, 300, 0));
+            const double start = juce::Time::getMillisecondCounterHiRes() / 1000.0;
+            for (int i = 1; i <= 5; ++i)
+            {
+                juce::Thread::sleep(70);
+                pad->mouseDrag(ev(100.0f + 12.0f * i, 300, 0));
+            }
+            proc.setPadHeld(false);
+            const juce::Point<float> near { value("x") + 0.03f, value("y") + 0.02f }, far { near.x + 0.45f, near.y };
+            float most = 0.0f, against = 0.0f, across = 0.0f, last = 1.0f, distant = 0.0f;
+            for (double t = 0.0; t < 3.0; t += 0.01)
+            {
+                const auto d = pad->ripple(near, start + t);
+                most = std::max(most, d.x);
+                against = std::min(against, d.x);
+                across = std::max(across, std::abs(d.y));
+                last = d.getDistanceFromOrigin();
+                distant = std::max(distant, pad->ripple(far, start + t).getDistanceFromOrigin());
+            }
+            std::printf("  ripple: nearby pushed %.2f px right, %.4f px back, %.4f px across, %.4f px at the end; distant %.4f px\n",
+                        most * w, -against * w, across * w, last * w, distant * w);
+            ok &= most * w > 1.0f && against > -1e-6f && across < 1e-4f && last < 1e-6f && distant < 1e-6f;
+        }
 
         // Command over the plugin (the editor's part, faked here): silent
         // from the next 16th (under 9 blocks away at 162 BPM), playing again

@@ -1,6 +1,7 @@
 # LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-19 — v0.8.2, a cream pad with white cell borders.
+Updated: 2026-10-19 — v0.8.3, one-way ripples, thicker borders, a dark
+brown logo.
 
 ## Where things stand
 
@@ -25,7 +26,7 @@ bundle ID are unchanged, so saved sessions find it.
   +5.5 dBFS. Fine inside a host's float mix, but they could clip the
   standalone's audio device. The WAVs on disk are unchanged.
 - **Pad** (the UI, white, over a small white status bar with the
-  medium grey LÖÖP BRÖTHER logo): every break sits at its
+  dark brown LÖÖP BRÖTHER logo): every break sits at its
   similarity-layout position and owns the nearest patch of pad (drawn as
   Voronoi cells). The selection circle is three continuous automatable
   parameters: `x`, `y` and `size` (Circle Size, 0.25x of `jm::kPuckRadius`
@@ -71,8 +72,8 @@ bundle ID are unchanged, so saved sessions find it.
 - **Window**: the pad over the status bar (24 px at 480), resizable by the
   host window from 240 to 1440 px wide at that ratio (default 480x504; the
   width is saved in the plugin state and everything scales with it): a
-  cream pad (#fffaf6) with white cell borders, a cream edge over the white
-  status bar. Every size goes through
+  cream pad (#fffaf6) with white cell borders (2 px at 480), a cream edge
+  over the white status bar. Every size goes through
   `jmui::WindowConstrainer`:
   - **Edges:** an edge drag follows that edge.
   - **Corners:** a corner drag follows the corner's further-out side, so
@@ -112,12 +113,15 @@ bundle ID are unchanged, so saved sessions find it.
   follows the break's meter about the ring's centre, from half size in
   silence to double at the loop's peak; when nothing plays it rests at
   full size.
-  Dragging sends ripples through the pad: every 60 ms or so a drop falls
-  where the circle is, stronger the further it moved, and its ring of
-  small waves spreads slowly (0.16 pad/s, 0.08 wavelength) and fades
-  (1.2 s), pushing the cell lines, crumbs and Ös a few pixels as it
-  passes. It reaches only nearby cells (a Gaussian falloff, 0.12 of the
-  pad): distant ones stay still. 60 Hz while any run. Drawing only: the sound follows the true cells. The meter
+  Dragging pushes the nearby cells the way the circle goes, as through
+  liquid: every 60 ms or so the circle leaves a push as long as it moved,
+  and each cell feels it once, as a single sin^2 swell out and back to
+  rest (0.45 s, never below zero, so nothing swings back and forth),
+  arriving later the further the cell is (0.3 pad/s) and fading with
+  distance (Gaussian, 0.12 of the pad). A steady drag keeps the
+  neighbours leaning forward; stop and they settle and stay still. A cell
+  moves at most 0.014 of the pad (7 px at 480); a slow drag moves its
+  neighbours 2 to 3 px. 60 Hz while any run. Drawing only: the sound follows the true cells. The meter
   is precomputed per loop at load (RMS, 10 ms attack, VU-style 300 ms
   release, run twice round the loop, scaled to the loop's peak) and read at
   the playhead the processor publishes. The selection circle itself is not
@@ -199,7 +203,9 @@ bundle ID are unchanged, so saved sessions find it.
   the real editor): a press places the circle, a plain drag follows 1:1,
   Option moves a sixteenth as far, Shift grows the circle away from the
   pivot and shrinks it back, Shift+Option a sixteenth as much, the size
-  holds at the largest circle, an Option press leaves the circle in place. Through the
+  holds at the largest circle, an Option press leaves the circle in place;
+  a rightward drag pushes a nearby point right (2.5 px), never back, still
+  at the end, and a distant one not at all. Through the
   processor: holding the mute silences it from the next 16th and letting go
   brings it back, with the clock running and during an audition. Not
   covered: real modifier keys (the Command-over-the-plugin polling), the
