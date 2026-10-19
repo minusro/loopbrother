@@ -47,9 +47,6 @@ void JungleProcessor::prepareToPlay(double sampleRate, int)
 {
     sr_ = sampleRate;
     engine_.prepare(sampleRate);
-    outEnv_ = 0.0;
-    outUp_ = 1.0 - std::exp(-1.0 / (0.001 * sampleRate));
-    outDown_ = 1.0 - std::exp(-1.0 / (0.300 * sampleRate));
     timeline_ = {};
     for (auto& ch : noteDown_) std::fill(std::begin(ch), std::end(ch), false);
     heldNotes_ = 0;
@@ -148,15 +145,6 @@ void JungleProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiB
     renderTo(n);
     midi.clear();
 
-    double loudest = 0.0;
-    for (int i = 0; i < n; ++i)
-    {
-        const double s = 0.5 * (L[i] + R[i]), sq = s * s;
-        outEnv_ += (sq > outEnv_ ? outUp_ : outDown_) * (sq - outEnv_);
-        loudest = std::max(loudest, outEnv_);
-    }
-    const float level = (float) std::sqrt(loudest);
-    if (level > uiOutput_.load(std::memory_order_relaxed)) uiOutput_.store(level, std::memory_order_relaxed);
     uiPlaying_.store(playing, std::memory_order_relaxed);
     if (playing)
     {

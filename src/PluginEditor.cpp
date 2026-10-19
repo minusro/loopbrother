@@ -396,16 +396,22 @@ JungleEditor::JungleEditor(JungleProcessor& p) : AudioProcessorEditor(&p), proc(
     startTimerHz(60); // the meters' snap needs it
 }
 
-juce::Rectangle<float> JungleEditor::catBounds(float level) const
+juce::Rectangle<float> JungleEditor::catBounds() const
 {
     const float scale = (float) getWidth() / kDesignSize, bottom = (float) getHeight();
     const float h = kCatHeight * scale, cw = h * (float) catImage.getWidth() / (float) juce::jmax(1, catImage.getHeight());
-    const float top = bottom - cat * kCatShown * h;
-    // Squished towards the window's bottom edge, which it stands on, and
-    // out to both sides.
-    const float s = kCatSquish * level;
-    return { catX * (float) getWidth() - 0.5f * cw * (1.0f + s), bottom - (bottom - top) * (1.0f - s), cw * (1.0f + s),
-             h * (1.0f - s) };
+    return { catX * (float) getWidth() - 0.5f * cw, bottom - cat * kCatShown * h, cw, h };
+}
+
+float JungleEditor::catSwayAt(double beat)
+{
+    // Each side lingers kCatHold of a beat round its beat; the swing over to
+    // the next eases in and out (half a cosine) through the rest, so it
+    // never stops sharp. With no hold it's a plain pendulum, cos(pi * beat).
+    const double s = beat + 0.5 * kCatHold, whole = std::floor(s);
+    const float side = ((long long) whole & 1) == 0 ? 1.0f : -1.0f; // the side it last reached
+    const float x = juce::jmax(0.0f, ((float) (s - whole) - kCatHold) / (1.0f - kCatHold));
+    return side * std::cos(juce::MathConstants<float>::pi * x);
 }
 
 juce::AffineTransform JungleEditor::catTurned(float angle) const
@@ -437,27 +443,16 @@ void JungleEditor::timerCallback()
         repaint();
     }
     catTick = tick;
-    // ...squishes with the output's level, and sways on the beat.
-    const float db = juce::Decibels::gainToDecibels(proc.takeOutputLevel(), -100.0f);
-    const float level = juce::jlimit(0.0f, 1.0f, (db - kCatQuietDb) / (kCatLoudDb - kCatQuietDb));
+    // ...and sways on the beat while the loops play.
     catSwaying += ((proc.uiPlaying() ? 1.0f : 0.0f) - catSwaying) * (float) (1.0 - std::exp(-dt / kCatEase));
     if (catSwaying < 0.002f) catSwaying = proc.uiPlaying() ? catSwaying : 0.0f;
-    float angle = 0.0f;
-    if (catSwaying > 0.0f)
+    const float angle = catSwaying > 0.0f ? kCatSway * catSwaying * catSwayAt(proc.uiBeatAt(tick * 1000.0)) : 0.0f;
+    if (std::abs(angle - catAngle) > 1e-4f || (juce::exactlyEqual(angle, 0.0f) && ! juce::exactlyEqual(catAngle, 0.0f)))
     {
-        const double beat = proc.uiBeatAt(tick * 1000.0), whole = std::floor(beat);
-        const float side = ((long long) whole & 1) == 0 ? 1.0f : -1.0f;  // this beat's way
-        const float f = juce::jmin(1.0f, (float) (beat - whole) / kCatSwing), e = 1.0f - std::pow(1.0f - f, 3.0f);
-        angle = kCatSway * catSwaying * side * (2.0f * e - 1.0f);       // from the other way over to this one
-    }
-    auto moved = [](float to, float from, float by) { return std::abs(to - from) > by || (to == 0.0f && from != 0.0f); };
-    if (moved(level, catLevel, 1e-3f) || moved(angle, catAngle, 1e-4f)) // small steps wait, but it always settles
-    {
-        if (cat > 0.0f)
-            repaint(catBounds(catLevel).transformedBy(catTurned(catAngle))
-                        .getUnion(catBounds(level).transformedBy(catTurned(angle)))
+        if (cat > 0.0f) // tiny steps wait, but it always comes to rest
+            repaint(catBounds().transformedBy(catTurned(catAngle))
+                        .getUnion(catBounds().transformedBy(catTurned(angle)))
                         .getSmallestIntegerContainer().expanded(2));
-        catLevel = level;
         catAngle = angle;
     }
     // A new colour fades in over kLogoFade from wherever the last fade got to.
@@ -600,15 +595,15 @@ void JungleEditor::paintOverChildren(juce::Graphics& g)
 
     // The cat, over the bowl and the logo: it slides up from the window's
     // bottom edge, hidden below it, as the circle reaches its largest, until
-    // its middle is on the edge, centred where it picked as it came up,
-    // squishing with the output's level and swaying on the beat.
+    // its middle is on the edge, centred where it picked as it came up, and
+    // sways on the beat.
     if (cat > 0.0f && catImage.isValid())
     {
         juce::Graphics::ScopedSaveState keep(g);
         g.setOpacity(1.0f);
         g.setImageResamplingQuality(juce::Graphics::highResamplingQuality);
         g.addTransform(catTurned(catAngle));
-        g.drawImage(catImage, catBounds(catLevel), juce::RectanglePlacement::stretchToFit);
+        g.drawImage(catImage, catBounds(), juce::RectanglePlacement::stretchToFit);
     }
 }
 

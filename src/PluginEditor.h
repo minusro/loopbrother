@@ -202,22 +202,19 @@ public:
     // easing with kCatEase (seconds). kCatHeight is its height at 480 px,
     // kCatShown how much of it clears the window's bottom edge when it's up
     // (half: its middle on the edge). Each time it comes up it picks a new
-    // spot between kCatLeft and kCatRight. It's the output's meter too:
-    // squished down towards the edge and out to the sides by up to
-    // kCatSquish as the output's level (JungleProcessor::takeOutputLevel)
-    // goes from kCatQuietDb to kCatLoudDb. And while the loops play it
-    // sways left and right on the beat, turning kCatSway (radians) about
-    // where it stands on the edge: over to the other side on each beat,
-    // the swing taking kCatSwing of the beat, then holding, and upright
-    // again (over kCatEase) when they stop.
+    // spot between kCatLeft and kCatRight. While the loops play it sways
+    // left and right like a pendulum, kCatSway (radians) each way about
+    // where it stands on the edge: at one side on each beat, lingering
+    // there for kCatHold of a beat, easing out of it and through the middle
+    // to the other side for the next; upright again (over kCatEase) when
+    // they stop.
     static constexpr float kCatFrom = 0.6f, kCatHeight = 200.0f, kCatShown = 0.5f;
     static constexpr float kCatLeft = 0.3f, kCatRight = 0.7f; // where its centre may come up, across the width
-    static constexpr float kCatSquish = 0.1f, kCatQuietDb = -14.0f, kCatLoudDb = 0.0f;
-    static constexpr float kCatSway = 0.07f, kCatSwing = 0.3f;
+    static constexpr float kCatSway = 0.07f, kCatHold = 0.15f;
     static constexpr double kCatEase = 0.1;
     float catRise() const { return cat; } // 0 hidden .. 1 up
-    float catSquish() const { return catLevel; } // the meter: 0 at rest .. 1 squished
-    float catTurn() const { return catAngle; }   // its sway now, radians
+    float catTurn() const { return catAngle; } // its sway now, radians
+    static float catSwayAt(double beat);       // where the sway is at a beat: 1 one way .. -1 the other
     // Between two colours round the hue wheel, saturation and brightness
     // straight, so a pastel stays a pastel all the way (a mix in RGB greys out
     // halfway between opposite hues).
@@ -254,9 +251,8 @@ private:
     juce::Image catImage;                   // the cat, cut out (images/loops-cat.png)
     float cat = 0.0f;                       // how far it has risen
     float catX = 0.5f;                      // its centre, as a fraction of the width
-    float catLevel = 0.0f;                  // the output's level, 0..1 of the squish
     float catAngle = 0.0f, catSwaying = 0.0f; // its sway, and how much it sways (0 still .. 1 playing)
-    juce::Rectangle<float> catBounds(float level) const; // where it's drawn, squished by that level, before the sway
+    juce::Rectangle<float> catBounds() const; // where it's drawn, before the sway
     juce::AffineTransform catTurned(float angle) const;   // the sway, about where it stands
     double catTick = 0.0;
     float catTarget() const;

@@ -1,7 +1,7 @@
 # LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-19 — v0.12.0, the cat squishes with the output's level
-and sways left and right on the beat. v0.9.1 is
+Updated: 2026-10-20 — v0.12.1, the cat sways left and right on the beat
+like a pendulum (no more squish). v0.9.1 is
 released (github.com/minusro/loopbrother/releases).
 
 ## Where things stand
@@ -90,15 +90,14 @@ bundle ID are unchanged, so saved sessions find it.
   centre lands somewhere new, at random between 30% and 70% of the width.
   It's drawn last (`paintOverChildren`), 200 px tall at 480, over the
   bowl and the logo; it's only a picture, so presses still reach the pad.
-  It's the output's meter: the processor runs the rings' meter ballistics
-  (RMS of the mono sum, 1 ms attack, 300 ms release) over its output and
-  keeps the loudest moment until the editor takes it
-  (`takeOutputLevel`), and the cat squishes towards the window's edge and
-  out to the sides by up to 10% as that goes from -14 to 0 dBFS (playing,
-  it mostly sits between -10 and -2). While the timeline plays it sways
-  4 degrees left and right about where it stands on the edge: over to the
-  other side on each beat, in the first 30% of the beat (ease-out), then
-  holding; upright again over 0.1 s when it stops. The editor reads the
+  While the timeline plays it sways 4 degrees left and right about where
+  it stands on the edge, like a pendulum (`JungleEditor::catSwayAt`): at
+  one side on each beat, lingering there 15% of a beat centred on it, and
+  easing out of it, through the middle and into the other side (half a
+  cosine) over the rest, so it's moving 85% of the time and never stops
+  sharp; upright again over 0.1 s when it stops. (A first version swung
+  over in the first 30% of each beat and held, and also squished with the
+  output's level; both read as jerky.) The editor reads the
   beat from `uiBeatAt(ms)`: the processor publishes the beat at time zero
   (one atomic, so it never tears) and the tempo, and the editor
   extrapolates to the frame's time, so the sway runs smooth between blocks.

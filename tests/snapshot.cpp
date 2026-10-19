@@ -448,19 +448,35 @@ int main(int argc, char** argv)
 
         // The cat: up over the logo once the circle is at its largest, back
         // down below the window's edge when it's small again (easing
-        // between). While up it squishes with the output: some while the
-        // loops play, none once they've stopped and the meter has fallen; and
-        // it sways both ways on the beat while they play, upright once stopped.
+        // between). While up it sways both ways on the beat while the loops
+        // play, upright once they've stopped. The sway's shape: at one side
+        // on each beat, then the other, moving most of the time and never
+        // faster than an eased swing allows.
         if (auto* jed = dynamic_cast<jmui::JungleEditor*>(ed.get()))
         {
             auto* sizeParam = proc.apvts.getParameter("size");
             sizeParam->setValueNotifyingHost(1.0f);
             juce::MessageManager::getInstance()->runDispatchLoopUntil(600);
             const float up = jed->catRise();
-            float left = 0.0f, right = 0.0f, still = 0.0f;
-            auto squish = [&](int frames) // about 21 ms of audio a frame
+            bool sides = true;
+            float steepest = 0.0f, moving = 0.0f, jump = 0.0f;
+            constexpr double db = 0.001;
+            for (int k = 0; k <= 8; ++k)
+                sides &= std::abs(jmui::JungleEditor::catSwayAt(k) - (k % 2 == 0 ? 1.0f : -1.0f)) < 1e-5f;
+            for (double b = 0.0; b < 8.0; b += db)
             {
-                float least = 1.0f, most = 0.0f;
+                const float d = jmui::JungleEditor::catSwayAt(b + db) - jmui::JungleEditor::catSwayAt(b);
+                steepest = std::max(steepest, std::abs(d) / (float) db);
+                jump = std::max(jump, std::abs(d));
+                if (std::abs(d) > 1e-7f) moving += (float) (db / 8.0);
+            }
+            std::printf("  cat sway: a side on each beat %s, moving %.0f%% of the time, fastest %.2f a beat (a plain"
+                        " pendulum: 3.14), %.4f a step\n", sides ? "yes" : "NO", 100.0f * moving, steepest, jump);
+            ok &= sides && moving > 0.8f && moving < 0.9f && steepest < 3.8f && jump < 0.005f;
+
+            float left = 0.0f, right = 0.0f, still = 0.0f;
+            auto sway = [&](int frames) // about 21 ms of audio a frame
+            {
                 left = right = still = 0.0f;
                 for (int f = 0; f < frames; ++f)
                 {
@@ -470,28 +486,23 @@ int main(int argc, char** argv)
                         if (head.playing) head.ppq += 512 * 162.0 / 60.0 / 48000.0;
                     }
                     juce::MessageManager::getInstance()->runDispatchLoopUntil(20);
-                    least = std::min(least, jed->catSquish());
-                    most = std::max(most, jed->catSquish());
                     left = std::min(left, jed->catTurn());
                     right = std::max(right, jed->catTurn());
                     still = std::max(still, std::abs(jed->catTurn()));
                 }
-                return std::pair { least, most };
             };
             const bool wasPlaying = head.playing;
             head.playing = true;
-            squish(10);
-            const auto playing = squish(50);
+            sway(10);
+            sway(50);
             const float swayL = left, swayR = right;
             head.playing = false;
-            squish(40); // the meter's 300 ms release
-            const auto stopped = squish(10);
+            sway(40); // back upright
+            sway(10);
             head.playing = wasPlaying;
-            std::printf("  cat meter: squished %.2f to %.2f while playing, up to %.2f stopped; swaying %.1f to %.1f"
-                        " degrees while playing, %.2f stopped\n", playing.first, playing.second, stopped.second,
-                        juce::radiansToDegrees(swayL), juce::radiansToDegrees(swayR), juce::radiansToDegrees(still));
-            ok &= playing.second > 0.4f && playing.second - playing.first > 0.1f && stopped.second < 1e-6f
-                  && swayL < -0.8f * jmui::JungleEditor::kCatSway && swayR > 0.8f * jmui::JungleEditor::kCatSway
+            std::printf("  cat: swaying %.1f to %.1f degrees while playing, %.2f stopped\n", juce::radiansToDegrees(swayL),
+                        juce::radiansToDegrees(swayR), juce::radiansToDegrees(still));
+            ok &= swayL < -0.8f * jmui::JungleEditor::kCatSway && swayR > 0.8f * jmui::JungleEditor::kCatSway
                   && still < 1e-6f;
             sizeParam->setValueNotifyingHost(sizeParam->convertTo0to1(1.0f));
             juce::MessageManager::getInstance()->runDispatchLoopUntil(600);
