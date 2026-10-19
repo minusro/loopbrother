@@ -1,4 +1,5 @@
 #include "PluginEditor.h"
+#include "Assets.h"
 
 namespace jmui {
 
@@ -360,8 +361,26 @@ JungleEditor::JungleEditor(JungleProcessor& p) : AudioProcessorEditor(&p), proc(
     setConstrainer(&window);
     setResizable(true, false);
     setSize(width, heightFor(width));
+    logoFace = juce::Typeface::createSystemTypefaceFor(Assets::CherryBombOneRegular_ttf,
+                                                       (size_t) Assets::CherryBombOneRegular_ttfSize);
     pad.refresh();
-    startTimerHz(30);
+    logoColour = frootLoop(p.library().entry(pad.cellAt(pad.circleCentre())).colour);
+    startTimerHz(60); // the meters' snap needs it
+}
+
+void JungleEditor::timerCallback()
+{
+    pad.refresh();
+    updateMute();
+    const auto target = frootLoop(proc.library().entry(pad.cellAt(pad.circleCentre())).colour);
+    if (logoColour != target)
+    {
+        const auto next = logoColour.interpolatedWith(target, 0.25f); // about a fifth of a second at 60 Hz
+        logoColour = std::abs(next.getFloatRed() - target.getFloatRed()) + std::abs(next.getFloatGreen() - target.getFloatGreen())
+                             + std::abs(next.getFloatBlue() - target.getFloatBlue()) < 0.01f
+                         ? target : next;
+        repaint(statusBar());
+    }
 }
 
 JungleEditor::~JungleEditor()
@@ -373,15 +392,26 @@ JungleEditor::~JungleEditor()
 void JungleEditor::paint(juce::Graphics& g)
 {
     g.fillAll(white);
-    const auto bar = getLocalBounds().withTop(pad.getBottom()).toFloat();
+    const float scale = (float) getWidth() / kDesignSize;
+    const auto bar = statusBar().toFloat();
     g.setColour(cream); // the pad's lower edge
-    g.fillRect(bar.withHeight(juce::jmax(1.0f, (float) getWidth() / kDesignSize)));
-    g.setColour(brown);
-    const float logoHeight = kLogoHeight * (float) getWidth() / kDesignSize;
-    g.setFont(logoFont ? logoFont->withHeight(logoHeight)
-                       : juce::Font(juce::FontOptions(logoHeight, juce::Font::bold).withKerningFactor(0.14f)));
-    g.drawText(logo(), bar,
-               juce::Justification::centred, false);
+    g.fillRect(bar.withHeight(juce::jmax(1.0f, scale)));
+
+    // The logo as outlines, centred on its ink, filled with the colour of the
+    // break under the circle and edged in that colour's shadow tone, which
+    // keeps the paler pastels (yellow) readable on white.
+    const auto font = logoFont ? logoFont->withHeight(kLogoHeight * scale)
+                               : juce::Font(juce::FontOptions(logoFace).withHeight(kLogoHeight * scale)
+                                                .withKerningFactor(kLogoKerning));
+    juce::GlyphArrangement glyphs;
+    glyphs.addLineOfText(font, logo(), 0.0f, 0.0f);
+    juce::Path text;
+    glyphs.createPath(text);
+    text.applyTransform(juce::AffineTransform::translation(bar.getCentre() - text.getBounds().getCentre()));
+    g.setColour(logoColour);
+    g.fillPath(text);
+    g.setColour(shadowOf(logoColour).withAlpha(0.7f));
+    g.strokePath(text, juce::PathStrokeType(juce::jmax(0.8f, 1.0f * scale)));
 }
 
 void JungleEditor::resized()

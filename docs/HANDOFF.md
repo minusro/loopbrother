@@ -1,7 +1,7 @@
 # LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-19 — v0.8.9, the logo without its "!"; logo fonts in
-context (`docs/logo-mockups.png`).
+Updated: 2026-10-19 — v0.9.0, the logo in Cherry Bomb One, coloured by
+the break under the circle; snappier meters.
 
 ## Where things stand
 
@@ -26,7 +26,7 @@ bundle ID are unchanged, so saved sessions find it.
   +5.5 dBFS. Fine inside a host's float mix, but they could clip the
   standalone's audio device. The WAVs on disk are unchanged.
 - **Pad** (the UI, white, over a small white status bar with the
-  dark brown LÖÖP BRÖTHER logo): every break sits at its
+  LÖÖP BRÖTHER logo): every break sits at its
   similarity-layout position, drawn in by 3% of the pad on every side
   (`jm::padSite`) so the outermost marks have room, and owns the nearest
   patch of pad (drawn as Voronoi cells, reaching the edges). The selection circle is three continuous automatable
@@ -71,8 +71,15 @@ bundle ID are unchanged, so saved sessions find it.
     audition. It only counts with the pointer over the plugin or during a
     pad drag: Command is global on macOS, and Command-clicks in the host
     shouldn't mute it.
-- **Window**: the pad over the status bar (44 px at 480, the logo
-  "LÖÖP BRÖTHER" 30 px high in it), resizable by the host window from 240
+- **Logo**: "LÖÖP BRÖTHER" in Cherry Bomb One (`fonts/`, compiled in as
+  `jm_assets`, SIL Open Font License in `fonts/OFL-CherryBombOne.txt`, which
+  has to ship with the installers), 38 px at 480 to match the old logo's
+  ink height, spacing 0. It takes the colour of the break whose cell the
+  circle's centre is in, fading to a new one over about a fifth of a
+  second, edged in that colour's shadow tone so pale yellow still reads on
+  white. Drawn as outlines, centred on its ink.
+- **Window**: the pad over the status bar (44 px at 480, the logo in it),
+  resizable by the host window from 240
   to 1440 px wide at that ratio (default 480x524; the
   width is saved in the plugin state and everything scales with it): a
   cream pad (#fffaf6) with white cell borders (2 px at 480), a cream edge
@@ -136,9 +143,11 @@ bundle ID are unchanged, so saved sessions find it.
   moves at most 0.014 of the pad (7 px at 480); a slow drag moves it 2 to
   3 px. 60 Hz while any run. Drawing only: the sound follows the true
   cells. The meter
-  is precomputed per loop at load (RMS, 10 ms attack, VU-style 300 ms
-  release, run twice round the loop, scaled to the loop's peak) and read at
-  the playhead the processor publishes. The selection circle itself is not
+  is precomputed per loop at load (RMS with a snappy 1 ms attack and a
+  VU-style 300 ms release, run twice round the loop, each 256-frame hop
+  keeping its loudest moment so no hit falls between readings, scaled to
+  the loop's peak) and read at the playhead the processor publishes; the
+  pad repaints at 60 Hz so the snap shows. The selection circle itself is not
   drawn - the washed cells show what it covers. Over the pad the pointer
   is the default arrow. (`jmui::HideCursorWhileDragging` hides it on future
   knobs and sliders.)
@@ -249,7 +258,7 @@ bundle ID are unchanged, so saved sessions find it.
 
 ## Next ideas
 
-- Pick the logo font. `docs/logo-fonts.png` has 24 candidates on the
+- Logo font candidates, for another round: `docs/logo-fonts.png` has 24 on the
   status bar, all free to embed (OFL, Luckiest Guy Apache 2.0), from
   github.com/google/fonts (`JM_LOGO_SHEET=docs/logo-fonts.png
   JM_LOGO_FONTS=<dir of .ttf>`). The shortlist is shown in the whole UI in
