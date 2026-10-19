@@ -1,6 +1,6 @@
 # Jungle Massive — handoff
 
-Updated: 2026-10-19 — v0.2.1, equal-power area mixing, yellow and white UI.
+Updated: 2026-10-19 — v0.2.2, meter-driven cell highlight, frameless pad.
 
 ## Where things stand
 
@@ -18,9 +18,14 @@ an instrument with stereo out and MIDI in.
   (`src/engine/PadGeometry.h`: exact circle/polygon intersection, shares add
   up to exactly 1; at most 8 breaks) and its gain is equal power, the square
   root of the share, so a half-and-half blend is as loud as either break
-  alone. The pad is yellow in a white frame: covered cells whiten by share,
-  each sounding break shows a white ring tracing its playhead, and the
-  selection circle is white. The mouse pointer is hidden while dragging
+  alone. The pad fills the window (480 x 480), yellow with deeper-yellow
+  cell borders. Covered cells whiten by share and their dots are drawn at
+  twice the size; while a covered break plays, its cell's whitening follows
+  the break's meter - as is in silence, doubled at the loop's peak. The
+  meter is precomputed per loop at load (RMS, 10 ms attack, VU-style 300 ms
+  release, run twice round the loop, scaled to the loop's peak) and read at
+  the playhead the processor publishes. The selection circle is a plain
+  white ring. The mouse pointer is hidden while dragging
   (`jmui::HideCursorWhileDragging`, meant for every future knob and slider).
 - **Playback** (`src/engine/LoopEngine.h`): the mix, every loop varispeed at
   the host tempo and locked to the same 1.1.1. Transport start syncs to the
@@ -48,7 +53,10 @@ an instrument with stereo out and MIDI in.
   steps (JUCE's short AudioParameterFloat constructor), fixed in v0.2.0.
 - `auval -v aumu Jngl Mnro` passes.
 - The pad renders as intended (`jm_snapshot` render inspected); the hidden
-  pointer while dragging has not been seen on screen yet.
+  pointer while dragging and the highlight pulsing in time have not been seen
+  on screen yet. Dense breaks keep the meter between about half and full, so
+  their highlight pulses between 1.5x and 2x; a faster release would pulse
+  harder.
 
 ## Not yet verified
 

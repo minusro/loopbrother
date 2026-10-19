@@ -16,11 +16,16 @@ public:
         juce::Point<float> pos;            // in [0, 1]^2, y up
         juce::AudioBuffer<float> audio;    // stereo
         double rate = 44100.0;             // the file's sample rate
+        std::vector<float> meter;          // level through the loop, 0..1 of its peak
     };
 
     int size() const { return (int) entries.size(); }
     const Entry& entry(int i) const { return entries[(size_t) i]; }
     const jm::Loop* loops() const { return loops_.data(); }
+
+    // The loop's meter reading at a position through it (0..1), relative to
+    // the loop's own peak: 0 in silence, 1 at its loudest moment.
+    float level(int loop, double phase) const;
 
     // Which breaks the selection circle covers, and how much of each.
     const jm::PadMap& pad() const { return pad_; }
