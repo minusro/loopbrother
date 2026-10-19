@@ -139,7 +139,9 @@ juce::AudioProcessorEditor* JungleProcessor::createEditor() { return new jmui::J
 
 void JungleProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
-    if (auto xml = apvts.copyState().createXml())
+    auto state = apvts.copyState();
+    state.setProperty("editorSize", editorSize_.load(), nullptr);
+    if (auto xml = state.createXml())
         copyXmlToBinary(*xml, destData);
 }
 
@@ -147,7 +149,12 @@ void JungleProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     if (auto xml = getXmlFromBinary(data, sizeInBytes))
         if (xml->hasTagName(apvts.state.getType()))
-            apvts.replaceState(juce::ValueTree::fromXml(*xml));
+        {
+            auto state = juce::ValueTree::fromXml(*xml);
+            if (state.hasProperty("editorSize")) editorSize_.store((int) state.getProperty("editorSize"));
+            state.removeProperty("editorSize", nullptr);
+            apvts.replaceState(state);
+        }
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() { return new JungleProcessor(); }

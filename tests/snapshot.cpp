@@ -2,7 +2,7 @@
 // the processor runs a few blocks under a scripted transport so the pad shows
 // live playback state.
 //   cmake -B build -DJM_BUILD_SNAPSHOT=ON && cmake --build build --target jm_snapshot
-//   build/jm_snapshot_artefacts/Release/jm_snapshot out.png [x y]
+//   build/jm_snapshot_artefacts/Release/jm_snapshot out.png [x y [size]]
 #include "../src/PluginProcessor.h"
 #include "../src/PluginEditor.h"
 
@@ -20,7 +20,7 @@ struct ScriptedPlayHead : juce::AudioPlayHead {
 
 int main(int argc, char** argv)
 {
-    if (argc < 2) { std::printf("usage: jm_snapshot out.png [x y]\n"); return 2; }
+    if (argc < 2) { std::printf("usage: jm_snapshot out.png [x y [size]]\n"); return 2; }
     juce::ScopedJuceInitialiser_GUI gui;
 
     JungleProcessor proc;
@@ -44,6 +44,7 @@ int main(int argc, char** argv)
     }
 
     std::unique_ptr<juce::AudioProcessorEditor> ed(proc.createEditor());
+    if (argc >= 5) ed->setSize(std::atoi(argv[4]), std::atoi(argv[4]));
     for (auto* c : ed->getChildren()) if (auto* pad = dynamic_cast<jmui::XYPad*>(c)) pad->refresh();
     const auto img = ed->createComponentSnapshot(ed->getLocalBounds(), true, 2.0f);
     juce::File out(juce::File::getCurrentWorkingDirectory().getChildFile(juce::String::fromUTF8(argv[1])));

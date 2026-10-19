@@ -62,8 +62,12 @@ private:
     std::vector<juce::Path> cellPaths;      // in component pixels
 };
 
+// Square and resizable by the host window (the size is kept in the plugin
+// state); everything on the pad scales with it.
 class JungleEditor : public juce::AudioProcessorEditor, private juce::Timer {
 public:
+    static constexpr int kDefaultSize = 480, kMinSize = 240, kMaxSize = 1440;
+
     explicit JungleEditor(JungleProcessor&);
     ~JungleEditor() override;
     void paint(juce::Graphics&) override;
@@ -72,6 +76,7 @@ public:
 private:
     void timerCallback() override { pad.refresh(); }
 
+    JungleProcessor& proc;
     XYPad pad;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(JungleEditor)

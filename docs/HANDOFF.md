@@ -1,6 +1,6 @@
 # Jungle Massive — handoff
 
-Updated: 2026-10-19 — v0.4.0, hold-to-audition (pad or MIDI note) while stopped, invisible selection circle.
+Updated: 2026-10-19 — v0.4.1, smaller selection circle, resizable square window.
 
 ## Where things stand
 
@@ -12,16 +12,18 @@ an instrument with stereo out and MIDI in.
   process (`LoopLibrary`, shared between instances, ~95 MB of float audio).
 - **Pad** (the only UI): every break sits at its similarity-layout position
   and owns the nearest patch of pad (drawn as Voronoi cells). The selection
-  circle (radius `jm::kPuckRadius` = 16.5/480 of the pad) is two continuous
+  circle (radius `jm::kPuckRadius` = 12.375/480 of the pad) is two continuous
   automatable parameters, `x` and `y`. Every break whose cell the circle
   covers plays. Its share is the fraction of the circle's area in its cell
   (`src/engine/PadGeometry.h`: exact circle/polygon intersection, shares add
   up to exactly 1; at most 8 breaks) and its gain is equal power, the square
   root of the share, so a half-and-half blend is as loud as either break
-  alone. The pad fills the window (480 x 480), yellow with deeper-yellow
-  cell borders. Covered cells whiten by share and only they carry a dot;
+  alone. The pad fills the window, square and resizable by the host window
+  from 240 to 1440 px (default 480; the size is saved in the plugin state
+  and everything on the pad scales with it), yellow with deeper-yellow cell
+  borders. Covered cells whiten by share and only they carry a dot;
   while a covered break plays, its dot follows the break's meter, from half
-  its size (6 px radius) in silence to double at the loop's peak. The meter
+  its size (6 px radius at 480) in silence to double at the loop's peak. The meter
   is precomputed per loop at load (RMS, 10 ms attack, VU-style 300 ms
   release, run twice round the loop, scaled to the loop's peak) and read at
   the playhead the processor publishes. The selection circle itself is not
@@ -83,7 +85,8 @@ an instrument with stereo out and MIDI in.
 ## Not yet verified
 
 - No DAW testing: Ableton/Logic/Bitwig transport, loop regions, tempo
-  automation, state recall, many instances. Auditioning needs the host to
+  automation, state recall, many instances, window resizing (it relies on
+  the host letting the plugin window be dragged; there is no corner grip). Auditioning needs the host to
   keep processing the instrument while stopped; some hosts (Logic with the
   track not selected) put idle instruments to sleep. The pad press itself is
   not covered by the host check (it comes from the editor); held notes are.

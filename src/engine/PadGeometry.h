@@ -8,8 +8,9 @@
 
 namespace jm {
 
-// Radius of the selection circle, in pad units (the pad is [0, 1]^2).
-constexpr double kPuckRadius = 16.5 / 480.0;
+// Radius of the selection circle, in pad units (the pad is [0, 1]^2):
+// 12.4 px on the 480 px pad.
+constexpr double kPuckRadius = 12.375 / 480.0;
 
 struct Pt { double x, y; };
 using Poly = std::vector<Pt>; // convex, counter-clockwise
