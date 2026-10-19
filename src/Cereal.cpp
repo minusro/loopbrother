@@ -51,9 +51,9 @@ Grains::Grains()
                 field[(size_t) (y * n + x)] += amp * (top + v * (bottom - top));
             }
     }
-    for (int k = 0; k < kFrootLoops; ++k)
+    for (int k = 0; k <= kMutedColour; ++k)
     {
-        const auto dark = shadowOf(frootLoops[k]);
+        const auto dark = shadowOf(frootLoop(k));
         auto& img = images[k];
         img = juce::Image(juce::Image::ARGB, n, n, true);
         for (int y = 0; y < n; ++y)

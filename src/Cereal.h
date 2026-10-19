@@ -20,7 +20,13 @@ const juce::Colour frootLoops[] = {
     juce::Colour { 0xffff94ce },  // pink
 };
 constexpr int kFrootLoops = (int) std::size(frootLoops);
-inline juce::Colour frootLoop(int colour) { return frootLoops[(size_t) juce::jlimit(0, kFrootLoops - 1, colour)]; }
+// One colour past the cereal ones: the dark grey of the marks while muted.
+constexpr int kMutedColour = kFrootLoops;
+const juce::Colour mutedGrey { 0xff555555 };
+inline juce::Colour frootLoop(int colour)
+{
+    return colour == kMutedColour ? mutedGrey : frootLoops[(size_t) juce::jlimit(0, kFrootLoops - 1, colour)];
+}
 
 // The colour a cereal's shadows take: darker, richer and turned a little
 // towards red, so yellow shades to gold instead of olive.
@@ -49,9 +55,9 @@ extern const RingStyle& kRingStyle;   // the one the pad draws
 class Grains {
 public:
     Grains();
-    const juce::Image& operator[](int colour) const { return images[(size_t) juce::jlimit(0, kFrootLoops - 1, colour)]; }
+    const juce::Image& operator[](int colour) const { return images[(size_t) juce::jlimit(0, kMutedColour, colour)]; }
 private:
-    juce::Image images[kFrootLoops];
+    juce::Image images[kFrootLoops + 1];
 };
 
 // An Ö of radius r centred (the ring) on c, its dots turned by angle about

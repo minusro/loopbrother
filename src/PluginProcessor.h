@@ -43,6 +43,7 @@ public:
     // Command held over the plugin mutes the instrument at once (and unmutes
     // it as soon as it is let go). Auditions included.
     void setMuteHeld(bool held) { muteHeld_.store(held, std::memory_order_relaxed); }
+    bool muteHeld() const       { return muteHeld_.load(std::memory_order_relaxed); }
 
     // The Circle Size parameter range: skewed so size 1 sits in the middle.
     static juce::NormalisableRange<float> circleSizeRange();

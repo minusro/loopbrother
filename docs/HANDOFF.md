@@ -1,8 +1,8 @@
 # LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-19 — v0.9.1, release builds (unsigned): a universal Mac
-installer made here, Windows on GitHub Actions; a cream status bar with a
-sunken logo; Shift sizes the circle like a knob.
+Updated: 2026-10-19 — v0.9.2, a wake beside the drag, grey marks while
+muted, a 0.2 s hue-wheel logo fade, a thicker logo edge. v0.9.1 is
+released (github.com/minusro/loopbrother/releases).
 
 ## Where things stand
 
@@ -67,13 +67,16 @@ bundle ID are unchanged, so saved sessions find it.
     so unmuting comes back in place), with the clock running or during an
     audition. It only counts with the pointer over the plugin or during a
     pad drag: Command is global on macOS, and Command-clicks in the host
-    shouldn't mute it.
+    shouldn't mute it. While it's held the Ös under the circle turn dark
+    grey.
 - **Logo**: "LÖÖP BRÖTHER" in Cherry Bomb One (`fonts/`, compiled in as
   `jm_assets`, SIL Open Font License in `fonts/OFL-CherryBombOne.txt`, which
   has to ship with the installers), 38 px at 480 to match the old logo's
   ink height, spacing 0. It takes the colour of the break whose cell the
   circle's centre is in, fading to a new one over about a fifth of a
-  second, sunk into the bar: its white edge sits 1.5 px (at 480) below it,
+  second round the hue wheel (saturation and brightness kept, so a pastel
+  doesn't grey halfway as an RGB mix does), sunk into the bar: its white
+  edge, 2 px thick, sits 2.5 px (at 480) below it,
   showing along the letters' lower sides like a pressed-in letter lit from
   above. Drawn as outlines, centred across on its ink and up and down on
   its capitals (the umlauts ride above).
@@ -129,11 +132,13 @@ bundle ID are unchanged, so saved sessions find it.
   movement). Only the dots move: the O, its shading and every shadow stay
   lit from the top left. `CerealSprites` keeps the O and each dot as
   separate images for this.
-  Dragging pushes the cells the circle's centre actually passes through,
-  and only those, the way the circle goes, as through liquid: every 60 ms
-  or so the circle leaves a push as long as it moved, for the cells along
-  that stretch (sampled every 0.004 of the pad, so a fast move catches
-  every cell it crosses). Each such cell feels it once, as a single sin^2
+  Dragging pushes the cells the circle's centre actually passes through
+  the way the circle goes, and the cells beside the path straight
+  outwards, as a wake in liquid: every 60 ms or so the circle leaves a
+  push as long as it moved, for the cells along that stretch (sampled
+  every 0.004 of the pad, so a fast move catches every cell it crosses)
+  and, at 1.5 times that, for the cells around it, falling off with their
+  distance from the stretch (Gaussian, 0.1 of the pad; none past 0.2). Each such cell feels it once, as a single sin^2
   swell out and back to rest (0.22 s, never below zero, so nothing swings
   back and forth): its crumb moves with it (the Ös under the circle hold
   still), and each border corner moves by the average of the cells that
@@ -252,6 +257,12 @@ bundle ID are unchanged, so saved sessions find it.
   swing wider.
 
 ## Not yet verified
+
+- Painting at 1440 px with the largest circle takes 45 to 50 ms a frame
+  in JUCE's software renderer (7 at 480; the drag's wake adds about 3.4 ms
+  at 480). On screen macOS draws through Core Graphics, likely faster, but
+  it hasn't been timed there. The cost is the area: the cell washes and
+  2 px borders scale with the window.
 
 - No DAW testing: Ableton/Logic/Bitwig transport, loop regions, tempo
   automation, state recall, many instances, window resizing (it relies on

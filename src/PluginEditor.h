@@ -50,9 +50,11 @@ private:
 // round piece the size of one of the Ö's dots at rest.
 //
 // Dragging pushes the cells the circle's centre passes through (their
-// borders and crumbs) a few pixels the way it goes, as through liquid: once,
-// then back to rest, no swinging to and fro; cells it didn't cross stay
-// still. Drawing only; the sound follows the true cells.
+// borders and crumbs) a few pixels the way it goes, and the cells beside
+// its path outwards, like a wake in liquid: once, then back to rest, no
+// swinging to and fro; cells further off stay still. Drawing only; the
+// sound follows the true cells. While the mute is held the circle's Ös are
+// dark grey.
 class XYPad : public juce::Component, private juce::Timer {
 public:
     static constexpr float kFineSpeed = 1.0f / 16.0f;
@@ -80,7 +82,7 @@ private:
 
     // The ripples: one push per step of a drag, the way and as far as the
     // circle moved, for the cells its centre passed through.
-    struct Drop { double born; juce::Point<float> push; std::vector<int> cells; };
+    struct Drop { double born; std::vector<std::pair<int, juce::Point<float>>> pushes; }; // cell, its push
     void addDrop(juce::Point<float> from, juce::Point<float> to);
     void timerCallback() override;          // animates ripples and turning umlauts
     void turnUmlauts(float angle);
@@ -105,6 +107,7 @@ private:
     juce::Point<float> puck { -1.0f, -1.0f };
     float size = -1.0f;                     // Circle Size, 1 = jm::kPuckRadius
     bool  isDragging = false;
+    bool  muted = false;                    // the mute held: the circle's Ös turn grey
     CerealSprites sprites;
     const RingStyle* style = &kRingStyle;
     std::vector<Drop> drops;
@@ -152,7 +155,8 @@ private:
 // The square pad over a small status bar with the logo, resizable by the
 // host window at that fixed ratio (the width is kept in the plugin state);
 // everything scales with it. The logo, in Cherry Bomb One, takes the colour
-// of the break whose cell the circle's centre is in, fading as it changes. Holding Command (Control on Windows) with the
+// of the break whose cell the circle's centre is in, fading round the hue
+// wheel over 0.2 s as it changes. Holding Command (Control on Windows) with the
 // pointer over the plugin mutes it. Command is global on macOS, so it only
 // counts over the plugin (or during a pad drag, when the hidden pointer can
 // be anywhere): Command-clicks in the host don't mute it.
@@ -171,6 +175,11 @@ public:
     static constexpr int kDesignSize  = 480;  // the pad width drawing dimensions are given at
     static constexpr int kTitleHeight = 44;   // the status bar, at kDesignSize
     static constexpr float kLogoKerning = 0.0f;
+    static constexpr double kLogoFade = 0.2; // seconds
+    // Between two colours round the hue wheel, saturation and brightness
+    // straight, so a pastel stays a pastel all the way (a mix in RGB greys out
+    // halfway between opposite hues).
+    static juce::Colour blendHues(juce::Colour a, juce::Colour b, float t);
     static constexpr float kLogoHeight = 38.0f; // its lettering (Cherry Bomb One), at kDesignSize
     static juce::String logo() { return juce::CharPointer_UTF8("L\xc3\x96\xc3\x96P BR\xc3\x96THER"); }
     static constexpr int kDefaultSize = JungleProcessor::kDefaultEditorSize, kMinSize = 240, kMaxSize = 1440;
@@ -198,7 +207,8 @@ private:
     int side = kDefaultSize;                // the last width at the right ratio
     std::optional<juce::Font> logoFont;
     juce::Typeface::Ptr logoFace;           // Cherry Bomb One, compiled in
-    juce::Colour logoColour;                // the colour it's fading to the target's
+    juce::Colour logoColour, logoFrom, logoTo; // shown now, and the fade's ends
+    double logoFadeStart = 0.0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(JungleEditor)
 };

@@ -26,7 +26,7 @@ Load it as an instrument on a track and press play in your DAW.
 - **Option-drag** (Alt on Windows) moves the circle 16 times slower, for fine
   adjustments, and the change sounds at once instead of on the next 16th.
 - **Hold Command** (Control on Windows) with the pointer over the plugin to
-  mute it.
+  mute it; the rings under the circle turn grey while it's muted.
 - **Any MIDI note** restarts the breaks from their first beat.
 - **With your DAW stopped,** hold the pad or a MIDI note to listen from the
   start.

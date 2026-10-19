@@ -5,7 +5,7 @@
 //   build/jm_snapshot_artefacts/Release/jm_snapshot out.png [x y [size]]
 // JM_STOPPED=1 renders with the transport stopped (nothing playing);
 // JM_CIRCLE=<size> sets the Circle Size first; JM_RING_STYLE=<n> draws the
-// marks in kRingStyles[n].
+// marks in kRingStyles[n]; JM_MUTED=1 holds the mute.
 // JM_STYLE_SHEET=<out.png> draws every ring style in every colour instead.
 // JM_LOGO_SHEET=<out.png> JM_LOGO_FONTS=<dir> draws the logo in the current
 // font and in every .ttf/.otf in dir, each in a mock of the status bar.
@@ -153,6 +153,7 @@ int main(int argc, char** argv)
         proc.apvts.getParameter("x")->setValueNotifyingHost((float) std::atof(argv[2]));
         proc.apvts.getParameter("y")->setValueNotifyingHost((float) std::atof(argv[3]));
     }
+    if (std::getenv("JM_MUTED")) proc.setMuteHeld(true);
     if (const char* c = std::getenv("JM_CIRCLE"))
     {
         auto* size = proc.apvts.getParameter("size");
@@ -353,8 +354,9 @@ int main(int argc, char** argv)
 
         // Ripples: dragging right pushes the cells the circle's centre
         // crossed right, once, and they come back to rest: never pushed the
-        // other way (no ping-pong), still at the end. The nearest cell it
-        // didn't cross never moves.
+        // other way (no ping-pong), still at the end. The nearest cell beside
+        // the path is pushed straight outwards and back; a cell well away
+        // from it never moves.
         {
             juce::Thread::sleep(600); // the earlier drags' pushes settle first
             pad->mouseDown(ev(100, 300, 0));
@@ -383,21 +385,40 @@ int main(int argc, char** argv)
                 const float d = juce::Point<float> { px, y }.getDistanceFrom(p);
                 if (d < besideDist) { besideDist = d; beside = i; }
             }
-            float most = 0.0f, against = 0.0f, across = 0.0f, last = 0.0f, still = 0.0f;
+            int far = -1; // a break well away from the path
+            for (int i = 0; i < lib.size() && far < 0; ++i)
+            {
+                const auto p = lib.entry(i).pos;
+                const float px = juce::jlimit(100.0f / w, 160.0f / w, p.x);
+                if (juce::Point<float> { px, y }.getDistanceFrom(p) > 0.25f) far = i;
+            }
+            const float outwards = lib.entry(beside).pos.y >= y ? 1.0f : -1.0f; // its side of the path (pad y is up)
+            float most = 0.0f, against = 0.0f, across = 0.0f, last = 0.0f;
+            float out = 0.0f, inwards = 0.0f, sideways = 0.0f, still = 0.0f;
             for (double t = 0.0; t < 2.0; t += 0.005)
+            {
                 for (const int c : crossed)
                 {
                     const auto d = pad->cellShift(c, start + t);
                     most = std::max(most, d.x);
                     against = std::min(against, d.x);
-                    across = std::max(across, std::abs(d.y));
+                    across = std::max(across, std::abs(d.y)); // beside the path's other steps, they're pushed out too
                     if (t > 1.9) last = std::max(last, d.getDistanceFromOrigin());
-                    still = std::max(still, pad->cellShift(beside, start + t).getDistanceFromOrigin());
                 }
-            std::printf("  ripple: %zu crossed cells pushed up to %.2f px right, %.4f px back, %.4f px across, %.4f px at the end;"
-                        " the nearest uncrossed cell (%.0f px off the path) %.4f px\n",
-                        crossed.size(), most * w, -against * w, across * w, last * w, besideDist * w, still * w);
-            ok &= most * w > 1.0f && against > -1e-6f && across < 1e-4f && last < 1e-6f && still < 1e-6f;
+                const auto b = pad->cellShift(beside, start + t);
+                out = std::max(out, b.y * outwards);
+                inwards = std::min(inwards, b.y * outwards);
+                sideways = std::max(sideways, std::abs(b.x));
+                if (t > 1.9) last = std::max(last, b.getDistanceFromOrigin());
+                still = std::max(still, pad->cellShift(far, start + t).getDistanceFromOrigin());
+            }
+            std::printf("  ripple: %zu crossed cells pushed up to %.2f px right, %.4f px back, %.4f px across;"
+                        " the nearest cell beside (%.0f px off) %.2f px outwards, %.4f px in, %.4f px along;"
+                        " %.4f px at the end; a far cell %.4f px\n",
+                        crossed.size(), most * w, -against * w, across * w, besideDist * w, out * w, -inwards * w,
+                        sideways * w, last * w, still * w);
+            ok &= most * w > 1.0f && against > -1e-6f && out * w > 0.8f && inwards > -1e-6f
+                  && sideways < 1e-4f && last < 1e-6f && still < 1e-6f;
 
             // The umlauts: after that drag right they face right; a tap puts
             // them back on top; a drag down turns them underneath, and they
@@ -425,6 +446,18 @@ int main(int argc, char** argv)
                         right, tapped, down);
             ok &= std::abs(right - 90.0f) < 2.0f && std::abs(tapped) < 1.0f && std::abs(down - 180.0f) < 5.0f;
             proc.setPadHeld(false);
+        }
+
+        // The logo's colour fade keeps its saturation: halfway from pastel
+        // red to pastel blue round the hue wheel, where an RGB mix greys.
+        {
+            float h, s1, s2, smid, srgb, v;
+            jmui::frootLoop(0).getHSB(h, s1, v);
+            jmui::frootLoop(4).getHSB(h, s2, v);
+            jmui::JungleEditor::blendHues(jmui::frootLoop(0), jmui::frootLoop(4), 0.5f).getHSB(h, smid, v);
+            jmui::frootLoop(0).interpolatedWith(jmui::frootLoop(4), 0.5f).getHSB(h, srgb, v);
+            std::printf("  logo fade: saturation %.2f and %.2f at the ends, %.2f halfway (an RGB mix: %.2f)\n", s1, s2, smid, srgb);
+            ok &= std::abs(smid - 0.5f * (s1 + s2)) < 0.01f && srgb < smid - 0.1f;
         }
 
         // Command over the plugin (the editor's part, faked here): silent
@@ -489,9 +522,19 @@ int main(int argc, char** argv)
             }
             if (std::getenv("JM_TIME_PAINT"))
             {
-                const double t0 = juce::Time::getMillisecondCounterHiRes();
-                for (int i = 0; i < 20; ++i) pad->createComponentSnapshot(pad->getLocalBounds(), true, 1.0f);
-                std::printf("pad paint: %.2f ms a frame at %d px\n", (juce::Time::getMillisecondCounterHiRes() - t0) / 20.0, pad->getWidth());
+                pad->createComponentSnapshot(pad->getLocalBounds(), true, 1.0f); // builds the sprites: not timed
+                // JM_TIME_FRAMES=<n> times fewer frames, e.g. to stay inside a
+                // ripple, which settles within about half a second.
+                const int frames = std::getenv("JM_TIME_FRAMES") ? std::atoi(std::getenv("JM_TIME_FRAMES")) : 100;
+                const int rounds = std::getenv("JM_TIME_FRAMES") ? 1 : 3;
+                double best = 1e9;
+                for (int round = 0; round < rounds; ++round)
+                {
+                    const double t0 = juce::Time::getMillisecondCounterHiRes();
+                    for (int i = 0; i < frames; ++i) pad->createComponentSnapshot(pad->getLocalBounds(), true, 1.0f);
+                    best = std::min(best, (juce::Time::getMillisecondCounterHiRes() - t0) / frames);
+                }
+                std::printf("pad paint: %.2f ms a frame at %d px (best of %d x %d)\n", best, pad->getWidth(), rounds, frames);
             }
         }
     const auto img = ed->createComponentSnapshot(ed->getLocalBounds(), true, 2.0f);
