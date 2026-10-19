@@ -7,6 +7,10 @@ it covers, always in sync with your DAW's tempo. It works as a VST3 plugin
 and a standalone app on macOS and Windows, and as an Audio Unit on macOS.
 In plugin lists it appears as **LOOP BROTHER** by **minus**.
 
+<p align="center">
+  <img src="docs/screenshot.png" width="480" alt="LÖÖP BRÖTHER: a cream pad of cells, each with a small coloured dot; under the selection circle the breaks show as pastel cereal rings shaped like the letter Ö, and the logo at the bottom takes the colour of the break under the circle's centre.">
+</p>
+
 ## Playing it
 
 Load it as an instrument on a track and press play in your DAW.

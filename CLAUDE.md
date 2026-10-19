@@ -123,6 +123,7 @@ build/jm_host_check_artefacts/Release/jm_host_check \
 cmake -B build -DJM_BUILD_SNAPSHOT=ON && cmake --build build --target jm_snapshot
 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png 0.5 0.5 [size]
 JM_STOPPED=1 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png         # nothing playing
+JM_CIRCLE=4.5 build/jm_snapshot_artefacts/Release/jm_snapshot docs/screenshot.png 0.55 0.58  # the README's screenshot (redo after UI changes)
 JM_CIRCLE=3 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png 0.77 0.65 1200  # big circle, close-up
 JM_RING_STYLE=2 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png      # another ring style
 JM_STYLE_SHEET=docs/ring-styles.png build/jm_snapshot_artefacts/Release/jm_snapshot  # all styles, all colours
