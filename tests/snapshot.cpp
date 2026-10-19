@@ -58,6 +58,23 @@ int main(int argc, char** argv)
             std::printf("  host %dx%d -> editor %dx%d (want %d)\n", w, h, ed->getWidth(), ed->getHeight(), want);
             ok &= ed->getWidth() == want && ed->getHeight() == want;
         };
+        // Where JUCE owns the window (the standalone), the constrainer decides
+        // the whole frame: a corner keeps the opposite corner, an edge keeps the
+        // opposite edge and grows the two others half each way.
+        auto frame = [&](juce::Rectangle<int> proposed, bool top, bool left, bool bottom, bool right, juce::Rectangle<int> want)
+        {
+            const juce::Rectangle<int> old { 100, 100, 960, 960 };
+            auto r = proposed;
+            ed->getConstrainer()->checkBounds(r, old, {}, top, left, bottom, right);
+            std::printf("  frame %s -> %s (want %s)\n", proposed.toString().toRawUTF8(), r.toString().toRawUTF8(), want.toString().toRawUTF8());
+            ok &= r == want;
+        };
+        frame({ 100, 100, 1060, 960 }, false, false, false, true,  { 100,  50, 1060, 1060 }); // right edge out
+        frame({  40, 100, 1020, 960 }, false, true,  false, false, {  40,  70, 1020, 1020 }); // left edge out
+        frame({ 100, 100,  960, 860 }, false, false, true,  false, { 150, 100,  860,  860 }); // bottom edge in
+        frame({   0,  60, 1060, 1000 }, true, true,  false, false, {   0,   0, 1060, 1060 }); // top-left corner out
+        frame({ 100, 100,  900,  920 }, false, false, true,  true, { 100, 100,  920,  920 }); // bottom-right corner in
+
         const int s0 = ed->getWidth();
         drag(s0 + 200, s0, s0 + 200);           // right edge out: grows
         drag(s0 + 200, s0 + 440, s0 + 440);     // bottom edge out: grows

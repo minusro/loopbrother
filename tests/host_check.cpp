@@ -219,6 +219,39 @@ int main(int argc, char** argv)
         CHECK(silentFrom(off + kFade), "note-off ends the audition");
     }
 
+    // 8. Window resizing through JUCE's own VST3 host window, which asks the
+    //    plugin's checkSizeConstraint the way hosts do: dragging one edge out
+    //    or in must follow that edge and stay square. (The window is shown
+    //    fully transparent, so nothing appears on screen.)
+    {
+        std::unique_ptr<juce::AudioProcessorEditor> ed(plugin->createEditor());
+        juce::Component holder;
+        holder.setOpaque(false);
+        holder.addAndMakeVisible(ed.get());
+        holder.setSize(ed->getWidth(), ed->getHeight());
+        holder.addToDesktop(juce::ComponentPeer::windowIsTemporary);
+        holder.setAlpha(0.0f);
+        holder.setVisible(true);
+        juce::MessageManager::getInstance()->runDispatchLoopUntil(100);
+        bool ok = ed->getWidth() == ed->getHeight();
+        auto drag = [&](int w, int h, int want)
+        {
+            ed->setSize(w, h);
+            juce::MessageManager::getInstance()->runDispatchLoopUntil(50);
+            const bool good = ed->getWidth() == want && ed->getHeight() == want;
+            if (! good) std::printf("  resize %dx%d -> %dx%d, wanted %d\n", w, h, ed->getWidth(), ed->getHeight(), want);
+            ok &= good;
+        };
+        const int s0 = ed->getWidth();
+        drag(s0 + 100, s0, s0 + 100);           // right edge out
+        drag(s0 + 100, s0 + 250, s0 + 250);     // bottom edge out
+        drag(s0 + 150, s0 + 250, s0 + 150);     // right edge in
+        drag(s0 + 150, s0 + 120, s0 + 120);     // bottom edge in
+        CHECK(ok, "VST3 window edges resize along the dragged side and stay square");
+        holder.removeFromDesktop();
+        holder.removeChildComponent(ed.get());
+    }
+
     plugin->releaseResources();
     std::printf(failures == 0 ? "host check passed\n" : "host check FAILED\n");
     return failures == 0 ? 0 : 1;

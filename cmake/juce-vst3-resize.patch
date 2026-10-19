@@ -1,0 +1,26 @@
+--- a/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST3.cpp
++++ b/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST3.cpp
+@@ -2012,14 +2012,17 @@
+                         {
+                             bool adjustWidth = (width / height > aspectRatio);
+ 
+-                            if (detail::PluginUtilities::getHostType().type == PluginHostType::SteinbergCubase9)
++                            // junglemassive patch: follow the side the host moved - an edge
++                            // drag moves one, a corner drag both and the bigger change wins -
++                            // rather than always fitting the ratio to the shorter side, which
++                            // made dragging a single window edge outwards impossible.
+                             {
+-                                auto currentEditorBounds = editor->getBounds().toFloat();
++                                const auto current = editor->getLocalBounds().toFloat();
++                                const auto dw = std::abs (width  - current.getWidth());
++                                const auto dh = std::abs (height - current.getHeight());
+ 
+-                                if (approximatelyEqual (currentEditorBounds.getWidth(), width) && ! approximatelyEqual (currentEditorBounds.getHeight(), height))
+-                                    adjustWidth = true;
+-                                else if (approximatelyEqual (currentEditorBounds.getHeight(), height) && ! approximatelyEqual (currentEditorBounds.getWidth(), width))
+-                                    adjustWidth = false;
++                                if (! approximatelyEqual (dw, dh))
++                                    adjustWidth = dh > dw;
+                             }
+ 
+                             if (adjustWidth)

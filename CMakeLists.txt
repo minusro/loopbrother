@@ -8,7 +8,7 @@ if(APPLE AND NOT CMAKE_OSX_DEPLOYMENT_TARGET)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "" FORCE)
 endif()
 
-project(junglemassive VERSION 0.4.2 LANGUAGES C CXX)
+project(junglemassive VERSION 0.4.3 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -16,7 +16,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 option(JM_BUILD_PLUGIN "Build the JUCE plugin targets" ON)
 option(JM_BUILD_TESTS  "Build the plain-C++ engine tests" ON)
-set(JM_JUCE_DIR "" CACHE PATH "Path to a local JUCE checkout (empty = fetch JUCE 8.0.4)")
+set(JM_JUCE_DIR "" CACHE PATH "Local JUCE git checkout to clone 8.0.4 from (empty = GitHub); never modified")
 
 # ---------------------------------------------------------------------------
 # Pure C++ loop engine: no JUCE dependency, so playback timing can be unit
@@ -37,16 +37,23 @@ endif()
 # JUCE plugin
 # ---------------------------------------------------------------------------
 if(JM_BUILD_PLUGIN)
+    # JUCE 8.0.4 with one patch (cmake/juce-vst3-resize.patch): VST3 hosts get
+    # a fixed-aspect window resized along the side being dragged, instead of
+    # always fitted to the shorter side (which made edges shrink-only). The
+    # clone lives in the build tree, so a local JM_JUCE_DIR is never touched.
+    include(FetchContent)
     if(JM_JUCE_DIR)
-        add_subdirectory(${JM_JUCE_DIR} ${CMAKE_BINARY_DIR}/JUCE)
+        set(JM_JUCE_GIT ${JM_JUCE_DIR})
     else()
-        include(FetchContent)
-        FetchContent_Declare(JUCE
-            GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
-            GIT_TAG        8.0.4
-            GIT_SHALLOW    TRUE)
-        FetchContent_MakeAvailable(JUCE)
+        set(JM_JUCE_GIT https://github.com/juce-framework/JUCE.git)
     endif()
+    FetchContent_Declare(JUCE
+        GIT_REPOSITORY      ${JM_JUCE_GIT}
+        GIT_TAG             8.0.4
+        GIT_SHALLOW         TRUE
+        UPDATE_DISCONNECTED TRUE
+        PATCH_COMMAND       git apply --whitespace=nowarn ${CMAKE_CURRENT_SOURCE_DIR}/cmake/juce-vst3-resize.patch)
+    FetchContent_MakeAvailable(JUCE)
 
     # The breaks and their pad layout are compiled into the plugin.
     file(GLOB JM_BREAK_FILES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/breaks/*.wav)
@@ -107,7 +114,7 @@ if(JM_BUILD_PLUGIN)
         juce_add_console_app(jm_host_check PRODUCT_NAME "jm_host_check")
         target_sources(jm_host_check PRIVATE tests/host_check.cpp)
         target_compile_definitions(jm_host_check PRIVATE
-            JUCE_PLUGINHOST_VST3=1 JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+            JUCE_PLUGINHOST_VST3=1 JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_MODAL_LOOPS_PERMITTED=1)
         target_link_libraries(jm_host_check PRIVATE
             juce::juce_audio_processors juce::juce_audio_formats
             juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
