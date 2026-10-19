@@ -31,6 +31,7 @@ Load it as an instrument on a track and press play in your DAW.
 - **With your DAW stopped,** hold the pad or a MIDI note to listen from the
   start.
 - **Resize the window** by dragging its edges or corners.
+- **Make the circle as big as it goes** and you may get company.
 
 The standalone app has no song to follow, so it plays at the breaks' own
 tempo, 162 BPM.

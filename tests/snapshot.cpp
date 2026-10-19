@@ -429,6 +429,21 @@ int main(int argc, char** argv)
             proc.setPadHeld(false);
         }
 
+        // The cat: up behind the logo once the circle is at its largest, back
+        // down below the window's edge when it's small again (easing between).
+        if (auto* jed = dynamic_cast<jmui::JungleEditor*>(ed.get()))
+        {
+            auto* sizeParam = proc.apvts.getParameter("size");
+            sizeParam->setValueNotifyingHost(1.0f);
+            juce::MessageManager::getInstance()->runDispatchLoopUntil(600);
+            const float up = jed->catRise();
+            sizeParam->setValueNotifyingHost(sizeParam->convertTo0to1(1.0f));
+            juce::MessageManager::getInstance()->runDispatchLoopUntil(600);
+            const float down = jed->catRise();
+            std::printf("  cat: at the largest circle %.2f up, at size 1 %.2f\n", up, down);
+            ok &= up > 0.99f && down < 0.01f;
+        }
+
         // The bowl's lip covers the pad's lower corners: a press there is on
         // the bowl, not the pad; just above the lip's lowest point it's the pad.
         {

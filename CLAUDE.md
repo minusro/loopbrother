@@ -49,7 +49,7 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
   (`breaks/colours.json`, from `colour_breaks.py`). Shade a colour with
   `shadowOf`, never black, which turns yellow olive. New controls draw from
   this palette. The logo is Cherry Bomb One (`fonts/`, compiled in as
-  `jm_assets`) in the colour of the break under the circle; any font that
+  `jm_assets`, with the cat in `images/`) in the colour of the break under the circle; any font that
   ships must be compiled in with its licence, since hosts and Windows
   won't have it.
 - The breaks' marks live in `src/Cereal.{h,cpp}`: `RingStyle`s (the look,

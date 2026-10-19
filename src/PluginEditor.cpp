@@ -358,13 +358,33 @@ JungleEditor::JungleEditor(JungleProcessor& p) : AudioProcessorEditor(&p), proc(
                                                        (size_t) Assets::CherryBombOneRegular_ttfSize);
     pad.refresh();
     logoColour = logoFrom = logoTo = frootLoop(p.library().entry(pad.cellAt(pad.circleCentre())).colour);
+    catImage = juce::ImageCache::getFromMemory(Assets::loopscat_png, Assets::loopscat_pngSize);
+    cat = catTarget(); // already where it belongs when the window opens
+    catTick = juce::Time::getMillisecondCounterHiRes() / 1000.0;
     startTimerHz(60); // the meters' snap needs it
+}
+
+float JungleEditor::catTarget() const
+{
+    const float t = juce::jlimit(0.0f, 1.0f, (pad.circleSize() / jm::kCircleSizeMax - kCatFrom) / (1.0f - kCatFrom));
+    return t * t * (3.0f - 2.0f * t);
 }
 
 void JungleEditor::timerCallback()
 {
     pad.refresh();
     updateMute();
+
+    // The cat eases towards how far up the circle's size puts it.
+    const double tick = juce::Time::getMillisecondCounterHiRes() / 1000.0;
+    const float catTo = catTarget();
+    if (! juce::exactlyEqual(cat, catTo))
+    {
+        const float next = cat + (catTo - cat) * (float) (1.0 - std::exp(-(tick - catTick) / kCatEase));
+        cat = std::abs(next - catTo) < 0.002f ? catTo : next;
+        repaint();
+    }
+    catTick = tick;
     // A new colour fades in over kLogoFade from wherever the last fade got to.
     const auto target = frootLoop(proc.library().entry(pad.cellAt(pad.circleCentre())).colour);
     const double now = juce::Time::getMillisecondCounterHiRes() / 1000.0;
@@ -445,6 +465,19 @@ void JungleEditor::paintOverChildren(juce::Graphics& g)
     g.setColour(white);
     g.strokePath(lip, juce::PathStrokeType(rim, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     bar.removeFromTop(0.5f * rim); // the logo sits on the bowl below the rim
+
+    // The cat, in front of the bowl and behind the logo: it slides up from
+    // the window's bottom edge, hidden below it, as the circle reaches its
+    // largest.
+    if (cat > 0.0f && catImage.isValid())
+    {
+        const float h = kCatHeight * scale, cw = h * (float) catImage.getWidth() / (float) catImage.getHeight();
+        const float top = bar.getBottom() - cat * kCatShown * h;
+        juce::Graphics::ScopedSaveState keep(g);
+        g.setOpacity(1.0f);
+        g.setImageResamplingQuality(juce::Graphics::highResamplingQuality);
+        g.drawImage(catImage, { 0.5f * (w - cw), top, cw, h }, juce::RectanglePlacement::stretchToFit);
+    }
 
     // The logo as outlines, filled with the colour of the break under the
     // circle, sunk into the bowl: a white copy sits below it by a quarter of

@@ -1,7 +1,7 @@
 # LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-19 — v0.10.0, plain cereal rings (no umlauts, no turning),
-no cell borders, small rings that squash as they bob in the wake. v0.9.1 is
+Updated: 2026-10-19 — v0.11.0, a cat slides up behind the logo as the
+circle nears its largest. v0.9.1 is
 released (github.com/minusro/loopbrother/releases).
 
 ## Where things stand
@@ -82,6 +82,15 @@ bundle ID are unchanged, so saved sessions find it.
   the gap) through the middle letter's baseline, so the lowest point stays
   put, each letter turned to that curve. Drawn as outlines, centred across on its ink and up and down on
   its capitals (the umlauts ride above).
+- **The cat**: as the circle's radius passes 60% of its largest, a begging
+  calico cat (`images/loops-cat.png`, cut out of `docs/loops cat.jpg` with
+  macOS's Vision subject lifting) slides up from the window's bottom edge,
+  easing (0.1 s) towards how far the size puts it: ears over the logo at
+  about 11x, nearly all of it (92%) at the largest (15.47x). It's drawn
+  after the bowl's front and before the logo (`paintOverChildren`), 200 px
+  tall at 480, so the logo stays in front of it; it's only a picture, so
+  presses still reach the pad. The source photo is 640 px, so at large window
+  sizes the cat is upscaled and soft.
 - **Window**: the pad over the status bar (44 px at 480, the logo in it),
   resizable by the host window from 240
   to 1440 px wide at that ratio (default 480x524; the

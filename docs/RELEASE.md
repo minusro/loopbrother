@@ -77,6 +77,8 @@ VST3s.
 - The logo font (Cherry Bomb One) is compiled in under the SIL Open Font
   License: `fonts/OFL-CherryBombOne.txt` ships in both installers and must
   stay with any other distribution.
+- The cat (`images/loops-cat.png`, compiled in) is cut from the photo
+  `docs/loops cat.jpg`; its rights are a question of their own too.
 - The breaks in `breaks/` are sampled from records. Distributing them is a
   rights question separate from signing.
 

@@ -114,6 +114,7 @@ public:
     // move that cell at a time (pad units).
     int cellAt(juce::Point<float> u) const;
     juce::Point<float> circleCentre() const { return puck; }
+    float circleSize() const { return size; }
     juce::Point<float> cellShift(int cell, double now) const;
 
 private:
@@ -169,7 +170,8 @@ private:
 
 // The square pad over a small status bar with the logo, resizable by the
 // host window at that fixed ratio (the width is kept in the plugin state);
-// everything scales with it. The logo, in Cherry Bomb One, takes the colour
+// everything scales with it. As the circle nears its largest, a cat slides
+// up from the bottom behind the logo, begging for the cereal. The logo, in Cherry Bomb One, takes the colour
 // of the break whose cell the circle's centre is in, fading round the hue
 // wheel over 0.1 s as it changes. Holding Command (Control on Windows) with the
 // pointer over the plugin mutes it. Command is global on macOS, so it only
@@ -191,6 +193,13 @@ public:
     static constexpr int kTitleHeight = 44;   // the status bar, at kDesignSize
     static constexpr float kLogoKerning = 0.0f;
     static constexpr double kLogoFade = 0.1; // seconds
+    // The cat behind the logo: it starts to rise once the circle's radius
+    // passes kCatFrom of its largest and is fully up at the largest, easing
+    // with kCatEase (seconds). kCatHeight is its height at 480 px, kCatShown
+    // how much of it clears the window's bottom edge when it's up.
+    static constexpr float kCatFrom = 0.6f, kCatHeight = 200.0f, kCatShown = 0.92f;
+    static constexpr double kCatEase = 0.1;
+    float catRise() const { return cat; } // 0 hidden .. 1 up
     // Between two colours round the hue wheel, saturation and brightness
     // straight, so a pastel stays a pastel all the way (a mix in RGB greys out
     // halfway between opposite hues).
@@ -224,6 +233,10 @@ private:
     std::optional<juce::Font> logoFont;
     juce::Typeface::Ptr logoFace;           // Cherry Bomb One, compiled in
     juce::Colour logoColour, logoFrom, logoTo; // shown now, and the fade's ends
+    juce::Image catImage;                   // the cat, cut out (images/loops-cat.png)
+    float cat = 0.0f;                       // how far it has risen
+    double catTick = 0.0;
+    float catTarget() const;
     double logoFadeStart = 0.0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(JungleEditor)
