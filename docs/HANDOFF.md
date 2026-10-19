@@ -1,6 +1,7 @@
 # LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-19 — v0.9.5, the status bar is the front of a cereal bowl. v0.9.1 is
+Updated: 2026-10-19 — v0.9.6, the logo curves with the bowl's lip and is
+shaded from above; fine drags at 1/8 speed. v0.9.1 is
 released (github.com/minusro/loopbrother/releases).
 
 ## Where things stand
@@ -54,13 +55,13 @@ bundle ID are unchanged, so saved sessions find it.
   modifiers below can change speed mid-drag). The pointer is hidden and the
   drag can run past the screen edge (JUCE's unbounded mouse movement). On
   release the pointer reappears on the circle's centre.
-  - **Option** (Alt): 16x slower, and the change applies at once instead
+  - **Option** (Alt): 8x slower, and the change applies at once instead
     of on the next 16th (`setFineDrag`, then
     `LoopEngine::setMix(..., immediate)`). An Option press leaves the circle
     where it is.
   - **Shift**: sizes the circle like a knob: moving right or up grows its
     radius by as many pixels, left or down shrinks it; the circle stays
-    put. With Option as well, a sixteenth as much.
+    put. With Option as well, an eighth as much.
   - **Command** (Control on Windows): mutes while held, at once both ways
     over the 5 ms ramp (`LoopEngine::setMuted`; the loops run on underneath,
     so unmuting comes back in place), with the clock running or during an
@@ -74,11 +75,11 @@ bundle ID are unchanged, so saved sessions find it.
   ink height, spacing 0. It takes the colour of the break whose cell the
   circle's centre is in, fading to a new one over about a fifth of a
   second round the hue wheel (saturation and brightness kept, so a pastel
-  doesn't grey halfway as an RGB mix does), sunk into the bar: a white copy sits under it, lower by a quarter of the
-  thickness of its O's bottom (measured from the font: 1.3 px at 480), so a
-  thin white edge shows along the letters' lower sides like a pressed-in
-  letter lit from above. The bar is biscuit (#f5ede4) rather than the pad's
-  cream: on cream the white was only 1 to 8 levels brighter and invisible. Drawn as outlines, centred across on its ink and up and down on
+  doesn't grey halfway as an RGB mix does), sunk into the bowl: a light grey copy sits above it, higher by a quarter
+  of the thickness of its O's bottom (measured from the font: 1.3 px at
+  480), so a shaded edge shows along the letters' upper sides like a
+  pressed-in letter lit from above. Set letter by letter on a curve parallel
+  to the lip, each letter lifted as the lip rises and turned to its slope. Drawn as outlines, centred across on its ink and up and down on
   its capitals (the umlauts ride above).
 - **Window**: the pad over the status bar (44 px at 480, the logo in it),
   resizable by the host window from 240
@@ -88,7 +89,7 @@ bundle ID are unchanged, so saved sessions find it.
   bar shaped as the front of a cereal bowl holding the pad: its top edge is
   the bowl's near lip, an arc of an ellipse lowest mid-window and rising
   22 px (at 480) towards the sides, over the pad's lower corners, with a
-  white rim and a soft shade under it (`jmui::bowlLip`, drawn over the pad
+  white rim and a soft shade along its inner edge (`jmui::bowlLip`, drawn over the pad
   in `paintOverChildren`). Presses under the lip are on the bowl, not the
   pad (`XYPad::hitTest`). The bowl's front is biscuit (#f5ede4), a shade
   deeper than the pad, so the logo's white edge shows. Every size goes through
@@ -241,8 +242,8 @@ bundle ID are unchanged, so saved sessions find it.
   - Not yet dragged by hand, in the standalone or a DAW.
 - Pad gestures (`JM_PAD_CHECK=1 jm_snapshot`, synthetic mouse events on
   the real editor): a press places the circle, a plain drag follows 1:1,
-  Option moves a sixteenth as far, Shift right/up grows the radius a pixel
-  per pixel and left/down shrinks it back, Shift+Option a sixteenth as
+  Option moves an eighth as far, Shift right/up grows the radius a pixel
+  per pixel and left/down shrinks it back, Shift+Option an eighth as
   much, the size holds at the smallest and the largest circle, an Option press leaves the circle in place;
   a rightward drag pushes the cells it crossed right (2.5 px), never back,
   still at the end, and the nearest cell it didn't cross not at all; the umlauts face right after

@@ -458,23 +458,24 @@ void JungleEditor::paintOverChildren(juce::Graphics& g)
     front.closeSubPath();
     g.setGradientFill(juce::ColourGradient(biscuit, 0.0f, bar.getY(), biscuit.darker(0.025f), 0.0f, bar.getBottom(), false));
     g.fillPath(front);
-    // The rim: a white band along the lip, its rounded top catching the
-    // light, with a soft shade just under it where the bowl turns down.
+    // The rim: a white band along the lip, with a soft shade along its inner
+    // edge, where the bowl's wall turns down into it.
     const float rim = 3.5f * scale;
-    auto under = lip;
-    under.applyTransform(juce::AffineTransform::translation(0.0f, 0.5f * rim + 0.8f * scale));
+    auto inner = lip;
+    inner.applyTransform(juce::AffineTransform::translation(0.0f, -(0.5f * rim + 0.8f * scale)));
     g.setColour(biscuit.darker(0.12f).withAlpha(0.6f));
-    g.strokePath(under, juce::PathStrokeType(1.2f * scale));
+    g.strokePath(inner, juce::PathStrokeType(1.2f * scale));
     g.setColour(white);
     g.strokePath(lip, juce::PathStrokeType(rim, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     bar.removeFromTop(0.5f * rim); // the logo sits on the bowl below the rim
 
     // The logo as outlines, filled with the colour of the break under the
-    // circle, sunk into the bar: a white copy sits below it by a quarter of
-    // the thickness of the O's bottom, showing as a white edge along the
-    // letters' lower sides, as on a pressed-in letter lit from above. Centred
-    // across on its ink and up and down on its capitals, the umlauts riding
-    // above.
+    // circle, sunk into the bowl: a light grey copy sits above it by a
+    // quarter of the thickness of the O's bottom, showing as a shaded edge
+    // along the letters' upper sides, as on a pressed-in letter lit from
+    // above. Centred across on its ink and up and down on its capitals (the
+    // umlauts riding above), then set letter by letter on a curve parallel to
+    // the lip: each one lifted as the lip rises and turned to its slope.
     const auto font = logoFont ? logoFont->withHeight(kLogoHeight * scale)
                                : juce::Font(juce::FontOptions(logoFace).withHeight(kLogoHeight * scale)
                                                 .withKerningFactor(kLogoKerning));
@@ -486,10 +487,24 @@ void JungleEditor::paintOverChildren(juce::Graphics& g)
         glyphs.createPath(p);
         return p;
     };
-    auto text = outline(logo());
     const auto capitals = outline("L").getBounds(); // a capital's height, no accent
-    text.applyTransform(juce::AffineTransform::translation(bar.getCentreX() - text.getBounds().getCentreX(),
-                                                           bar.getCentreY() - capitals.getCentreY()));
+    juce::GlyphArrangement glyphs;
+    glyphs.addLineOfText(font, logo(), 0.0f, 0.0f); // baseline at 0
+    const float dx = bar.getCentreX() - outline(logo()).getBounds().getCentreX();
+    const float dy = bar.getCentreY() - capitals.getCentreY();
+    juce::Path text;
+    for (int i = 0; i < glyphs.getNumGlyphs(); ++i)
+    {
+        const auto& glyph = glyphs.getGlyph(i);
+        if (glyph.isWhitespace()) continue;
+        juce::Path letter;
+        glyph.createPath(letter);
+        const float cx = 0.5f * (glyph.getLeft() + glyph.getRight()), at = cx + dx;
+        const float slope = 0.5f * (bowlLip(at + 1.0f, w, scale) - bowlLip(at - 1.0f, w, scale)); // the lip's rise per pixel
+        letter.applyTransform(juce::AffineTransform::rotation(-std::atan(slope), cx, 0.0f)
+                                  .translated(dx, dy - bowlLip(at, w, scale)));
+        text.addPath(letter);
+    }
     // The O's bottom, measured up its middle from its lowest ink to its hole.
     const auto o = outline("O");
     const auto ob = o.getBounds();
@@ -500,8 +515,8 @@ void JungleEditor::paintOverChildren(juce::Graphics& g)
     while (y > ob.getCentreY() && o.contains(x, y)) y -= step;    // through to the hole
     const float bottom = inkBottom - y;
     auto edge = text;
-    edge.applyTransform(juce::AffineTransform::translation(0.0f, bottom / 4));
-    g.setColour(white);
+    edge.applyTransform(juce::AffineTransform::translation(0.0f, -bottom / 4));
+    g.setColour(lightGrey);
     g.fillPath(edge);
     g.setColour(logoColour);
     g.fillPath(text);

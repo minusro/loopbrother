@@ -23,7 +23,7 @@ Load it as an instrument on a track and press play in your DAW.
 - **Shift-drag** sizes the circle like a knob: right or up makes it bigger,
   left or down smaller. A bigger circle blends more breaks, up to half the
   pad.
-- **Option-drag** (Alt on Windows) moves the circle 16 times slower, for fine
+- **Option-drag** (Alt on Windows) moves the circle 8 times slower, for fine
   adjustments, and the change sounds at once instead of on the next 16th.
 - **Hold Command** (Control on Windows) with the pointer over the plugin to
   mute it; the rings under the circle turn grey while it's muted.

@@ -8,11 +8,12 @@ namespace jmui {
 // bowl: the status bar is its front (biscuit, a shade deeper, with a white
 // rim), the breaks in the Froot Loops pastels
 // (Cereal.h) and the logo in the colour of the one under the circle, sunk in
-// with a white lower edge. Dark brown is for any other lettering.
+// with a light grey upper edge. Dark brown is for any other lettering.
 const juce::Colour white  { 0xffffffff };
 const juce::Colour cream  { 0xfffffaf6 };
 const juce::Colour biscuit { 0xfff5ede4 }; // the status bar: dark enough for the logo's white edge to show
 const juce::Colour brown  { 0xff3e2723 };
+const juce::Colour lightGrey { 0xffcfcfcf }; // the shaded upper edge of the logo
 
 // Hides the mouse pointer while a control is being dragged: the control's own
 // marker (a knob's pointer) shows where it is. Every draggable control gets
@@ -51,7 +52,7 @@ inline float bowlLip(float x, float w, float scale)
 // A press puts the circle's centre there; dragging then moves it by as much
 // as the mouse moves. The pointer is hidden and the drag can run past the
 // screen edge. On release the pointer reappears on the circle's centre.
-// - Option (Alt): 16 times slower, and the changes apply at once instead of
+// - Option (Alt): 8 times slower, and the changes apply at once instead of
 //   on the next 16th. An Option press leaves the circle where it is.
 // - Shift: sizes the circle like a knob: right or up grows it, left or down
 //   shrinks it, the circle staying where it is.
@@ -73,7 +74,7 @@ inline float bowlLip(float x, float w, float scale)
 // still.
 class XYPad : public juce::Component, private juce::Timer {
 public:
-    static constexpr float kFineSpeed = 1.0f / 16.0f;
+    static constexpr float kFineSpeed = 1.0f / 8.0f;
     static constexpr float kRingRadius = 8.5f;  // at 480 px
     static constexpr float kCrumbRadius = 0.24f * kRingRadius; // an umlaut dot
 

@@ -323,10 +323,11 @@ int main(int argc, char** argv)
         report("press in the middle: the circle goes there", near(value("x"), 0.5f) && near(value("y"), 0.5f));
         pad->mouseDrag(ev(288, 240, 0));
         report("drag 48 px right: follows", near(value("x"), 0.6f));
+        const float fine = jmui::XYPad::kFineSpeed;
         pad->mouseDrag(ev(448, 240, Mods::altModifier));
-        report("Option, 160 px right: a sixteenth as far", near(value("x"), 0.6f + 10.0f / w));
+        report("Option, 160 px right: an eighth as far", near(value("x"), 0.6f + 160.0f * fine / w));
         pad->mouseDrag(ev(448, 160, Mods::altModifier));
-        report("Option, 80 px up: a sixteenth as far", near(value("y"), 0.5f + 5.0f / w));
+        report("Option, 80 px up: an eighth as far", near(value("y"), 0.5f + 80.0f * fine / w));
         const float x0 = value("x"), y0 = value("y");
         // Shift is a knob: right or up grows the radius a pixel per pixel,
         // left or down shrinks it, and the circle stays put.
@@ -340,7 +341,7 @@ int main(int argc, char** argv)
         pad->mouseDrag(ev(448, 160, Mods::shiftModifier));
         report("Shift, back left and down: back to where it was", near(value("size"), 1.0f, 2e-3f));
         pad->mouseDrag(ev(448 + 160, 160, Mods::shiftModifier | Mods::altModifier));
-        report("Shift + Option, 160 px right: a sixteenth as much", near(value("size"), 1.0f + 10.0f * px, 2e-3f));
+        report("Shift + Option, 160 px right: an eighth as much", near(value("size"), 1.0f + 160.0f * fine * px, 2e-3f));
         pad->mouseDrag(ev(608 - 600, 160, Mods::shiftModifier));
         report("Shift, far left: held at the smallest circle", near(value("size"), jm::kCircleSizeMin, 2e-3f));
         pad->mouseDrag(ev(8, 160 - 5000, Mods::shiftModifier));

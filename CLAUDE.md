@@ -65,7 +65,7 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
   `addMouseListener`. The pad uses JUCE's unbounded mouse movement instead
   (fine drags run far past the screen edge), and on release puts the
   pointer back on the circle's centre.
-- Pad modifiers: Option (Alt) = 16x slower and immediate; Shift = size the
+- Pad modifiers: Option (Alt) = 8x slower and immediate; Shift = size the
   circle like a knob (right/up bigger, left/down smaller); Command (Control on Windows) = mute while
   held with the pointer over the plugin. Command is global on macOS, hence
   the pointer condition.
