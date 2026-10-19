@@ -86,10 +86,11 @@ an instrument with stereo out and MIDI in.
 
 - No DAW testing: Ableton/Logic/Bitwig transport, loop regions, tempo
   automation, state recall, many instances, window resizing (it relies on
-  the host letting the plugin window be dragged; there is no corner grip). Auditioning needs the host to
-  keep processing the instrument while stopped; some hosts (Logic with the
-  track not selected) put idle instruments to sleep. The pad press itself is
-  not covered by the host check (it comes from the editor); held notes are.
+  the host letting the plugin window be dragged; there is no corner grip).
+  Auditioning needs the host to keep processing the instrument while
+  stopped; some hosts (Logic with the track not selected) put idle
+  instruments to sleep. The pad press itself is not covered by the host
+  check (it comes from the editor); held notes are.
 - Interpolation is 4-point Catmull-Rom with no anti-aliasing filter: fine near
   162 BPM, may alias a little far above it (e.g. 200+ BPM).
 
