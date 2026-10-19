@@ -89,7 +89,10 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
   (crop, tune to 162 BPM, similarity layout, similarity colours).
   Regenerate `breaks/layout.json` with `layout_breaks.py` and
   `breaks/colours.json` with `colour_breaks.py` whenever the loops change.
-- Commit every change (see the user's standing request); commit messages:
+- Commit and push every change (the user's standing request; origin is
+  git@github.com:minusro/loopbrother.git over SSH, `main`, fast-forward
+  only). Each push to main runs the Windows build on GitHub Actions. Commit
+  messages:
   imperative subject, body explains the musical/design reasoning.
 - Releases are unsigned for now (`installer/README.md` has the signing
   checklist). The plugin codes `Mnro`/`Jngl` never change; the bundle ID is
