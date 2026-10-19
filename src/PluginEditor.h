@@ -64,9 +64,17 @@ private:
 
 // Square and resizable by the host window (the size is kept in the plugin
 // state); everything on the pad scales with it.
-class JungleEditor : public juce::AudioProcessorEditor, private juce::Timer {
+//
+// Plugin hosts get no fixed aspect ratio: JUCE's VST3 size check squares a
+// proposed size by its shorter side, so dragging one window edge outwards
+// could only ever shrink the window. Instead the editor accepts whatever size
+// the host proposes and then squares itself, following the side the host
+// moved, so edges grow the window as well as shrink it. The standalone keeps
+// JUCE's fixed-ratio constrainer, which handles edge drags properly there.
+class JungleEditor : public juce::AudioProcessorEditor, private juce::Timer, private juce::AsyncUpdater {
 public:
-    static constexpr int kDefaultSize = 480, kMinSize = 240, kMaxSize = 1440;
+    static constexpr int kDesignSize  = 480;  // the size drawing dimensions are given at
+    static constexpr int kDefaultSize = 960, kMinSize = 240, kMaxSize = 1440;
 
     explicit JungleEditor(JungleProcessor&);
     ~JungleEditor() override;
@@ -75,9 +83,11 @@ public:
 
 private:
     void timerCallback() override { pad.refresh(); }
+    void handleAsyncUpdate() override;      // square up after a host resize
 
     JungleProcessor& proc;
     XYPad pad;
+    int side = kDefaultSize;                // the last square size
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(JungleEditor)
 };
