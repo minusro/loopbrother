@@ -59,7 +59,7 @@ int main(int argc, char** argv)
     const juce::File breaks(juce::String::fromUTF8(argv[2]));
     const auto layout = juce::JSON::parse(breaks.getChildFile("layout.json"));
     std::vector<jm::Pt> sites;
-    for (const auto& p : *layout.getArray()) sites.push_back({ (double) p["x"], (double) p["y"] });
+    for (const auto& p : *layout.getArray()) sites.push_back(jm::padSite({ (double) p["x"], (double) p["y"] }));
     jm::PadMap pad;
     pad.setSites(sites);
 

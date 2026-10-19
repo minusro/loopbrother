@@ -1,6 +1,7 @@
 # LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-19 — v0.8.4, the Command mute acts at once.
+Updated: 2026-10-19 — v0.8.5, soft clay marks without gloss, quicker
+ripples, room at the pad's edges.
 
 ## Where things stand
 
@@ -26,12 +27,13 @@ bundle ID are unchanged, so saved sessions find it.
   standalone's audio device. The WAVs on disk are unchanged.
 - **Pad** (the UI, white, over a small white status bar with the
   dark brown LÖÖP BRÖTHER logo): every break sits at its
-  similarity-layout position and owns the nearest patch of pad (drawn as
-  Voronoi cells). The selection circle is three continuous automatable
+  similarity-layout position, drawn in by 6% of the pad on every side
+  (`jm::padSite`) so the outermost marks have room, and owns the nearest
+  patch of pad (drawn as Voronoi cells, reaching the edges). The selection circle is three continuous automatable
   parameters: `x`, `y` and `size` (Circle Size, 0.25x of `jm::kPuckRadius`
   = 12.375/480 of the pad up to 15.47x, the circle that covers half the pad
   from its middle; skewed so 1x sits mid-range). Every break whose cell the
-  circle covers plays: the largest circle in the middle plays 65 at once
+  circle covers plays: the largest circle in the middle plays 79 at once
   (3.3% of a core, against 0.2% for a small circle). Its share is the
   fraction of the circle's area in its cell (`src/engine/PadGeometry.h`:
   exact circle/polygon intersection, shares add up to exactly 1; the mix
@@ -99,10 +101,10 @@ bundle ID are unchanged, so saved sessions find it.
   Ö drawn as a Froot Loop (a thick ring, 8.5 px radius at 480, with the
   umlaut dots over it); every other cell carries a crumb, a round piece
   the size of one of those dots. The look is a `jmui::RingStyle`
-  (`src/Cereal.{h,cpp}`); `kRingStyles` holds eight to try
+  (`src/Cereal.{h,cpp}`); `kRingStyles` holds nine to try
   (`docs/ring-styles.png`, from `JM_STYLE_SHEET`), `kRingStyle` is the one
-  in use: 1, "Matte cereal" (tube-shaded and lit from the top left, no
-  gloss, a strong soft grain, a slightly uneven edge). Shadows take a darker tone of the colour turned
+  in use: 8, "Soft clay, no gloss" (deeply tube-shaded, softly lit from
+  the top left, a faint coarse grain, a soft shadow, no specular streak). Shadows take a darker tone of the colour turned
   slightly towards red (`shadowOf`), so yellow shades to gold rather than
   olive; the grain is tileable value noise in octaves, so a coarse grain
   stays soft. The marks are pre-rendered (`jmui::CerealSprites`: per
@@ -116,8 +118,8 @@ bundle ID are unchanged, so saved sessions find it.
   Dragging pushes the nearby cells the way the circle goes, as through
   liquid: every 60 ms or so the circle leaves a push as long as it moved,
   and each cell feels it once, as a single sin^2 swell out and back to
-  rest (0.45 s, never below zero, so nothing swings back and forth),
-  arriving later the further the cell is (0.3 pad/s) and fading with
+  rest (0.22 s, never below zero, so nothing swings back and forth),
+  arriving later the further the cell is (0.5 pad/s) and fading with
   distance (Gaussian, 0.12 of the pad). A steady drag keeps the
   neighbours leaning forward; stop and they settle and stay still. A cell
   moves at most 0.014 of the pad (7 px at 480); a slow drag moves its

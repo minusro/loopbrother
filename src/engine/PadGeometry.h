@@ -14,11 +14,22 @@ namespace jm {
 // (radius sqrt(0.5 / pi), about 15.5 times), where it plays about 50 to 60
 // breaks at once.
 constexpr double kPuckRadius = 12.375 / 480.0;
+
 constexpr double kHalfPadRadius = 0.3989422804;  // sqrt(0.5 / pi)
 constexpr float  kCircleSizeMin = 0.25f, kCircleSizeMax = (float) (kHalfPadRadius / kPuckRadius);
 inline double circleRadius(float size) { return kPuckRadius * size; }
 
 struct Pt { double x, y; };
+
+// The similarity layout (breaks/layout.json) spans [0, 1]^2; on the pad the
+// breaks sit drawn in by kSiteInset on every side, so the marks of the
+// outermost ones have room inside the edges. Their cells still reach the
+// edges.
+constexpr double kSiteInset = 0.06;
+inline Pt padSite(Pt layout)
+{
+    return { kSiteInset + (1.0 - 2.0 * kSiteInset) * layout.x, kSiteInset + (1.0 - 2.0 * kSiteInset) * layout.y };
+}
 using Poly = std::vector<Pt>; // convex, counter-clockwise
 
 // Keep the part of `poly` on a's side of the perpendicular bisector of a-b.
