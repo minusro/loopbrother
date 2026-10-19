@@ -46,11 +46,14 @@ int main(int argc, char** argv)
     std::unique_ptr<juce::AudioProcessorEditor> ed(proc.createEditor());
     if (argc >= 5) ed->setSize(std::atoi(argv[4]), std::atoi(argv[4]));
 
-    // Host-style resizes (one edge dragged out, then in, then the other):
-    // the editor must square itself along the side that moved.
+    // Window resizing, by every route a new size takes.
     if (std::getenv("JM_RESIZE_CHECK"))
     {
         bool ok = true;
+        auto newDrag = [] { juce::Thread::sleep((int) jmui::SquareConstrainer::kDragGapMs + 50); };
+
+        // A host that ignores the constraint: the editor squares itself
+        // afterwards along the side that moved.
         auto drag = [&](int w, int h, int want)
         {
             ed->setSize(w, h);
@@ -58,14 +61,37 @@ int main(int argc, char** argv)
             std::printf("  host %dx%d -> editor %dx%d (want %d)\n", w, h, ed->getWidth(), ed->getHeight(), want);
             ok &= ed->getWidth() == want && ed->getHeight() == want;
         };
-        // Where JUCE owns the window (the standalone), the constrainer decides
-        // the whole frame: a corner keeps the opposite corner, an edge keeps the
-        // opposite edge and grows the two others half each way.
+        const int s0 = ed->getWidth();
+        drag(s0 + 200, s0, s0 + 200);           // right edge out: grows
+        drag(s0 + 200, s0 + 440, s0 + 440);     // bottom edge out: grows
+        drag(s0 + 240, s0 + 440, s0 + 240);     // right edge in: shrinks
+        drag(1500, s0 + 240, 1440);             // past the maximum: held at it
+        newDrag();
+        ed->setSize(s0, s0);
+        newDrag();
+        drag(s0 + 20, s0 + 5, s0 + 20);         // corner, off the diagonal: the further side
+        drag(s0 + 20, s0 + 10, s0 + 20);        // only the nearer side moved: still the corner
+        drag(s0 + 30, s0 + 10, s0 + 30);
+        newDrag();
+
+        // The standalone: JUCE's window frame asks through a bordered
+        // constrainer (the title bar) and places the window where it says.
+        // A corner keeps the opposite corner, an edge keeps the opposite edge
+        // and grows the two others half each way.
+        struct Frame : juce::BorderedComponentBoundsConstrainer {
+            juce::ComponentBoundsConstrainer* editor = nullptr;
+            juce::BorderSize<int> border { 28, 1, 1, 1 };
+            juce::ComponentBoundsConstrainer* getWrappedConstrainer() const override { return editor; }
+            juce::BorderSize<int> getAdditionalBorder() const override { return border; }
+        } window;
+        window.editor = ed->getConstrainer();
         auto frame = [&](juce::Rectangle<int> proposed, bool top, bool left, bool bottom, bool right, juce::Rectangle<int> want)
         {
-            const juce::Rectangle<int> old { 100, 100, 960, 960 };
-            auto r = proposed;
-            ed->getConstrainer()->checkBounds(r, old, {}, top, left, bottom, right);
+            newDrag();
+            const auto old = window.border.addedTo(juce::Rectangle<int> { 100, 100, 960, 960 });
+            auto r = window.border.addedTo(proposed);
+            window.checkBounds(r, old, {}, top, left, bottom, right);
+            r = window.border.subtractedFrom(r);
             std::printf("  frame %s -> %s (want %s)\n", proposed.toString().toRawUTF8(), r.toString().toRawUTF8(), want.toString().toRawUTF8());
             ok &= r == want;
         };
@@ -75,11 +101,32 @@ int main(int argc, char** argv)
         frame({   0,  60, 1060, 1000 }, true, true,  false, false, {   0,   0, 1060, 1060 }); // top-left corner out
         frame({ 100, 100,  900,  920 }, false, false, true,  true, { 100, 100,  920,  920 }); // bottom-right corner in
 
-        const int s0 = ed->getWidth();
-        drag(s0 + 200, s0, s0 + 200);           // right edge out: grows
-        drag(s0 + 200, s0 + 440, s0 + 440);     // bottom edge out: grows
-        drag(s0 + 240, s0 + 440, s0 + 240);     // right edge in: shrinks
-        drag(1500, s0 + 240, 1440);             // past the maximum: held at it
+        // Plugin hosts: the window is the host's; it asks for the size the
+        // mouse points at and says which sides changed (JUCE's VST3 wrapper,
+        // patched). A corner dragged off the diagonal often moves along one
+        // axis only: that must not read as an edge drag of the other side.
+        newDrag();
+        int side = 960;
+        auto ask = [&](int w, int h, int want)
+        {
+            juce::Rectangle<int> r { w, h };
+            const juce::Rectangle<int> current { side, side };
+            ed->getConstrainer()->checkBounds(r, current, {}, false, false, h != side, w != side);
+            std::printf("  ask %dx%d at %d -> %dx%d (want %d)\n", w, h, side, r.getWidth(), r.getHeight(), want);
+            ok &= r.getWidth() == want && r.getHeight() == want;
+            side = r.getWidth();
+        };
+        ask(980, 965, 980);     // corner out, x ahead
+        ask(980, 970, 980);     // the mouse moved down only
+        ask(990, 970, 990);     // across only
+        ask(990, 975, 990);
+        ask(1000, 1010, 1010);  // y overtakes
+        ask(1000, 1005, 1005);  // corner back in
+        ask(990, 1005, 1005);   // across only: y still the further side
+        ask(990, 995, 995);
+        newDrag();
+        ask(1040, 995, 1040);   // a new drag: an edge again
+        ask(1040, 900, 900);
         std::printf(ok ? "resize check passed\n" : "resize check FAILED\n");
         if (! ok) return 1;
     }

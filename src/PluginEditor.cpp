@@ -128,16 +128,37 @@ void XYPad::mouseUp(const juce::MouseEvent&)
     py->endChangeGesture();
 }
 
+// ---------------------------------------------------------------- window
+void SquareConstrainer::checkBounds(juce::Rectangle<int>& bounds, const juce::Rectangle<int>& previous,
+                                    const juce::Rectangle<int>& limits,
+                                    bool top, bool left, bool bottom, bool right)
+{
+    const double now = juce::Time::getMillisecondCounterHiRes();
+    if (now - lastCheck > kDragGapMs) corner = false; // a new drag
+    lastCheck = now;
+    if ((top || bottom) && (left || right))
+    {
+        corner = true;
+        cTop = top, cLeft = left, cBottom = bottom, cRight = right;
+    }
+    else if (corner && (top || bottom || left || right))
+        top = cTop, left = cLeft, bottom = cBottom, right = cRight;
+    // JUCE's fixed-ratio rules then do the rest: an edge sets the size, a
+    // corner takes the larger of the two sides (so the pointer stays on the
+    // window's edge) and both place the window.
+    ComponentBoundsConstrainer::checkBounds(bounds, previous, limits, top, left, bottom, right);
+}
+
 // ---------------------------------------------------------------- editor
 JungleEditor::JungleEditor(JungleProcessor& p) : AudioProcessorEditor(&p), proc(p), pad(p)
 {
-    // Read the saved size first: setResizeLimits resizes the still-empty
-    // editor to the minimum, and resized() records every square it sees.
+    // Read the saved size before anything resizes the editor: resized()
+    // records every square it sees.
     const int size = juce::jlimit(kMinSize, kMaxSize, p.editorSize());
     addAndMakeVisible(pad);
+    square.setSizeLimits(kMinSize, kMinSize, kMaxSize, kMaxSize);
+    setConstrainer(&square);
     setResizable(true, false);
-    setResizeLimits(kMinSize, kMinSize, kMaxSize, kMaxSize);
-    getConstrainer()->setFixedAspectRatio(1.0);
     setSize(size, size);
     pad.refresh();
     startTimerHz(30);
@@ -164,12 +185,11 @@ void JungleEditor::resized()
 
 void JungleEditor::handleAsyncUpdate()
 {
-    const int w = getWidth(), h = getHeight();
-    if (w == h) return;
-    // An edge drag changes one side, a corner drag both: follow the bigger change.
-    const int next = std::abs(w - side) >= std::abs(h - side) ? w : h;
-    const int size = juce::jlimit(kMinSize, kMaxSize, next);
-    setSize(size, size);
+    auto r = getLocalBounds();
+    if (r.getWidth() == r.getHeight()) return;
+    // The sides that differ from the last square are the ones dragged.
+    square.checkBounds(r, { side, side }, {}, false, false, r.getHeight() != side, r.getWidth() != side);
+    setSize(r.getWidth(), r.getHeight());
 }
 
 } // namespace jmui

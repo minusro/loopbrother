@@ -1,10 +1,11 @@
 // End-to-end check of the built plugin: hosts the VST3 with a scripted
 // transport and MIDI, and compares the output against the break files read
-// straight from disk.
+// straight from disk (levelled to the same loudness).
 //   cmake -B build -DJM_BUILD_HOST_CHECK=ON && cmake --build build --target jm_host_check
 //   build/jm_host_check_artefacts/Release/jm_host_check "<path to Jungle Massive.vst3>" breaks
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_formats/juce_audio_formats.h>
+#include "../src/engine/Loudness.h"
 #include "../src/engine/PadGeometry.h"
 #include <map>
 
@@ -74,6 +75,8 @@ int main(int argc, char** argv)
             fm.createReaderFor(breaks.getChildFile((*layout.getArray())[i]["file"].toString())));
         r.audio.setSize(2, (int) rd->lengthInSamples);
         rd->read(&r.audio, 0, r.audio.getNumSamples(), 0, true, true);
+        r.audio.applyGain(jm::gainFor(jm::loopLoudness(r.audio.getReadPointer(0), r.audio.getReadPointer(1),
+                                                       r.audio.getNumSamples(), kSr)));
         r.beats = 4.0 * juce::roundToInt(r.audio.getNumSamples() / (kSr * 240.0 / kBpm));
         return refs.emplace(i, std::move(r)).first->second;
     };
@@ -221,8 +224,10 @@ int main(int argc, char** argv)
 
     // 8. Window resizing through JUCE's own VST3 host window, which asks the
     //    plugin's checkSizeConstraint the way hosts do: dragging one edge out
-    //    or in must follow that edge and stay square. (The window is shown
-    //    fully transparent, so nothing appears on screen.)
+    //    or in must follow that edge and stay square, and a corner dragged off
+    //    the diagonal must follow its further-out side without flicking to the
+    //    nearer one when the mouse moves along one axis only. (The window is
+    //    shown fully transparent, so nothing appears on screen.)
     {
         std::unique_ptr<juce::AudioProcessorEditor> ed(plugin->createEditor());
         juce::Component holder;
@@ -248,6 +253,16 @@ int main(int argc, char** argv)
         drag(s0 + 150, s0 + 250, s0 + 150);     // right edge in
         drag(s0 + 150, s0 + 120, s0 + 120);     // bottom edge in
         CHECK(ok, "VST3 window edges resize along the dragged side and stay square");
+        juce::Thread::sleep(500);               // a new drag, by a corner
+        ok = true;
+        const int c0 = ed->getWidth();
+        drag(c0 + 20, c0 + 5, c0 + 20);         // out, x ahead
+        drag(c0 + 20, c0 + 10, c0 + 20);        // the mouse moved down only
+        drag(c0 + 30, c0 + 10, c0 + 30);        // across only
+        drag(c0 + 30, c0 + 40, c0 + 40);        // y overtakes
+        drag(c0 + 20, c0 + 40, c0 + 40);        // back in across only: y still the further side
+        drag(c0 + 20, c0 + 25, c0 + 25);
+        CHECK(ok, "VST3 window corner drags off the diagonal follow the further side, no flicker");
         holder.removeFromDesktop();
         holder.removeChildComponent(ed.get());
     }

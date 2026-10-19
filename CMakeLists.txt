@@ -8,7 +8,7 @@ if(APPLE AND NOT CMAKE_OSX_DEPLOYMENT_TARGET)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "" FORCE)
 endif()
 
-project(junglemassive VERSION 0.4.3 LANGUAGES C CXX)
+project(junglemassive VERSION 0.5.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -37,10 +37,15 @@ endif()
 # JUCE plugin
 # ---------------------------------------------------------------------------
 if(JM_BUILD_PLUGIN)
-    # JUCE 8.0.4 with one patch (cmake/juce-vst3-resize.patch): VST3 hosts get
-    # a fixed-aspect window resized along the side being dragged, instead of
-    # always fitted to the shorter side (which made edges shrink-only). The
-    # clone lives in the build tree, so a local JM_JUCE_DIR is never touched.
+    # JUCE 8.0.4 with two window-resize patches, both handing the decision to
+    # the editor's constrainer (jmui::SquareConstrainer):
+    # - cmake/juce-vst3-resize.patch: VST3 hosts ask it, told which sides
+    #   changed, instead of JUCE fitting the ratio to the shorter side (which
+    #   made edges shrink-only).
+    # - cmake/juce-standalone-resize.patch: the standalone's window keeps the
+    #   placement it chooses instead of pinning the top-left corner.
+    # The clone lives in the build tree, so a local JM_JUCE_DIR is never
+    # touched; the patch step resets it first, so it can always run again.
     include(FetchContent)
     if(JM_JUCE_DIR)
         set(JM_JUCE_GIT ${JM_JUCE_DIR})
@@ -52,7 +57,10 @@ if(JM_BUILD_PLUGIN)
         GIT_TAG             8.0.4
         GIT_SHALLOW         TRUE
         UPDATE_DISCONNECTED TRUE
-        PATCH_COMMAND       git apply --whitespace=nowarn ${CMAKE_CURRENT_SOURCE_DIR}/cmake/juce-vst3-resize.patch)
+        PATCH_COMMAND       git checkout -- .
+                    COMMAND git apply --whitespace=nowarn
+                            ${CMAKE_CURRENT_SOURCE_DIR}/cmake/juce-vst3-resize.patch
+                            ${CMAKE_CURRENT_SOURCE_DIR}/cmake/juce-standalone-resize.patch)
     FetchContent_MakeAvailable(JUCE)
 
     # The breaks and their pad layout are compiled into the plugin.

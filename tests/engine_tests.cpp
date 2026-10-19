@@ -1,6 +1,7 @@
 // Plain C++ engine tests, no JUCE:
 //   g++ -std=c++17 -O2 -I src tests/engine_tests.cpp -o /tmp/jm_tests && /tmp/jm_tests
 #include "../src/engine/LoopEngine.h"
+#include "../src/engine/Loudness.h"
 #include "../src/engine/PadGeometry.h"
 #include "../src/engine/Transport.h"
 #include <cmath>
@@ -425,6 +426,44 @@ int main()
         for (int i = 600 + kFade; i < 1200; ++i) song &= near(L[i], f.A(2500 + i - 600));
         CHECK(press, "press plays from the loop's first sample");
         CHECK(song, "transport start under the press moves to the song position");
+    }
+
+    // 26. Loudness: EBU Tech 3341's reference signals, 1 kHz stereo sines in
+    //     level steps, read within its 0.1 LU, at 48 and 44.1 kHz.
+    {
+        auto sines = [](double rate, std::vector<std::pair<double, double>> steps) // {dBFS, seconds}
+        {
+            std::vector<float> x;
+            for (auto [db, secs] : steps)
+                for (long i = 0, n = std::lround(secs * rate); i < n; ++i)
+                    x.push_back((float) (std::pow(10.0, db / 20.0) * std::sin(2.0 * M_PI * 1000.0 * (double) x.size() / rate)));
+            return x;
+        };
+        for (double rate : { 48000.0, 44100.0 })
+        {
+            auto a = sines(rate, { { -23.0, 20.0 } });
+            auto b = sines(rate, { { -33.0, 20.0 } });
+            auto c = sines(rate, { { -36.0, 10.0 }, { -23.0, 60.0 }, { -36.0, 10.0 } });
+            auto d = sines(rate, { { -72.0, 10.0 }, { -36.0, 10.0 }, { -23.0, 60.0 }, { -36.0, 10.0 }, { -72.0, 10.0 } });
+            auto at = [&](const std::vector<float>& x) { return jm::loopLoudness(x.data(), x.data(), (int) x.size(), rate); };
+            CHECK(std::abs(at(a) + 23.0) < 0.1, "-23 dBFS sine reads -23 LUFS");
+            CHECK(std::abs(at(b) + 33.0) < 0.1, "-33 dBFS sine reads -33 LUFS");
+            CHECK(std::abs(at(c) + 23.0) < 0.1, "relative gate drops the quiet ends");
+            CHECK(std::abs(at(d) + 23.0) < 0.1, "absolute gate drops the near-silence");
+        }
+    }
+
+    // 27. The break gain lands a loop on the target; silence is left alone.
+    {
+        std::vector<float> x;
+        for (int i = 0; i < 88200; ++i) x.push_back((float) (0.3 * std::sin(i * 0.05) * std::exp(-(i % 11025) / 2000.0)));
+        const float g = jm::gainFor(jm::loopLoudness(x.data(), x.data(), (int) x.size(), 44100.0));
+        for (auto& v : x) v *= g;
+        CHECK(std::abs(jm::loopLoudness(x.data(), x.data(), (int) x.size(), 44100.0) - jm::kBreakLufs) < 0.01,
+              "gained loop reads the target");
+        std::vector<float> quiet(44100, 0.0f);
+        CHECK(jm::exactlyEqual(jm::gainFor(jm::loopLoudness(quiet.data(), quiet.data(), 44100, 44100.0)), 1.0f),
+              "silence keeps unity gain");
     }
 
     if (failures == 0) std::printf("all engine tests passed\n");

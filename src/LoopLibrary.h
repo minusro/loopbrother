@@ -5,8 +5,9 @@
 #include "engine/PadGeometry.h"
 
 // The breaks compiled into the plugin (breaks/*.wav) with their pad positions
-// (breaks/layout.json), decoded once per process and shared by every instance
-// through juce::SharedResourcePointer. Immutable after construction.
+// (breaks/layout.json), decoded once per process, levelled to jm::kBreakLufs
+// and shared by every instance through juce::SharedResourcePointer. Immutable
+// after construction.
 class LoopLibrary {
 public:
     LoopLibrary();
@@ -14,7 +15,7 @@ public:
     struct Entry {
         juce::String name;                 // "042.wav"
         juce::Point<float> pos;            // in [0, 1]^2, y up
-        juce::AudioBuffer<float> audio;    // stereo
+        juce::AudioBuffer<float> audio;    // stereo, levelled
         double rate = 44100.0;             // the file's sample rate
         std::vector<float> meter;          // level through the loop, 0..1 of its peak
     };

@@ -62,17 +62,41 @@ private:
     std::vector<juce::Path> cellPaths;      // in component pixels
 };
 
+// The window's constrainer: square, an edge drag follows that edge, a corner
+// drag follows the corner's further-out side, and a corner drag stays a
+// corner drag until the drag ends. A host only says which sides changed
+// size, and a corner dragged off the diagonal often moves the mouse along
+// one axis only for an event. Read alone, that looks like an edge drag of
+// the other side, and the window flicked to that side's size and back. Hosts
+// tell the plugin nothing about the mouse button, so a drag ends when the
+// sizes stop coming for a moment.
+class SquareConstrainer : public juce::ComponentBoundsConstrainer {
+public:
+    static constexpr double kDragGapMs = 400.0;
+
+    SquareConstrainer() { setFixedAspectRatio(1.0); }
+    void checkBounds(juce::Rectangle<int>& bounds, const juce::Rectangle<int>& previous,
+                     const juce::Rectangle<int>& limits,
+                     bool top, bool left, bool bottom, bool right) override;
+
+private:
+    double lastCheck = -1.0e9;              // ms
+    bool corner = false;                    // this drag is a corner drag...
+    bool cTop = false, cLeft = false, cBottom = false, cRight = false; // ...of this corner
+};
+
 // Square and resizable by the host window (the size is kept in the plugin
 // state); everything on the pad scales with it.
 //
-// The window keeps a 1:1 ratio through JUCE's constrainer. Where JUCE
-// controls the window (the standalone) that gives the expected feel:
-// dragging a corner keeps the opposite corner in place, dragging an edge
-// keeps the opposite edge and grows the two others half each way. In plugin
-// hosts the host owns the window and only asks the plugin for a size; JUCE's
-// VST3 answer is patched (cmake/juce-vst3-resize.patch) to follow the side
-// being dragged. Any non-square size that still arrives (a host that ignores
-// the constraint) is squared afterwards along the side that moved.
+// Every route to a new window size asks the SquareConstrainer. In the
+// standalone, JUCE draws the window frame and also places the window: a
+// corner drag keeps the opposite corner in place, an edge drag keeps the
+// opposite edge and grows the two others half each way (with
+// cmake/juce-standalone-resize.patch). In plugin hosts the host owns the
+// window and only asks for a size, through JUCE's VST3 wrapper
+// (cmake/juce-vst3-resize.patch); where it lands is the host's call. Any
+// non-square size that still arrives (a host that ignores the constraint)
+// is squared afterwards by the same rules.
 class JungleEditor : public juce::AudioProcessorEditor, private juce::Timer, private juce::AsyncUpdater {
 public:
     static constexpr int kDesignSize  = 480;  // the size drawing dimensions are given at
@@ -88,6 +112,7 @@ private:
     void handleAsyncUpdate() override;      // square up after an unconstrained host resize
 
     JungleProcessor& proc;
+    SquareConstrainer square;
     XYPad pad;
     int side = kDefaultSize;                // the last square size
 
