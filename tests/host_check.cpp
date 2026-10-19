@@ -126,14 +126,15 @@ int main(int argc, char** argv)
         }
     };
     // Does out[from..] match the mix, starting `beats` into the loops?
-    auto matches = [&](size_t from, double beats)
+    // (`to` limits the range, `with` checks against another mix than the current.)
+    auto matches = [&](size_t from, double beats, size_t to = SIZE_MAX, const std::vector<jm::MixVoice>* with = nullptr)
     {
         float worst = 0.0f;
-        for (size_t i = from; i < out.size(); ++i)
+        for (size_t i = from; i < std::min(to, out.size()); ++i)
         {
             const double pos = beats + (double) (i - from) * kBeatPerSample;
             float want = 0.0f;
-            for (const auto& v : mix) want += v.weight * ref(v.loop).at(pos);
+            for (const auto& v : with ? *with : mix) want += v.weight * ref(v.loop).at(pos);
             worst = std::max(worst, std::abs(out[i] - want));
         }
         return worst < 1e-4f;
@@ -173,25 +174,32 @@ int main(int argc, char** argv)
 
     // 6. The puck on and around the border with the nearest neighbour: both
     //    breaks play, at equal-power gains from the circle's area in each
-    //    cell. Off-centre positions catch any quantisation of the pad parameters.
+    //    cell. Off-centre positions catch any quantisation of the pad
+    //    parameters. Each move waits for the next 16th: the previous mix holds
+    //    until the ramp just before it, the new one is complete on it.
     {
         size_t nb = 1;
         for (size_t i = 1; i < sites.size(); ++i)
             if (std::hypot(sites[i].x - sites[0].x, sites[i].y - sites[0].y)
                 < std::hypot(sites[nb].x - sites[0].x, sites[nb].y - sites[0].y)) nb = i;
         const jm::Pt mid { (sites[0].x + sites[nb].x) / 2, (sites[0].y + sites[nb].y) / 2 };
-        bool split = true, ok = true;
+        bool split = true, held = true, landed = true;
         for (const double dx : { 0.0, -0.003, 0.0017 })
             for (const double dy : { 0.0, 0.0023 })
             {
+                const auto prev = mix;
                 puckAt({ mid.x + dx, mid.y + dy });
                 split &= mix.size() >= 2;
                 const double beat = head.ppq;
+                const double step = std::ceil(beat * 4.0 - 1e-6) / 4.0; // transport started at 9: grid from beat 0
+                const size_t at = (size_t) std::ceil((step - beat) / kBeatPerSample);
                 run(40);
-                ok &= matches(kFade, beat + kFade * kBeatPerSample);
+                held   &= at <= (size_t) kFade || matches(0, beat, at - kFade, &prev);
+                landed &= matches(at + 1, beat + (double) (at + 1) * kBeatPerSample);
             }
         CHECK(split, "puck near a border overlaps two cells");
-        CHECK(ok, "border mixes play both breaks at equal power by area share");
+        CHECK(held, "a pad move waits for the next 16th");
+        CHECK(landed, "border mixes land on the 16th, both breaks at equal power by area share");
     }
 
     plugin->releaseResources();

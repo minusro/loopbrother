@@ -1,6 +1,6 @@
 # Jungle Massive — handoff
 
-Updated: 2026-10-19 — v0.2.2, meter-driven cell highlight, frameless pad.
+Updated: 2026-10-19 — v0.3.0, pad moves quantized to the next 16th.
 
 ## Where things stand
 
@@ -32,24 +32,32 @@ an instrument with stereo out and MIDI in.
   song position (loop 1.1.1 on beat 0, so a 2-bar loop starts over on bars 1,
   3, 5 ...). Transport stop fades out and goes silent. A note-on (any note, any channel) restarts the
   mix at 1.1.1 on that sample; while the transport is stopped it is ignored.
-  Moving the circle keeps the position in the bar. Mix changes, restarts,
-  host jumps and start/stop all ramp over 5 ms; a jump that lands on the same
-  spot in a loop (a loop region that is a whole number of loops) is seamless.
+  Moving the circle keeps the position in the bar, and the move is quantized:
+  the new mix waits for the next 16th on the loops' grid (counted from
+  1.1.1, so it follows note-on restarts), its 5 ms ramp ending on the step; a
+  newer move before then replaces the waiting one on the same step, and a
+  restart, jump or transport start takes it at once. Restarts, host jumps
+  and start/stop ramp over 5 ms too; a jump that lands on the same spot in a
+  loop (a loop region that is a whole number of loops) is seamless. The pad
+  shows the circle's new position at once, ahead of the audio.
 - **Standalone**: no transport there, so it free-runs at 162 BPM.
 
 ## Verified
 
-- `jm_tests` (18): song-position sync, mid-bar start, varispeed, stop,
+- `jm_tests` (22): song-position sync, mid-bar start, varispeed, stop,
   note-on restart (incl. on the bar line without a doubled downbeat), loop
   switching in phase, host jumps, start after a stopped note-on, no drift
   over 100k odd-sized blocks; mixes (shares, ramps, restart of the whole
   mix); circle/polygon areas; overlap shares (single cell, even split,
   four-way corner, pad edge, random pads against a Monte Carlo count);
-  equal-power gains.
+  equal-power gains; quantized moves (held until the ramp before the next
+  16th, a newer move landing on the same step, a note-on taking the waiting
+  mix, the grid following a restart).
 - `jm_host_check`: the built VST3 hosted with a scripted transport matches
   the break files read from disk (start at bar 1 through the wrap, a note-on
   mid-block, stop, start mid-song, six puck positions around a cell border
-  mixing two breaks at equal power by area). It caught the pad parameters snapping to 0.01
+  mixing two breaks at equal power by area, each move held until the next
+  16th and complete on it). It caught the pad parameters snapping to 0.01
   steps (JUCE's short AudioParameterFloat constructor), fixed in v0.2.0.
 - `auval -v aumu Jngl Mnro` passes.
 - The pad renders as intended (`jm_snapshot` render inspected); the hidden
@@ -68,5 +76,5 @@ an instrument with stereo out and MIDI in.
 ## Next ideas
 
 - Pitch-independent tempo (time-stretch or 16th-note slicing) as an option.
-- Quantized switching (next 16th / beat) instead of immediate.
+- A choice of quantization (16th / beat / bar / off) once there is UI for it.
 - A readout of the selected break (number, bars) once more UI is wanted.

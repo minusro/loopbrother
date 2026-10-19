@@ -314,6 +314,64 @@ int main()
         CHECK(std::abs(m[1].weight - 0.5f) < 1e-6f, "a quarter share plays at half amplitude");
     }
 
+    // 19. A mix asked for mid-step waits for the next 16th, its ramp ending on the step.
+    {
+        Fixture f;
+        play(f.e, 0.0, 1100);               // up to beat 1.1
+        f.e.select(1);
+        auto out = play(f.e, 1.1, 1000);
+        bool before = true, after = true;
+        for (int i = 0; i < 150 - kFade; ++i) before &= near(out[i], f.A(1100 + i));
+        for (int i = 150; i < 1000; ++i)     after  &= near(out[i], f.B(1100 + i));
+        CHECK(before, "old mix holds until the ramp before the next step");
+        CHECK(after, "new mix complete on the step at beat 1.25");
+    }
+
+    // 20. A newer request replaces the waiting one without delaying it.
+    {
+        Fixture f;
+        play(f.e, 0.0, 1100);
+        f.e.select(1);
+        play(f.e, 1.1, 100);                // to beat 1.2, still waiting
+        const jm::MixVoice half[2] = { { 0, 0.5f }, { 1, 0.5f } };
+        f.e.setMix(half, 2);
+        auto out = play(f.e, 1.2, 500);
+        bool ok = true;
+        for (int i = 50; i < 500; ++i) ok &= near(out[i], 0.5f * f.A(1200 + i) + 0.5f * f.B(1200 + i));
+        CHECK(ok, "latest mix lands on the same step (beat 1.25)");
+    }
+
+    // 21. A note-on before the step takes the waiting mix at once.
+    {
+        Fixture f;
+        play(f.e, 0.0, 1100);
+        f.e.select(1);
+        std::vector<float> L(600, 0.0f), R(600, 0.0f);
+        f.e.beginBlock(true, 1.1, 60.0);
+        f.e.render(L.data(), R.data(), 80); // to beat 1.18
+        f.e.restart();
+        f.e.render(L.data() + 80, R.data() + 80, 520);
+        bool ok = true;
+        for (int k = kFade; k < 520; ++k) ok &= near(L[80 + k], f.B(k));
+        CHECK(ok, "note-on restarts straight into the waiting mix");
+    }
+
+    // 22. Steps are counted from 1.1.1, so after a restart the grid moves with it.
+    {
+        Fixture f;
+        play(f.e, 0.0, 1100);                 // up to beat 1.1
+        std::vector<float> L(1000, 0.0f), R(1000, 0.0f);
+        f.e.beginBlock(true, 1.1, 60.0);
+        f.e.restart();                        // 1.1.1 now at beat 1.1
+        f.e.render(L.data(), R.data(), 100);  // to beat 1.2
+        f.e.select(1);
+        f.e.render(L.data() + 100, R.data() + 100, 900);
+        bool before = true, after = true;
+        for (int i = 100; i < 250 - kFade; ++i) before &= near(L[i], f.A(i));
+        for (int i = 250; i < 1000; ++i)        after  &= near(L[i], f.B(i));
+        CHECK(before && after, "after a restart at beat 1.1 the next step is at beat 1.35");
+    }
+
     if (failures == 0) std::printf("all engine tests passed\n");
     return failures == 0 ? 0 : 1;
 }

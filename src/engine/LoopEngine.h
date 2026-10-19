@@ -38,12 +38,18 @@ struct MixVoice { int loop; float weight; };
 // mix, a restart, a jump, start/stop) ramps over a few milliseconds, so
 // nothing clicks.
 //
+// While playing, a new mix waits for the next step crossing (a 16th note on
+// the loops' own grid, counted from 1.1.1); its ramp runs in the few
+// milliseconds before the step so the change is complete as the step lands.
+// A restart, a jump or a transport start takes the waiting mix at once.
+//
 // Per block: setMix(), beginBlock() with the host transport, then render() in
 // segments, calling restart() between segments where a note-on lands.
 class LoopEngine {
 public:
-    static constexpr int kMaxMix  = 8;   // loops sounding at once
-    static constexpr int kMaxTaps = 24;  // the mix plus the tails fading out
+    static constexpr int    kMaxMix    = 8;     // loops sounding at once
+    static constexpr int    kMaxTaps   = 24;    // the mix plus the tails fading out
+    static constexpr double kStepBeats = 0.25;  // a 16th note: mix changes land on these
 
     void prepare(double sampleRate, double fadeSeconds = 0.005)
     {
@@ -61,21 +67,31 @@ public:
         mixCount_ = 0;
     }
 
-    // Which loops sound and at what share. Changes ramp to the new mix at the
-    // same position in the bar.
+    // Which loops sound and at what share. While playing, the change lands on
+    // the next step crossing (keeping the position in the bar); a newer mix
+    // asked for before then replaces the waiting one without delaying it.
     void setMix(const MixVoice* v, int n)
     {
         MixVoice next[kMaxMix];
         int count = 0;
         for (int i = 0; i < n && count < kMaxMix; ++i)
             if (v[i].loop >= 0 && v[i].loop < count_ && v[i].weight > 0.0f) next[count++] = v[i];
-        bool same = count == mixCount_;
-        for (int i = 0; same && i < count; ++i)
-            same = next[i].loop == mix_[i].loop && exactlyEqual(next[i].weight, mix_[i].weight);
-        if (same) return;
-        std::copy(next, next + count, mix_);
-        mixCount_ = count;
-        if (playing_) applyMix();
+        if (! playing_)
+        {
+            std::copy(next, next + count, mix_);
+            mixCount_  = count;
+            hasPending_ = false;
+            return;
+        }
+        if (sameMix(next, count, mix_, mixCount_)) { hasPending_ = false; return; } // back to what sounds
+        if (hasPending_ && sameMix(next, count, pending_, pendingCount_)) return;
+        std::copy(next, next + count, pending_);
+        pendingCount_ = count;
+        if (! hasPending_)
+        {
+            hasPending_ = true;
+            switchAt_   = nextStepCrossing();
+        }
     }
     void select(int index) { const MixVoice v { index, 1.0f }; setMix(&v, 1); }
 
@@ -88,6 +104,7 @@ public:
             if (playing_)
                 for (int t = 0; t < numTaps_; ++t) retire(taps_[t]);
             playing_ = false;
+            takePending(); // the next start begins on the latest mix
             return; // beat_ runs on so the fade-out tail stays continuous
         }
         const bool started = ! playing_;
@@ -108,6 +125,7 @@ public:
             beat_    = beat;
             playing_ = true;
             if (started) anchor_ = 0.0;
+            takePending();
             applyMix();
         }
         beat_ = beat;
@@ -128,7 +146,8 @@ public:
             else retire(tp);
         }
         anchor_ = beat_;
-        applyMix(); // re-adds the retired loops at their first sample, which the crop already fades in
+        takePending(); // a restart is a step crossing
+        applyMix();    // re-adds the retired loops at their first sample, which the crop already fades in
     }
 
     // Adds n samples into L and R.
@@ -137,6 +156,7 @@ public:
         const double dBeat = bpm_ / 60.0 / sr_;
         for (int i = 0; i < n; ++i)
         {
+            if (hasPending_ && beat_ >= switchAt_) { takePending(); applyMix(); }
             float l = 0.0f, r = 0.0f;
             for (int t = 0; t < numTaps_; ++t)
             {
@@ -229,6 +249,32 @@ private:
         taps_[numTaps_++] = tp;
     }
 
+    static bool sameMix(const MixVoice* a, int na, const MixVoice* b, int nb)
+    {
+        bool same = na == nb;
+        for (int i = 0; same && i < na; ++i)
+            same = a[i].loop == b[i].loop && exactlyEqual(a[i].weight, b[i].weight);
+        return same;
+    }
+
+    void takePending()
+    {
+        if (! hasPending_) return;
+        std::copy(pending_, pending_ + pendingCount_, mix_);
+        mixCount_   = pendingCount_;
+        hasPending_ = false;
+    }
+
+    // When a mix asked for now should start ramping: one fade time before the
+    // next 16th on the loops' grid, so it is complete on the step (at once if
+    // that is less than a fade away; a request right on a step lands there).
+    double nextStepCrossing() const
+    {
+        const double steps = (beat_ - anchor_) / kStepBeats;
+        const double step  = anchor_ + std::ceil(steps - tolerance() / kStepBeats) * kStepBeats;
+        return std::max(beat_, step - fadeSamples_ / sr_ * bpm_ / 60.0);
+    }
+
     // Half a millisecond, in beats: below this two positions count as the same.
     double tolerance() const { return 0.0005 * bpm_ / 60.0; }
 
@@ -264,6 +310,10 @@ private:
     int      count_       = 0;
     MixVoice mix_[kMaxMix] {};
     int      mixCount_    = 0;
+    MixVoice pending_[kMaxMix] {};  // asked for, waiting for the next step crossing
+    int      pendingCount_ = 0;
+    bool     hasPending_  = false;
+    double   switchAt_    = 0.0;    // beat at which the waiting mix starts its ramp
     double   sr_          = 48000.0;
     double   bpm_         = kLoopBpm;
     double   beat_        = 0.0;     // host beat at the next sample to render
