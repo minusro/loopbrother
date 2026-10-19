@@ -16,6 +16,7 @@ static int failures = 0;
 // frames is read exactly one frame per sample and the output can be compared
 // against the source sample for sample.
 constexpr double kSr = 1000.0;
+constexpr double kPi = 3.14159265358979323846; // M_PI isn't standard (MSVC lacks it)
 constexpr int    kFade = 5; // 5 ms
 
 struct Fixture {
@@ -436,7 +437,7 @@ int main()
             std::vector<float> x;
             for (auto [db, secs] : steps)
                 for (long i = 0, n = std::lround(secs * rate); i < n; ++i)
-                    x.push_back((float) (std::pow(10.0, db / 20.0) * std::sin(2.0 * M_PI * 1000.0 * (double) x.size() / rate)));
+                    x.push_back((float) (std::pow(10.0, db / 20.0) * std::sin(2.0 * kPi * 1000.0 * (double) x.size() / rate)));
             return x;
         };
         for (double rate : { 48000.0, 44100.0 })

@@ -1,7 +1,8 @@
 # LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-19 — v0.9.0, the logo in Cherry Bomb One, coloured by
-the break under the circle; snappier meters.
+Updated: 2026-10-19 — v0.9.1, release builds (unsigned): a universal Mac
+installer made here, Windows on GitHub Actions; a cream status bar with a
+sunken logo; Shift sizes the circle like a knob.
 
 ## Where things stand
 
@@ -58,13 +59,9 @@ bundle ID are unchanged, so saved sessions find it.
     of on the next 16th (`setFineDrag`, then
     `LoopEngine::setMix(..., immediate)`). An Option press leaves the circle
     where it is.
-  - **Shift**: the circle grows by as many pixels as the mouse moves away
-    from the pivot and shrinks as it comes back. The pivot starts at the
-    press point and moves with the circle while Shift is up, so in a plain
-    drag it sits under the pointer: a Shift-drag first grows the circle, and
-    shrinking below where it started needs an Option move (or a hit on the
-    pad edge) to put distance between pointer and pivot first. With Option
-    as well, a sixteenth as much.
+  - **Shift**: sizes the circle like a knob: moving right or up grows its
+    radius by as many pixels, left or down shrinks it; the circle stays
+    put. With Option as well, a sixteenth as much.
   - **Command** (Control on Windows): mutes while held, at once both ways
     over the 5 ms ramp (`LoopEngine::setMuted`; the loops run on underneath,
     so unmuting comes back in place), with the clock running or during an
@@ -76,14 +73,16 @@ bundle ID are unchanged, so saved sessions find it.
   has to ship with the installers), 38 px at 480 to match the old logo's
   ink height, spacing 0. It takes the colour of the break whose cell the
   circle's centre is in, fading to a new one over about a fifth of a
-  second, edged in that colour's shadow tone so pale yellow still reads on
-  white. Drawn as outlines, centred on its ink.
+  second, sunk into the bar: its white edge sits 1.5 px (at 480) below it,
+  showing along the letters' lower sides like a pressed-in letter lit from
+  above. Drawn as outlines, centred across on its ink and up and down on
+  its capitals (the umlauts ride above).
 - **Window**: the pad over the status bar (44 px at 480, the logo in it),
   resizable by the host window from 240
   to 1440 px wide at that ratio (default 480x524; the
   width is saved in the plugin state and everything scales with it): a
-  cream pad (#fffaf6) with white cell borders (2 px at 480), a cream edge
-  over the white status bar. Every size goes through
+  cream pad (#fffaf6) with white cell borders (2 px at 480), and a status
+  bar in the same cream. Every size goes through
   `jmui::WindowConstrainer`:
   - **Edges:** an edge drag follows that edge.
   - **Corners:** a corner drag follows the corner's further-out side, so
@@ -176,6 +175,13 @@ bundle ID are unchanged, so saved sessions find it.
   `jm::TransportFollower` picks the timeline for each segment.
 - **Standalone**: no transport there, so it free-runs at 162 BPM.
 
+- **Releases** (`docs/RELEASE.md`): unsigned for now. The Mac installer
+  is built here (`installer/macos/make_pkg.sh`: universal, ad-hoc sealed,
+  one .pkg with the VST3, AU, app and font licence); Windows by GitHub
+  Actions (`.github/workflows/windows.yml`, Inno Setup, VST3 and app),
+  which needs the project on GitHub and has never run. Bundle ID
+  `com.minus.loopbrother`; the Standalone builds on Windows too.
+
 ## Verified
 
 - `jm_tests` (30): song-position sync, mid-bar start, varispeed, stop,
@@ -223,9 +229,9 @@ bundle ID are unchanged, so saved sessions find it.
   - Not yet dragged by hand, in the standalone or a DAW.
 - Pad gestures (`JM_PAD_CHECK=1 jm_snapshot`, synthetic mouse events on
   the real editor): a press places the circle, a plain drag follows 1:1,
-  Option moves a sixteenth as far, Shift grows the circle away from the
-  pivot and shrinks it back, Shift+Option a sixteenth as much, the size
-  holds at the largest circle, an Option press leaves the circle in place;
+  Option moves a sixteenth as far, Shift right/up grows the radius a pixel
+  per pixel and left/down shrinks it back, Shift+Option a sixteenth as
+  much, the size holds at the smallest and the largest circle, an Option press leaves the circle in place;
   a rightward drag pushes the cells it crossed right (2.5 px), never back,
   still at the end, and the nearest cell it didn't cross not at all; the umlauts face right after
   it (90 deg), go back on top after a tap (0) and face down after a drag

@@ -327,22 +327,22 @@ int main(int argc, char** argv)
         pad->mouseDrag(ev(448, 160, Mods::altModifier));
         report("Option, 80 px up: a sixteenth as far", near(value("y"), 0.5f + 5.0f / w));
         const float x0 = value("x"), y0 = value("y");
-        // The pivot moved with the circle: from the press, 48 + 10 px right
-        // and 5 px up.
-        const juce::Point<float> pivot { 240.0f + 58.0f, 240.0f - 5.0f };
-        const float d0 = juce::Point<float> { 448, 160 }.getDistanceFrom(pivot);
-        pad->mouseDrag(ev(448, 130, Mods::shiftModifier));
-        const float d1 = juce::Point<float> { 448, 130 }.getDistanceFrom(pivot);
-        const float s1 = 1.0f + (d1 - d0) / (float) (jm::kPuckRadius * w);
-        report("Shift, away from the pivot: grows, circle stays", near(value("size"), s1, 2e-3f) && value("size") > 1.0f
-               && near(value("x"), x0) && near(value("y"), y0));
+        // Shift is a knob: right or up grows the radius a pixel per pixel,
+        // left or down shrinks it, and the circle stays put.
+        const float px = 1.0f / (float) (jm::kPuckRadius * w); // size per pixel of radius
+        pad->mouseDrag(ev(478, 160, Mods::shiftModifier));
+        report("Shift, 30 px right: radius 30 px bigger, circle stays",
+               near(value("size"), 1.0f + 30.0f * px, 2e-3f) && near(value("x"), x0) && near(value("y"), y0));
+        pad->mouseDrag(ev(478, 140, Mods::shiftModifier));
+        report("Shift, 20 px up: 20 px bigger again", near(value("size"), 1.0f + 50.0f * px, 2e-3f));
+        pad->mouseDrag(ev(448, 140, Mods::shiftModifier));
         pad->mouseDrag(ev(448, 160, Mods::shiftModifier));
-        report("Shift, back towards it: shrinks back", near(value("size"), 1.0f, 2e-3f));
-        pad->mouseDrag(ev(448, 160 + 400, Mods::shiftModifier | Mods::altModifier));
-        const float d2 = juce::Point<float> { 448, 560 }.getDistanceFrom(pivot);
-        report("Shift + Option, far away: a sixteenth as much",
-               near(value("size"), 1.0f + (d2 - d0) / 16.0f / (float) (jm::kPuckRadius * w), 2e-3f));
-        pad->mouseDrag(ev(448, 560 + 5000, Mods::shiftModifier));
+        report("Shift, back left and down: back to where it was", near(value("size"), 1.0f, 2e-3f));
+        pad->mouseDrag(ev(448 + 160, 160, Mods::shiftModifier | Mods::altModifier));
+        report("Shift + Option, 160 px right: a sixteenth as much", near(value("size"), 1.0f + 10.0f * px, 2e-3f));
+        pad->mouseDrag(ev(608 - 600, 160, Mods::shiftModifier));
+        report("Shift, far left: held at the smallest circle", near(value("size"), jm::kCircleSizeMin, 2e-3f));
+        pad->mouseDrag(ev(8, 160 - 5000, Mods::shiftModifier));
         report("Shift, very far: held at the largest circle", near(value("size"), jm::kCircleSizeMax, 2e-3f));
         proc.setPadHeld(false);
         proc.setFineDrag(false);

@@ -1,0 +1,41 @@
+# Windows build: the VST3 and the app, the engine tests, and an Inno Setup
+# installer, uploaded as artifacts. Unsigned for now (docs/RELEASE.md).
+# The Mac release is built locally: installer/macos/make_pkg.sh.
+name: windows
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version
+        shell: pwsh
+        run: |
+          $ver = (Select-String -Path CMakeLists.txt -Pattern 'project\(junglemassive VERSION ([0-9.]+)').Matches[0].Groups[1].Value
+          "VER=$ver" >> $env:GITHUB_ENV
+
+      - name: Configure
+        run: cmake -B build -DJM_INSTALL_AFTER_BUILD=OFF
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Engine tests
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Installer (Inno Setup)
+        shell: pwsh
+        run: iscc /DVersion=$env:VER "/DArtefacts=$PWD\build\junglemassive_artefacts\Release" /O"$PWD\dist" installer\windows\loopbrother.iss
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: LOOP-BROTHER-${{ env.VER }}-windows
+          path: dist/*.exe
+          if-no-files-found: error

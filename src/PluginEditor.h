@@ -4,10 +4,10 @@
 
 namespace jmui {
 
-// A warm off-white pad (cream) parted by white cell borders, a white status
-// bar under a cream edge, the breaks in the Froot Loops pastels (Cereal.h)
-// and the logo in the colour of the one under the circle. Dark brown is
-// for any other lettering.
+// A warm off-white pad and status bar (cream) with white cell borders, the
+// breaks in the Froot Loops pastels (Cereal.h) and the logo in the colour
+// of the one under the circle, sunk in with a white lower edge. Dark brown
+// is for any other lettering.
 const juce::Colour white  { 0xffffffff };
 const juce::Colour cream  { 0xfffffaf6 };
 const juce::Colour brown  { 0xff3e2723 };
@@ -38,9 +38,8 @@ private:
 // screen edge. On release the pointer reappears on the circle's centre.
 // - Option (Alt): 16 times slower, and the changes apply at once instead of
 //   on the next 16th. An Option press leaves the circle where it is.
-// - Shift: the circle grows as the mouse moves away from the pivot and
-//   shrinks as it moves towards it. The pivot starts at the press point and
-//   moves with the circle while Shift is up.
+// - Shift: sizes the circle like a knob: right or up grows it, left or down
+//   shrinks it, the circle staying where it is.
 //
 // Each cell under the circle shows its break as an Ö: a cereal ring in the
 // break's colour with two dots over it (Cereal.h). The dots go round the
@@ -116,7 +115,7 @@ private:
     juce::Point<float> heading;             // the circle's recent moves, pixels
     double headingAt = 0.0;
     float travelled = 0.0f;                 // by the mouse since the press, pixels
-    juce::Point<float> last, pivot;         // the drag, in pad pixels (unbounded)
+    juce::Point<float> last;                // the drag, in pad pixels (unbounded)
     jm::MixVoice mix[kMaxMix] {};           // what the circle covers
     int mixCount = 0;
     struct Voice { int loop; float gain; double phase; };
