@@ -10,10 +10,12 @@ namespace jm {
 
 // Radius of the selection circle at size 1, in pad units (the pad is
 // [0, 1]^2): 12.4 px on the 480 px pad. The Circle Size parameter scales it
-// from a quarter to three times, where it covers up to 8 cells (within
-// LoopEngine::kMaxMix).
+// from a quarter up to the circle that covers half the pad from its middle
+// (radius sqrt(0.5 / pi), about 15.5 times), where it plays about 50 to 60
+// breaks at once.
 constexpr double kPuckRadius = 12.375 / 480.0;
-constexpr float  kCircleSizeMin = 0.25f, kCircleSizeMax = 3.0f;
+constexpr double kHalfPadRadius = 0.3989422804;  // sqrt(0.5 / pi)
+constexpr float  kCircleSizeMin = 0.25f, kCircleSizeMax = (float) (kHalfPadRadius / kPuckRadius);
 inline double circleRadius(float size) { return kPuckRadius * size; }
 
 struct Pt { double x, y; };

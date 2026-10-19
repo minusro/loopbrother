@@ -233,6 +233,13 @@ int main(int argc, char** argv)
         CHECK(mix.size() > before, "a bigger circle covers more cells");
         moveTo({ mid.x + 0.0017, mid.y + 0.0023 }, 0.3f);
         CHECK(held && landed, "circle size changes land on the 16th at the new area shares");
+        // 6c. The largest circle, in the middle: half the pad, every break
+        //     under it playing at its share.
+        held = landed = true;
+        moveTo({ 0.5, 0.5 }, jm::kCircleSizeMax);
+        std::printf("  largest circle: %zu breaks\n", mix.size());
+        CHECK(mix.size() > 50, "the largest circle covers about half the breaks");
+        CHECK(held && landed, "...and plays every one of them at its share, on the 16th");
         moveTo({ mid.x + 0.0017, mid.y + 0.0023 }, 1.0f);
     }
 

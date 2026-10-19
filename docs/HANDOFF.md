@@ -1,7 +1,8 @@
 # LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-19 — v0.7.0, Froot Loop Ö marks coloured by similarity
-cluster, a white pad, Option/Command swapped, mute any time.
+Updated: 2026-10-19 — v0.8.0, a circle up to half the pad, crumbs on every
+cell, ripples while dragging, grey lines, ring styles to choose from
+(`docs/ring-styles.png`).
 
 ## Where things stand
 
@@ -29,14 +30,15 @@ bundle ID are unchanged, so saved sessions find it.
   forest-green LÖÖP BRÖTHER logo): every break sits at its
   similarity-layout position and owns the nearest patch of pad (drawn as
   Voronoi cells). The selection circle is three continuous automatable
-  parameters: `x`, `y` and `size` (Circle Size, 0.25x to 3x of
-  `jm::kPuckRadius` = 12.375/480 of the pad, skewed so 1x sits mid-range).
-  Every break whose cell the circle covers plays. Its share is the fraction
-  of the circle's area in its cell (`src/engine/PadGeometry.h`: exact
-  circle/polygon intersection, shares add up to exactly 1; at most 12
-  breaks, and the largest circle covers up to 8) and its gain is equal
-  power, the square root of the share, so a half-and-half blend is as loud
-  as either break alone.
+  parameters: `x`, `y` and `size` (Circle Size, 0.25x of `jm::kPuckRadius`
+  = 12.375/480 of the pad up to 15.47x, the circle that covers half the pad
+  from its middle; skewed so 1x sits mid-range). Every break whose cell the
+  circle covers plays: the largest circle in the middle plays 65 at once
+  (3.3% of a core, against 0.2% for a small circle). Its share is the
+  fraction of the circle's area in its cell (`src/engine/PadGeometry.h`:
+  exact circle/polygon intersection, shares add up to exactly 1; the mix
+  holds up to 128) and its gain is equal power, the square root of the
+  share, so a half-and-half blend is as loud as either break alone.
 - **Colours**: each break has one of the 7 Froot Loops colours (pastel red,
   orange, yellow, green, blue, purple, pink), from
   `tools/break_analysis/colour_breaks.py` into `breaks/colours.json`. It
@@ -71,7 +73,8 @@ bundle ID are unchanged, so saved sessions find it.
 - **Window**: the pad over the status bar (24 px at 480), resizable by the
   host window from 240 to 1440 px wide at that ratio (default 480x504; the
   width is saved in the plugin state and everything scales with it), white
-  with half-strength deeper-yellow cell borders. Every size goes through
+  with light grey cell lines and a forest-green edge over the status bar.
+  Every size goes through
   `jmui::WindowConstrainer`:
   - **Edges:** an edge drag follows that edge.
   - **Corners:** a corner drag follows the corner's further-out side, so
@@ -93,16 +96,29 @@ bundle ID are unchanged, so saved sessions find it.
   - **Hosts that ignore the constraint:** off-ratio sizes are corrected
     afterwards by the same rules.
 
-  Covered cells take a wash of their break's colour by share, and only they
-  carry a mark: an Ö drawn as a Froot Loop (a thick ring, 8.5 px radius at
-  480, with the umlaut dots over it). It is shaded like the bevelled
-  letters of the old Google logo: lit from the top left, tube-shaded with a
-  gloss, the dots as spheres, a soft drop shadow and a faint per-colour
-  grain. Shadows take a darker tone of the colour turned slightly towards
-  red (`shadowOf`), so yellow shades to gold rather than olive. While a
-  covered break plays, its Ö follows the break's meter about the ring's
-  centre, from half size in silence to double at the loop's peak; when
-  nothing plays it rests at full size. The meter
+  Covered cells take a wash of their break's colour by share and carry an
+  Ö drawn as a Froot Loop (a thick ring, 8.5 px radius at 480, with the
+  umlaut dots over it); every other cell carries a crumb, a round piece
+  the size of one of those dots. The look is a `jmui::RingStyle`
+  (`src/Cereal.{h,cpp}`); `kRingStyles` holds eight to try
+  (`docs/ring-styles.png`, from `JM_STYLE_SHEET`), `kRingStyle` is the one
+  in use: for now 0, "Glossy bevel", shaded like the bevelled letters of
+  the old Google logo. Shadows take a darker tone of the colour turned
+  slightly towards red (`shadowOf`), so yellow shades to gold rather than
+  olive; the grain is tileable value noise in octaves, so a coarse grain
+  stays soft. The marks are pre-rendered (`jmui::CerealSprites`: per
+  colour and pattern, at half, full and double size, at the screen's pixel
+  density, shadow included) and drawn scaled: with 65 Ös a frame paints in
+  4 ms at 480 px, 13 at 960, 27 at 1440 (software rendering; it was 18 and
+  84 drawing them from scratch). While a covered break plays, its Ö
+  follows the break's meter about the ring's centre, from half size in
+  silence to double at the loop's peak; when nothing plays it rests at
+  full size.
+  Dragging sends ripples through the pad: every 60 ms or so a drop falls
+  where the circle is, stronger the further it moved, and its ring of
+  small waves spreads (0.45 pad/s, 0.07 wavelength) and fades (0.7 s),
+  pushing the cell lines, crumbs and Ös a few pixels as it passes (60 Hz
+  while any run). Drawing only: the sound follows the true cells. The meter
   is precomputed per loop at load (RMS, 10 ms attack, VU-style 300 ms
   release, run twice round the loop, scaled to the loop's peak) and read at
   the playhead the processor publishes. The selection circle itself is not
@@ -184,15 +200,16 @@ bundle ID are unchanged, so saved sessions find it.
   the real editor): a press places the circle, a plain drag follows 1:1,
   Option moves a sixteenth as far, Shift grows the circle away from the
   pivot and shrinks it back, Shift+Option a sixteenth as much, the size
-  holds at 3x, an Option press leaves the circle in place. Through the
+  holds at the largest circle, an Option press leaves the circle in place. Through the
   processor: holding the mute silences it from the next 16th and letting go
   brings it back, with the clock running and during an audition. Not
   covered: real modifier keys (the Command-over-the-plugin polling), the
   pointer hiding, unbounded movement and the pointer landing on the circle
   at release - those need hands on a mouse.
-- The pad renders as intended (`jm_snapshot` renders inspected, close-ups
-  at 1200 px with `JM_CIRCLE=3` over five colours: the Ö marks, their
-  shading and grain, the colour washes, the logo bar at the bottom); the hidden
+- The pad renders as intended (`jm_snapshot` renders inspected: the
+  largest circle over half the pad, crumbs, grey lines; close-ups of the Ö
+  marks; a mid-drag `JM_RIPPLE=1` frame diffed against a still one shows
+  crumbs moved by a pixel or two up to 330 px from the circle); the hidden
   pointer while dragging and the dots pulsing in time have not been seen on
   screen yet. Dense breaks keep the meter between about half and full, so
   their dots swing between roughly 1.25x and 2x; a faster release would
