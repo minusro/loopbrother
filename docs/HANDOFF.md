@@ -1,7 +1,7 @@
 # LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-19 — v0.9.3, muted marks hold still; the logo's white
-edge sized from its O. v0.9.1 is
+Updated: 2026-10-19 — v0.9.4, a biscuit status bar so the logo's white
+edge shows. v0.9.1 is
 released (github.com/minusro/loopbrother/releases).
 
 ## Where things stand
@@ -78,15 +78,15 @@ bundle ID are unchanged, so saved sessions find it.
   doesn't grey halfway as an RGB mix does), sunk into the bar: a white copy sits under it, lower by a quarter of the
   thickness of its O's bottom (measured from the font: 1.3 px at 480), so a
   thin white edge shows along the letters' lower sides like a pressed-in
-  letter lit from above. On the cream bar that white is only 5 to 9 levels
-  brighter, so it reads faintly. Drawn as outlines, centred across on its ink and up and down on
+  letter lit from above. The bar is biscuit (#f5ede4) rather than the pad's
+  cream: on cream the white was only 1 to 8 levels brighter and invisible. Drawn as outlines, centred across on its ink and up and down on
   its capitals (the umlauts ride above).
 - **Window**: the pad over the status bar (44 px at 480, the logo in it),
   resizable by the host window from 240
   to 1440 px wide at that ratio (default 480x524; the
   width is saved in the plugin state and everything scales with it): a
   cream pad (#fffaf6) with white cell borders (2 px at 480), and a status
-  bar in the same cream. Every size goes through
+  bar a shade deeper (biscuit, #f5ede4) so the logo's white edge shows. Every size goes through
   `jmui::WindowConstrainer`:
   - **Edges:** an edge drag follows that edge.
   - **Corners:** a corner drag follows the corner's further-out side, so

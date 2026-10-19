@@ -436,9 +436,11 @@ JungleEditor::~JungleEditor()
 
 void JungleEditor::paint(juce::Graphics& g)
 {
-    g.fillAll(cream); // the status bar continues the pad
     const float scale = (float) getWidth() / kDesignSize;
     const auto bar = statusBar().toFloat();
+    g.fillAll(cream);
+    g.setColour(biscuit); // a shade under the pad, so the logo's white edge shows
+    g.fillRect(bar);
 
     // The logo as outlines, filled with the colour of the break under the
     // circle, sunk into the bar: a white copy sits below it by a quarter of

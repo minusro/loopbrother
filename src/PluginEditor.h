@@ -4,12 +4,13 @@
 
 namespace jmui {
 
-// A warm off-white pad and status bar (cream) with white cell borders, the
-// breaks in the Froot Loops pastels (Cereal.h) and the logo in the colour
-// of the one under the circle, sunk in with a white lower edge. Dark brown
-// is for any other lettering.
+// A warm off-white pad (cream) with white cell borders over a slightly
+// deeper status bar (biscuit), the breaks in the Froot Loops pastels
+// (Cereal.h) and the logo in the colour of the one under the circle, sunk in
+// with a white lower edge. Dark brown is for any other lettering.
 const juce::Colour white  { 0xffffffff };
 const juce::Colour cream  { 0xfffffaf6 };
+const juce::Colour biscuit { 0xfff5ede4 }; // the status bar: dark enough for the logo's white edge to show
 const juce::Colour brown  { 0xff3e2723 };
 
 // Hides the mouse pointer while a control is being dragged: the control's own
