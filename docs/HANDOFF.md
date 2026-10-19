@@ -1,6 +1,6 @@
 # Jungle Massive — handoff
 
-Updated: 2026-10-19 — v0.3.0, pad moves quantized to the next 16th.
+Updated: 2026-10-19 — v0.3.1, meter-driven dots on the selected cells only.
 
 ## Where things stand
 
@@ -19,10 +19,10 @@ an instrument with stereo out and MIDI in.
   up to exactly 1; at most 8 breaks) and its gain is equal power, the square
   root of the share, so a half-and-half blend is as loud as either break
   alone. The pad fills the window (480 x 480), yellow with deeper-yellow
-  cell borders. Covered cells whiten by share and their dots are drawn at
-  twice the size; while a covered break plays, its cell's whitening follows
-  the break's meter - as is in silence, doubled at the loop's peak. The
-  meter is precomputed per loop at load (RMS, 10 ms attack, VU-style 300 ms
+  cell borders. Covered cells whiten by share and only they carry a dot;
+  while a covered break plays, its dot follows the break's meter, from half
+  its size (6 px radius) in silence to double at the loop's peak. The meter
+  is precomputed per loop at load (RMS, 10 ms attack, VU-style 300 ms
   release, run twice round the loop, scaled to the loop's peak) and read at
   the playhead the processor publishes. The selection circle is a plain
   white ring. The mouse pointer is hidden while dragging
@@ -61,10 +61,10 @@ an instrument with stereo out and MIDI in.
   steps (JUCE's short AudioParameterFloat constructor), fixed in v0.2.0.
 - `auval -v aumu Jngl Mnro` passes.
 - The pad renders as intended (`jm_snapshot` render inspected); the hidden
-  pointer while dragging and the highlight pulsing in time have not been seen
-  on screen yet. Dense breaks keep the meter between about half and full, so
-  their highlight pulses between 1.5x and 2x; a faster release would pulse
-  harder.
+  pointer while dragging and the dots pulsing in time have not been seen on
+  screen yet. Dense breaks keep the meter between about half and full, so
+  their dots swing between roughly 1.25x and 2x; a faster release would
+  swing wider.
 
 ## Not yet verified
 
