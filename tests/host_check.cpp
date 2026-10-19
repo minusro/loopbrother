@@ -279,7 +279,7 @@ int main(int argc, char** argv)
         const double ratio = s0 / (double) h0;
         auto H = [&](int w) { return juce::roundToInt(w / ratio); };
         auto W = [&](int h) { return juce::roundToInt(h * ratio); };
-        bool ok = s0 == 480 && h0 == 504;
+        bool ok = s0 == 480 && h0 == 524;
         auto drag = [&](int w, int h, int want)
         {
             ed->setSize(w, h);
@@ -293,7 +293,7 @@ int main(int argc, char** argv)
         const int s1 = ed->getWidth();
         drag(s1 - 50, H(s1), s1 - 50);                      // right edge in
         drag(s1 - 50, H(s1 - 50) - 120, W(H(s1 - 50) - 120)); // bottom edge in
-        CHECK(ok, "VST3 window: 480x504 to start, edges resize along the dragged side at the window's ratio");
+        CHECK(ok, "VST3 window: 480x524 to start, edges resize along the dragged side at the window's ratio");
         juce::Thread::sleep(500);                           // a new drag, by a corner
         ok = true;
         const int c0 = ed->getWidth(), d0 = ed->getHeight();

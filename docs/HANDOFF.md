@@ -1,7 +1,8 @@
 # LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-19 — v0.8.5, soft clay marks without gloss, quicker
-ripples, room at the pad's edges.
+Updated: 2026-10-19 — v0.8.6, a bigger logo with a "!", half the edge
+room, the circle's marks hold still; logo fonts to choose from
+(`docs/logo-fonts.png`).
 
 ## Where things stand
 
@@ -27,13 +28,13 @@ bundle ID are unchanged, so saved sessions find it.
   standalone's audio device. The WAVs on disk are unchanged.
 - **Pad** (the UI, white, over a small white status bar with the
   dark brown LÖÖP BRÖTHER logo): every break sits at its
-  similarity-layout position, drawn in by 6% of the pad on every side
+  similarity-layout position, drawn in by 3% of the pad on every side
   (`jm::padSite`) so the outermost marks have room, and owns the nearest
   patch of pad (drawn as Voronoi cells, reaching the edges). The selection circle is three continuous automatable
   parameters: `x`, `y` and `size` (Circle Size, 0.25x of `jm::kPuckRadius`
   = 12.375/480 of the pad up to 15.47x, the circle that covers half the pad
   from its middle; skewed so 1x sits mid-range). Every break whose cell the
-  circle covers plays: the largest circle in the middle plays 79 at once
+  circle covers plays: the largest circle in the middle plays 74 at once
   (3.3% of a core, against 0.2% for a small circle). Its share is the
   fraction of the circle's area in its cell (`src/engine/PadGeometry.h`:
   exact circle/polygon intersection, shares add up to exactly 1; the mix
@@ -71,8 +72,9 @@ bundle ID are unchanged, so saved sessions find it.
     audition. It only counts with the pointer over the plugin or during a
     pad drag: Command is global on macOS, and Command-clicks in the host
     shouldn't mute it.
-- **Window**: the pad over the status bar (24 px at 480), resizable by the
-  host window from 240 to 1440 px wide at that ratio (default 480x504; the
+- **Window**: the pad over the status bar (44 px at 480, the logo
+  "LÖÖP BRÖTHER!" 30 px high in it), resizable by the host window from 240
+  to 1440 px wide at that ratio (default 480x524; the
   width is saved in the plugin state and everything scales with it): a
   cream pad (#fffaf6) with white cell borders (2 px at 480), a cream edge
   over the white status bar. Every size goes through
@@ -115,8 +117,9 @@ bundle ID are unchanged, so saved sessions find it.
   follows the break's meter about the ring's centre, from half size in
   silence to double at the loop's peak; when nothing plays it rests at
   full size.
-  Dragging pushes the nearby cells the way the circle goes, as through
-  liquid: every 60 ms or so the circle leaves a push as long as it moved,
+  Dragging pushes the nearby cells (their lines and crumbs; the Ös under
+  the circle hold still) the way the circle goes, as through liquid: every
+  60 ms or so the circle leaves a push as long as it moved,
   and each cell feels it once, as a single sin^2 swell out and back to
   rest (0.22 s, never below zero, so nothing swings back and forth),
   arriving later the further the cell is (0.5 pad/s) and fading with
@@ -234,6 +237,12 @@ bundle ID are unchanged, so saved sessions find it.
   162 BPM, may alias a little far above it (e.g. 200+ BPM).
 
 ## Next ideas
+
+- Pick the logo font from `docs/logo-fonts.png`: 23 candidates, all free to
+  embed (OFL, Luckiest Guy Apache 2.0), downloaded from github.com/google/
+  fonts; render it again with `JM_LOGO_SHEET=docs/logo-fonts.png
+  JM_LOGO_FONTS=<dir of .ttf>`. The chosen one gets compiled in (binary
+  data, with its licence file), so it looks the same on Windows.
 
 - `docs/TODO.md` holds planned work (the 2026-10-20 list is done).
 
