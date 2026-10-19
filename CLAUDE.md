@@ -16,6 +16,10 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
   always spans its bars in host beats, so pitch follows the host tempo.
 - Anything that changes what sounds (mix, restart, jump, start/stop)
   ramps over 5 ms. Don't introduce hard cuts.
+- Pad moves are quantized: while playing, a new mix waits for the next 16th
+  on the loops' grid (counted from 1.1.1, `LoopEngine::kStepBeats`), its
+  ramp ending on the step. Restarts, jumps and transport starts are
+  immediate and take any waiting mix with them.
 - The mix is geometric: each break's share is the fraction of the selection
   circle (`jm::kPuckRadius`) inside its Voronoi cell, so the shares add up to
   exactly 1 (`src/engine/PadGeometry.h`). Gains are equal power, the square
