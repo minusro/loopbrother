@@ -34,7 +34,9 @@ void JungleProcessor::prepareToPlay(double sampleRate, int)
 {
     sr_ = sampleRate;
     engine_.prepare(sampleRate);
-    freeBeat_ = 0.0;
+    timeline_ = {};
+    for (auto& ch : noteDown_) std::fill(std::begin(ch), std::end(ch), false);
+    heldNotes_ = 0;
 }
 
 void JungleProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
@@ -44,10 +46,11 @@ void JungleProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiB
     buffer.clear();
     if (n == 0 || buffer.getNumChannels() < 2) { midi.clear(); return; }
 
-    // Transport: follow the host; free-run at the loops' own tempo when there
-    // is no transport at all (standalone).
-    double bpm = jm::kLoopBpm, beat = freeBeat_;
-    bool hasTransport = false, playing = true;
+    // Timeline: the host transport while it plays; with it stopped, an
+    // audition from 1.1.1 while the pad or a MIDI note is held; a free run at
+    // the loops' own tempo when there is no transport at all (standalone).
+    double bpm = jm::kLoopBpm, hostBeat = 0.0;
+    bool hasTransport = false, hostPlaying = false;
     if (auto* phd = getPlayHead())
         if (auto pos = phd->getPosition())
         {
@@ -55,13 +58,15 @@ void JungleProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiB
             if (auto q = pos->getPpqPosition())
             {
                 hasTransport = true;
-                playing      = pos->getIsPlaying();
-                beat         = *q;
+                hostPlaying  = pos->getIsPlaying();
+                hostBeat     = *q;
             }
         }
+    if (bpm <= 0.0) bpm = jm::kLoopBpm;
+    const bool padHeld = padHeld_.load();
 
     // The mix: every break the selection circle overlaps, its share the area
-    // covered, blended at equal power. Set before the transport so a start
+    // covered, blended at equal power. Set before the timeline so a start
     // begins straight on it.
     const float x = pX->load(), y = pY->load();
     if (! juce::exactlyEqual(x, lastX_) || ! juce::exactlyEqual(y, lastY_))
@@ -72,24 +77,51 @@ void JungleProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiB
         jm::equalPower(mix_, mixCount_);
     }
     engine_.setMix(mix_, mixCount_);
-    engine_.beginBlock(playing, beat, bpm);
 
-    // Note-ons restart the loop at 1.1.1, sample-accurately.
+    // Render in segments between note events, so a note-on restarts the loops
+    // at 1.1.1 on its exact sample, and with the transport stopped the first
+    // held note starts an audition there and the last one released ends it.
     float* L = buffer.getWritePointer(0);
     float* R = buffer.getWritePointer(1);
+    const double beatsPerSample = bpm / 60.0 / sr_;
     int cur = 0;
+    auto renderTo = [&](int end)
+    {
+        const auto tl = timeline_.next(hasTransport, hostPlaying, hostBeat + cur * beatsPerSample, bpm,
+                                       padHeld || heldNotes_ > 0, end - cur, sr_);
+        engine_.beginBlock(tl.playing, tl.beat, bpm, tl.resync);
+        engine_.render(L + cur, R + cur, end - cur);
+        cur = end;
+    };
     for (const auto meta : midi)
     {
-        if (! meta.getMessage().isNoteOn()) continue;
+        const auto msg = meta.getMessage();
         const int at = juce::jlimit(cur, n, meta.samplePosition);
-        engine_.render(L + cur, R + cur, at - cur);
-        engine_.restart();
-        cur = at;
+        if (msg.isNoteOn())
+        {
+            renderTo(at);
+            bool& down = noteDown_[(msg.getChannel() - 1) & 15][msg.getNoteNumber() & 127];
+            if (! down) { down = true; ++heldNotes_; }
+            engine_.restart(); // no-op when nothing plays yet: the audition starts from 1.1.1 anyway
+        }
+        else if (msg.isNoteOff() || msg.isAllNotesOff() || msg.isAllSoundOff())
+        {
+            renderTo(at);
+            if (msg.isNoteOff())
+            {
+                bool& down = noteDown_[(msg.getChannel() - 1) & 15][msg.getNoteNumber() & 127];
+                if (down) { down = false; --heldNotes_; }
+            }
+            else
+            {
+                for (auto& ch : noteDown_) std::fill(std::begin(ch), std::end(ch), false);
+                heldNotes_ = 0;
+            }
+        }
     }
-    engine_.render(L + cur, R + cur, n - cur);
+    renderTo(n);
     midi.clear();
 
-    if (! hasTransport) freeBeat_ += n * bpm / 60.0 / sr_;
     int loops[kMaxMix];
     float gains[kMaxMix];
     double phases[kMaxMix];

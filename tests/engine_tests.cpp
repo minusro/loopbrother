@@ -2,6 +2,7 @@
 //   g++ -std=c++17 -O2 -I src tests/engine_tests.cpp -o /tmp/jm_tests && /tmp/jm_tests
 #include "../src/engine/LoopEngine.h"
 #include "../src/engine/PadGeometry.h"
+#include "../src/engine/Transport.h"
 #include <cmath>
 #include <cstdio>
 #include <random>
@@ -370,6 +371,60 @@ int main()
         for (int i = 100; i < 250 - kFade; ++i) before &= near(L[i], f.A(i));
         for (int i = 250; i < 1000; ++i)        after  &= near(L[i], f.B(i));
         CHECK(before && after, "after a restart at beat 1.1 the next step is at beat 1.35");
+    }
+
+    // 23. Timeline: holding the pad with the transport stopped auditions from
+    //     1.1.1, letting go stops, a new press starts over.
+    {
+        jm::TransportFollower t;
+        auto b = t.next(true, false, 7.3, 60.0, false, 100, kSr);
+        CHECK(! b.playing, "stopped and not held: silent");
+        b = t.next(true, false, 7.3, 60.0, true, 100, kSr);
+        CHECK(b.playing && b.beat == 0.0, "press: audition from beat 0 (1.1.1), not the song position");
+        b = t.next(true, false, 7.3, 60.0, true, 100, kSr);
+        CHECK(b.playing && near((float) b.beat, 0.1f), "held: the audition runs on at the host tempo");
+        b = t.next(true, false, 7.3, 60.0, false, 100, kSr);
+        CHECK(! b.playing, "release: stops");
+        t.next(true, false, 7.3, 60.0, true, 100, kSr);
+        b = t.next(true, false, 7.3, 60.0, true, 100, kSr);
+        CHECK(near((float) b.beat, 0.1f), "a new press starts over from 1.1.1");
+    }
+
+    // 24. Timeline hand-overs: the transport starting under a held pad takes
+    //     over on the song position; stopping it under a held pad carries on.
+    {
+        jm::TransportFollower t;
+        t.next(true, false, 0.0, 60.0, true, 100, kSr);
+        auto b = t.next(true, true, 5.0, 60.0, true, 100, kSr);
+        CHECK(b.playing && b.beat == 5.0 && b.resync, "transport start under a held pad resyncs to the song");
+        b = t.next(true, true, 5.1, 60.0, true, 100, kSr);
+        CHECK(! b.resync, "only the first transport block resyncs");
+        b = t.next(true, false, 0.0, 60.0, true, 100, kSr);
+        CHECK(b.playing && near((float) b.beat, 5.2f), "transport stop under a held pad carries on seamlessly");
+        jm::TransportFollower solo;
+        solo.next(false, false, 0.0, 60.0, false, 100, kSr);
+        b = solo.next(false, false, 0.0, 60.0, false, 100, kSr);
+        CHECK(b.playing && near((float) b.beat, 0.1f), "no transport at all: free run");
+    }
+
+    // 25. Audition through the engine: a press plays the loop from its first
+    //     sample at full level; a resync moves it onto the song position.
+    {
+        Fixture f;
+        jm::TransportFollower t;
+        std::vector<float> L(1200, 0.0f), R(1200, 0.0f);
+        for (int blk = 0; blk < 12; ++blk)
+        {
+            const bool host = blk >= 6;                          // transport starts at beat 2.5 halfway
+            const auto b = t.next(true, host, 2.5 + (blk - 6) * 0.1, 60.0, true, 100, kSr);
+            f.e.beginBlock(b.playing, b.beat, 60.0, b.resync);
+            f.e.render(L.data() + blk * 100, R.data() + blk * 100, 100);
+        }
+        bool press = true, song = true;
+        for (int i = 0; i < 600; ++i) press &= near(L[i], f.A(i));
+        for (int i = 600 + kFade; i < 1200; ++i) song &= near(L[i], f.A(2500 + i - 600));
+        CHECK(press, "press plays from the loop's first sample");
+        CHECK(song, "transport start under the press moves to the song position");
     }
 
     if (failures == 0) std::printf("all engine tests passed\n");

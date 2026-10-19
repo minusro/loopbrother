@@ -95,8 +95,10 @@ public:
     }
     void select(int index) { const MixVoice v { index, 1.0f }; setMix(&v, 1); }
 
-    // Host transport at the first sample of the block.
-    void beginBlock(bool playing, double beat, double bpm)
+    // Timeline at the first sample of the block. resync: start over on this
+    // beat as if from stopped (the host transport taking over from an
+    // audition), with 1.1.1 back on beat 0.
+    void beginBlock(bool playing, double beat, double bpm, bool resync = false)
     {
         bpm_ = bpm > 0.0 ? bpm : kLoopBpm;
         if (! playing)
@@ -107,8 +109,8 @@ public:
             takePending(); // the next start begins on the latest mix
             return; // beat_ runs on so the fade-out tail stays continuous
         }
-        const bool started = ! playing_;
-        const bool jumped  = playing_ && std::abs(beat - beat_) > tolerance();
+        const bool started = ! playing_ || resync;
+        const bool jumped  = ! started && std::abs(beat - beat_) > tolerance();
         if (started || jumped)
         {
             // Whatever is sounding carries on along its old timeline and fades
