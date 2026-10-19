@@ -146,6 +146,8 @@ an instrument with stereo out and MIDI in.
 
 ## Next ideas
 
+- Planned for 2026-10-20: `docs/TODO.md`.
+
 - Pitch-independent tempo (time-stretch or 16th-note slicing) as an option.
 - A choice of quantization (16th / beat / bar / off) once there is UI for it.
 - A readout of the selected break (number, bars) once more UI is wanted.

@@ -3,7 +3,7 @@
 Break-loop instrument plugin (JUCE; VST3 + AU + Standalone on macOS). The 97
 breaks in `breaks/` are compiled into the binary; an XY pad's selection circle
 mixes the breaks whose cells it covers, in sync with the host. Start with
-`docs/HANDOFF.md`.
+`docs/HANDOFF.md`; planned work is in `docs/TODO.md`.
 
 ## Ground rules
 
