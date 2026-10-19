@@ -8,7 +8,7 @@ if(APPLE AND NOT CMAKE_OSX_DEPLOYMENT_TARGET)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "" FORCE)
 endif()
 
-project(junglemassive VERSION 0.5.2 LANGUAGES C CXX)
+project(junglemassive VERSION 0.6.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -38,7 +38,7 @@ endif()
 # ---------------------------------------------------------------------------
 if(JM_BUILD_PLUGIN)
     # JUCE 8.0.4 with two window-resize patches, both handing the decision to
-    # the editor's constrainer (jmui::SquareConstrainer):
+    # the editor's constrainer (jmui::WindowConstrainer):
     # - cmake/juce-vst3-resize.patch: VST3 hosts ask it, told which sides
     #   changed, instead of JUCE fitting the ratio to the shorter side (which
     #   made edges shrink-only).
@@ -75,11 +75,18 @@ if(JM_BUILD_PLUGIN)
         list(APPEND JM_FORMATS AU Standalone)
     endif()
 
+    # LÖÖP BRÖTHER (formerly Jungle Massive). The name hosts and files see
+    # is ASCII, LOOP BROTHER: the VST3 SDK's moduleinfo.json writer garbles
+    # non-ASCII names (each UTF-8 byte sign-extended into its own
+    # character), and hosts list plugins from that file. The umlauts are in
+    # the editor's logo. The codes and bundle ID are unchanged, so saved
+    # sessions still find it.
+    set(JM_PLUGIN_NAME "LOOP BROTHER")
     juce_add_plugin(junglemassive
         COMPANY_NAME                "minusro"
         PLUGIN_MANUFACTURER_CODE    Mnro
         PLUGIN_CODE                 Jngl
-        PRODUCT_NAME                "Jungle Massive"
+        PRODUCT_NAME                "${JM_PLUGIN_NAME}"
         BUNDLE_ID                   "com.minusro.junglemassive"
         FORMATS                     ${JM_FORMATS}
         IS_SYNTH                    TRUE
@@ -134,7 +141,8 @@ if(JM_BUILD_PLUGIN)
         juce_add_console_app(jm_snapshot PRODUCT_NAME "jm_snapshot")
         target_sources(jm_snapshot PRIVATE
             tests/snapshot.cpp src/LoopLibrary.cpp src/PluginProcessor.cpp src/PluginEditor.cpp)
-        target_compile_definitions(jm_snapshot PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_MODAL_LOOPS_PERMITTED=1)
+        target_compile_definitions(jm_snapshot PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_MODAL_LOOPS_PERMITTED=1
+            JucePlugin_Name="${JM_PLUGIN_NAME}")
         target_link_libraries(jm_snapshot PRIVATE
             jm_engine jm_breaks juce::juce_audio_utils
             juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)

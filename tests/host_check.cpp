@@ -96,17 +96,28 @@ int main(int argc, char** argv)
     plugin->setPlayConfigDetails(0, 2, kSr, kBlock);
     plugin->prepareToPlay(kSr, kBlock);
 
-    // Put the puck at p; returns the mix the circle should produce there.
+    // Put the puck at p with the circle at a size; returns the mix the circle
+    // should produce there. (The Circle Size range is the plugin's: skewed
+    // so 1 sits in the middle.)
     std::vector<jm::MixVoice> mix;
-    auto puckAt = [&](jm::Pt p)
+    const auto sizeRange = []
     {
+        juce::NormalisableRange<float> r { jm::kCircleSizeMin, jm::kCircleSizeMax };
+        r.setSkewForCentre(1.0f);
+        return r;
+    }();
+    auto puckAt = [&](jm::Pt p, float size = 1.0f)
+    {
+        const float norm = sizeRange.convertTo0to1(size);
         for (auto* prm : plugin->getParameters())
         {
             if (prm->getName(32) == "Pad X") prm->setValue((float) p.x);
             if (prm->getName(32) == "Pad Y") prm->setValue((float) p.y);
+            if (prm->getName(32) == "Circle Size") prm->setValue(norm);
         }
         jm::MixVoice m[jm::LoopEngine::kMaxMix];
-        const int n = pad.mix({ (double) (float) p.x, (double) (float) p.y }, jm::kPuckRadius, m, jm::LoopEngine::kMaxMix);
+        const int n = pad.mix({ (double) (float) p.x, (double) (float) p.y },
+                              jm::circleRadius(sizeRange.convertFrom0to1(norm)), m, jm::LoopEngine::kMaxMix);
         jm::equalPower(m, n);
         mix.assign(m, m + n);
     };
@@ -190,22 +201,38 @@ int main(int argc, char** argv)
                 < std::hypot(sites[nb].x - sites[0].x, sites[nb].y - sites[0].y)) nb = i;
         const jm::Pt mid { (sites[0].x + sites[nb].x) / 2, (sites[0].y + sites[nb].y) / 2 };
         bool split = true, held = true, landed = true;
+        // Move (or resize) and check the old mix holds until the 16th and
+        // the new one is complete on it.
+        auto moveTo = [&](jm::Pt p, float size)
+        {
+            const auto prev = mix;
+            puckAt(p, size);
+            const double beat = head.ppq;
+            const double step = std::ceil(beat * 4.0 - 1e-6) / 4.0; // transport started at 9: grid from beat 0
+            const size_t at = (size_t) std::ceil((step - beat) / kBeatPerSample);
+            run(40);
+            held   &= at <= (size_t) kFade || matches(0, beat, at - kFade, &prev);
+            landed &= matches(at + 1, beat + (double) (at + 1) * kBeatPerSample);
+        };
         for (const double dx : { 0.0, -0.003, 0.0017 })
             for (const double dy : { 0.0, 0.0023 })
             {
-                const auto prev = mix;
-                puckAt({ mid.x + dx, mid.y + dy });
+                moveTo({ mid.x + dx, mid.y + dy }, 1.0f);
                 split &= mix.size() >= 2;
-                const double beat = head.ppq;
-                const double step = std::ceil(beat * 4.0 - 1e-6) / 4.0; // transport started at 9: grid from beat 0
-                const size_t at = (size_t) std::ceil((step - beat) / kBeatPerSample);
-                run(40);
-                held   &= at <= (size_t) kFade || matches(0, beat, at - kFade, &prev);
-                landed &= matches(at + 1, beat + (double) (at + 1) * kBeatPerSample);
             }
         CHECK(split, "puck near a border overlaps two cells");
         CHECK(held, "a pad move waits for the next 16th");
         CHECK(landed, "border mixes land on the 16th, both breaks at equal power by area share");
+
+        // 6b. Circle Size: growing the circle there covers more cells, each
+        //     at its share of the bigger circle, on the next 16th like a move.
+        held = landed = true;
+        const size_t before = mix.size();
+        moveTo({ mid.x + 0.0017, mid.y + 0.0023 }, 3.5f);
+        CHECK(mix.size() > before + 2, "a bigger circle covers more cells");
+        moveTo({ mid.x + 0.0017, mid.y + 0.0023 }, 0.3f);
+        CHECK(held && landed, "circle size changes land on the 16th at the new area shares");
+        moveTo({ mid.x + 0.0017, mid.y + 0.0023 }, 1.0f);
     }
 
     // 7. Transport stopped: holding a note auditions the mix from 1.1.1 on the
@@ -238,30 +265,36 @@ int main(int argc, char** argv)
         holder.setAlpha(0.0f);
         holder.setVisible(true);
         juce::MessageManager::getInstance()->runDispatchLoopUntil(100);
-        bool ok = ed->getWidth() == ed->getHeight();
+        // The window is the 480 px pad under a title bar: its ratio, the
+        // height for a width (H) and the width for a height (W).
+        const int s0 = ed->getWidth(), h0 = ed->getHeight();
+        const double ratio = s0 / (double) h0;
+        auto H = [&](int w) { return juce::roundToInt(w / ratio); };
+        auto W = [&](int h) { return juce::roundToInt(h * ratio); };
+        bool ok = s0 == 480 && h0 == 504;
         auto drag = [&](int w, int h, int want)
         {
             ed->setSize(w, h);
             juce::MessageManager::getInstance()->runDispatchLoopUntil(50);
-            const bool good = ed->getWidth() == want && ed->getHeight() == want;
-            if (! good) std::printf("  resize %dx%d -> %dx%d, wanted %d\n", w, h, ed->getWidth(), ed->getHeight(), want);
+            const bool good = ed->getWidth() == want && std::abs(ed->getHeight() - H(want)) <= 1; // a height-driven size keeps its height
+            if (! good) std::printf("  resize %dx%d -> %dx%d, wanted %dx%d\n", w, h, ed->getWidth(), ed->getHeight(), want, H(want));
             ok &= good;
         };
-        const int s0 = ed->getWidth();
-        drag(s0 + 100, s0, s0 + 100);           // right edge out
-        drag(s0 + 100, s0 + 250, s0 + 250);     // bottom edge out
-        drag(s0 + 150, s0 + 250, s0 + 150);     // right edge in
-        drag(s0 + 150, s0 + 120, s0 + 120);     // bottom edge in
-        CHECK(ok, "VST3 window edges resize along the dragged side and stay square");
-        juce::Thread::sleep(500);               // a new drag, by a corner
+        drag(s0 + 100, h0, s0 + 100);                       // right edge out
+        drag(s0 + 100, H(s0 + 100) + 150, W(H(s0 + 100) + 150)); // bottom edge out
+        const int s1 = ed->getWidth();
+        drag(s1 - 50, H(s1), s1 - 50);                      // right edge in
+        drag(s1 - 50, H(s1 - 50) - 120, W(H(s1 - 50) - 120)); // bottom edge in
+        CHECK(ok, "VST3 window: 480x504 to start, edges resize along the dragged side at the window's ratio");
+        juce::Thread::sleep(500);                           // a new drag, by a corner
         ok = true;
-        const int c0 = ed->getWidth();
-        drag(c0 + 20, c0 + 5, c0 + 20);         // out, x ahead
-        drag(c0 + 20, c0 + 10, c0 + 20);        // the mouse moved down only
-        drag(c0 + 30, c0 + 10, c0 + 30);        // across only
-        drag(c0 + 30, c0 + 40, c0 + 40);        // y overtakes
-        drag(c0 + 20, c0 + 40, c0 + 40);        // back in across only: y still the further side
-        drag(c0 + 20, c0 + 25, c0 + 25);
+        const int c0 = ed->getWidth(), d0 = ed->getHeight();
+        drag(c0 + 20, d0 + 5, c0 + 20);                     // out, x ahead
+        drag(c0 + 20, d0 + 10, c0 + 20);                    // the mouse moved down only
+        drag(c0 + 30, d0 + 10, c0 + 30);                    // across only
+        drag(c0 + 30, d0 + 60, W(d0 + 60));                 // y overtakes
+        drag(c0 + 20, d0 + 60, W(d0 + 60));                 // back in across only: y still the further side
+        drag(c0 + 20, d0 + 45, W(d0 + 45));
         CHECK(ok, "VST3 window corner drags off the diagonal follow the further side, no flicker");
         holder.removeFromDesktop();
         holder.removeChildComponent(ed.get());

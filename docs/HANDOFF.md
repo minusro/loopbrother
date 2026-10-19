@@ -1,11 +1,17 @@
-# Jungle Massive — handoff
+# LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-19 — v0.5.2, green dots.
+Updated: 2026-10-19 — v0.6.0, the checklist done: fine drag, circle size,
+mute, dot colours, the rename and a title bar.
 
 ## Where things stand
 
-Jungle Massive builds VST3 + AU + Standalone ("Jungle Massive", Mnro/Jngl),
-an instrument with stereo out and MIDI in.
+LÖÖP BRÖTHER (formerly Jungle Massive) builds VST3 + AU + Standalone, an
+instrument with stereo out and MIDI in. Files and plugin lists use the
+ASCII name "LOOP BROTHER": the VST3 SDK's moduleinfo.json writer, which
+hosts list plugins from, garbles non-ASCII names (each UTF-8 byte
+sign-extended into its own character), and JUCE's own VST3 host then
+failed to load it. The umlauts are in the logo. The codes (Mnro/Jngl) and
+bundle ID are unchanged, so saved sessions find it.
 
 - **Loops**: the 97 breaks in `breaks/` (162 BPM, 1/2/4 bars) and
   `breaks/layout.json` are compiled in as binary data and decoded once per
@@ -19,18 +25,42 @@ an instrument with stereo out and MIDI in.
   applied in float, and 9 breaks now peak above 0 dBFS, the highest at
   +5.5 dBFS. Fine inside a host's float mix, but they could clip the
   standalone's audio device. The WAVs on disk are unchanged.
-- **Pad** (the only UI): every break sits at its similarity-layout position
+- **Pad** (the UI, under a small white title bar with the forest-green
+  LÖÖP BRÖTHER logo): every break sits at its similarity-layout position
   and owns the nearest patch of pad (drawn as Voronoi cells). The selection
-  circle (radius `jm::kPuckRadius` = 12.375/480 of the pad) is two continuous
-  automatable parameters, `x` and `y`. Every break whose cell the circle
-  covers plays. Its share is the fraction of the circle's area in its cell
+  circle is three continuous automatable parameters: `x`, `y` and `size`
+  (Circle Size, 0.25x to 4x of `jm::kPuckRadius` = 12.375/480 of the pad,
+  skewed so 1x sits mid-range). Every break whose cell the circle covers
+  plays. Its share is the fraction of the circle's area in its cell
   (`src/engine/PadGeometry.h`: exact circle/polygon intersection, shares add
-  up to exactly 1; at most 8 breaks) and its gain is equal power, the square
-  root of the share, so a half-and-half blend is as loud as either break
-  alone. The pad fills the window, square and resizable by the host window
-  from 240 to 1440 px (default 480; the size is saved in the plugin state
-  and everything on the pad scales with it), yellow with deeper-yellow cell
-  borders. Every size goes through `jmui::SquareConstrainer`:
+  up to exactly 1; at most 12 breaks, and the largest circle covers up to
+  10) and its gain is equal power, the square root of the share, so a
+  half-and-half blend is as loud as either break alone.
+- **Pad gestures** (`jmui::XYPad`): a press puts the circle there, and
+  dragging moves it by as much as the mouse moves (relative, so the
+  modifiers below can change speed mid-drag). The pointer is hidden and the
+  drag can run past the screen edge (JUCE's unbounded mouse movement). On
+  release the pointer reappears on the circle's centre.
+  - **Command** (Control on Windows): 10x slower, and the change applies at
+    once instead of on the next 16th (`setFineDrag`, then
+    `LoopEngine::setMix(..., immediate)`). A Command press leaves the circle
+    where it is.
+  - **Shift**: the circle grows by as many pixels as the mouse moves away
+    from the pivot and shrinks as it comes back. The pivot starts at the
+    press point and moves with the circle while Shift is up, so in a plain
+    drag it sits under the pointer: a Shift-drag first grows the circle, and
+    shrinking below where it started needs a Command move (or a hit on the
+    pad edge) to put distance between pointer and pivot first. With Command
+    as well, a tenth as much.
+  - **Option** (Alt): with the clock running, mutes while held, on the next
+    16th both ways (`LoopEngine::setMuted`). It only counts with the pointer
+    over the plugin or during a pad drag: Option is global on macOS, and
+    Option-clicks in the host shouldn't mute it. Not during auditions.
+- **Window**: the pad plus the title bar (24 px at 480), resizable by the
+  host window from 240 to 1440 px wide at that ratio (default 480x504; the
+  width is saved in the plugin state and everything scales with it), yellow
+  with deeper-yellow cell borders. Every size goes through
+  `jmui::WindowConstrainer`:
   - **Edges:** an edge drag follows that edge.
   - **Corners:** a corner drag follows the corner's further-out side, so
     the pointer stays on the window's edge. It stays a corner drag until
@@ -48,19 +78,20 @@ an instrument with stereo out and MIDI in.
     constrainer, saying which sides changed. JUCE used to fit the ratio to
     the shorter side, which made edges shrink-only. Which edges stay put is
     the host's choice.
-  - **Hosts that ignore the constraint:** non-square sizes are squared
+  - **Hosts that ignore the constraint:** off-ratio sizes are corrected
     afterwards by the same rules.
 
-  Covered cells whiten by share and only they carry a dot, medium dark
-  green (`jmui::green`, #2E7D32);
+  Covered cells whiten by share and only they carry a dot: white while
+  nothing plays (clock stopped, no note or pad held), green (`jmui::green`,
+  #17BE19, midway between #2E7D32 and pure green) while the loops play;
   while a covered break plays, its dot follows the break's meter, from half
   its size (6 px radius at 480) in silence to double at the loop's peak. The meter
   is precomputed per loop at load (RMS, 10 ms attack, VU-style 300 ms
   release, run twice round the loop, scaled to the loop's peak) and read at
   the playhead the processor publishes. The selection circle itself is not
   drawn - the whitened cells show what it covers. Over the pad the pointer
-  is the default arrow, hidden while dragging
-  (`jmui::HideCursorWhileDragging`, meant for every future knob and slider).
+  is the default arrow. (`jmui::HideCursorWhileDragging` hides it on future
+  knobs and sliders.)
 - **Playback** (`src/engine/LoopEngine.h`): the mix, every loop varispeed at
   the host tempo and locked to the same 1.1.1. Transport start syncs to the
   song position (loop 1.1.1 on beat 0, so a 2-bar loop starts over on bars 1,
@@ -88,7 +119,7 @@ an instrument with stereo out and MIDI in.
 
 ## Verified
 
-- `jm_tests` (27): song-position sync, mid-bar start, varispeed, stop,
+- `jm_tests` (30): song-position sync, mid-bar start, varispeed, stop,
   note-on restart (incl. on the bar line without a doubled downbeat), loop
   switching in phase, host jumps, start after a stopped note-on, no drift
   over 100k odd-sized blocks; mixes (shares, ramps, restart of the whole
@@ -100,7 +131,10 @@ an instrument with stereo out and MIDI in.
   1.1.1, release stops, transport take-over resyncs, a stop under a held
   pad carries on, free run) and an audition rendered through the engine;
   loudness against EBU Tech 3341's reference signals (steady sines,
-  relative and absolute gating, at 48 and 44.1 kHz) and the levelling gain.
+  relative and absolute gating, at 48 and 44.1 kHz) and the levelling gain;
+  an immediate mix replacing a waiting one; mute and unmute on the 16th
+  (a cancelled mute leaving it playing), a start while muted silent, a
+  restart taking a waiting unmute.
 - The loop loudness agrees with pyloudnorm, run on each break tiled 32
   times, to within 0.12 LU on all 97 (mean +0.06 LU, the difference between
   its filter and the standard's). The K-weighting reproduces BS.1770's
@@ -109,14 +143,17 @@ an instrument with stereo out and MIDI in.
   the break files read from disk and levelled the same way (start at bar 1 through the wrap, a note-on
   mid-block, stop, start mid-song, six puck positions around a cell border
   mixing two breaks at equal power by area, each move held until the next
-  16th and complete on it, and with the transport stopped a held note
+  16th and complete on it; Circle Size grown to 3.5x covering more cells
+  and shrunk to 0.3x, each change on the 16th at the new area shares; and
+  with the transport stopped a held note
   auditioning from 1.1.1 on its sample until its note-off). It caught the pad parameters snapping to 0.01
   steps (JUCE's short AudioParameterFloat constructor), fixed in v0.2.0.
 - `auval -v aumu Jngl Mnro` passes.
 - Window resizing:
   - The host check resizes the plugin through JUCE's own VST3 host window,
-    which asks checkSizeConstraint like a DAW. Edges dragged out and in
-    follow the dragged side and stay square. Corner drags off the diagonal
+    which asks checkSizeConstraint like a DAW. It opens at 480x504. Edges
+    dragged out and in follow the dragged side at the window's ratio.
+    Corner drags off the diagonal
     follow the further side, including when the mouse moves along one axis
     only. That case flickered before, and the check fails with the corner
     memory turned off.
@@ -124,9 +161,19 @@ an instrument with stereo out and MIDI in.
     through a bordered constrainer like the standalone's (corner keeps the
     opposite corner; edge keeps the opposite edge, the perpendicular edges
     moving half each way). It also checks the same corner sequences as
-    host requests, and the non-square fallback.
+    host requests, and the off-ratio fallback.
   - Not yet dragged by hand, in the standalone or a DAW.
-- The pad renders as intended (`jm_snapshot` render inspected); the hidden
+- Pad gestures (`JM_PAD_CHECK=1 jm_snapshot`, synthetic mouse events on
+  the real editor): a press places the circle, a plain drag follows 1:1,
+  Command moves a tenth as far, Shift grows the circle away from the pivot
+  and shrinks it back, Shift+Command a tenth as much, the size holds at
+  4x, a Command press leaves the circle in place. Through the processor:
+  holding the mute silences it from the next 16th, letting go brings it
+  back. Not covered: real modifier keys (the Option-over-the-plugin
+  polling), the pointer hiding, unbounded movement and the pointer landing
+  on the circle at release - those need hands on a mouse.
+- The pad renders as intended (`jm_snapshot` renders inspected, playing and
+  `JM_STOPPED=1` idle: green and white dots, the logo); the hidden
   pointer while dragging and the dots pulsing in time have not been seen on
   screen yet. Dense breaks keep the meter between about half and full, so
   their dots swing between roughly 1.25x and 2x; a faster release would
@@ -146,7 +193,7 @@ an instrument with stereo out and MIDI in.
 
 ## Next ideas
 
-- Planned for 2026-10-20: `docs/TODO.md`.
+- `docs/TODO.md` holds planned work (the 2026-10-20 list is done).
 
 - Pitch-independent tempo (time-stretch or 16th-note slicing) as an option.
 - A choice of quantization (16th / beat / bar / off) once there is UI for it.
