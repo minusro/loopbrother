@@ -10,7 +10,7 @@ covers, blended at equal power by the area it covers. Loops follow the host temp
 restarts them from their first beat. With the transport stopped, holding the
 pad or a note auditions the loops from their first beat. Option-drag for
 fine moves that apply at once, Shift-drag to size the circle, hold Command
-to mute on the beat grid. Each break shows as a Froot Loop Ö, coloured by
+to mute. Each break shows as a Froot Loop Ö, coloured by
 its similarity cluster.
 
 State of the code: `docs/HANDOFF.md`. Developer guide: `CLAUDE.md`.

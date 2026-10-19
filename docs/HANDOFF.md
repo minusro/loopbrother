@@ -1,7 +1,6 @@
 # LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-19 — v0.8.3, one-way ripples, thicker borders, a dark
-brown logo.
+Updated: 2026-10-19 — v0.8.4, the Command mute acts at once.
 
 ## Where things stand
 
@@ -64,8 +63,9 @@ bundle ID are unchanged, so saved sessions find it.
     shrinking below where it started needs an Option move (or a hit on the
     pad edge) to put distance between pointer and pivot first. With Option
     as well, a sixteenth as much.
-  - **Command** (Control on Windows): mutes while held, on the next 16th
-    both ways (`LoopEngine::setMuted`), with the clock running or during an
+  - **Command** (Control on Windows): mutes while held, at once both ways
+    over the 5 ms ramp (`LoopEngine::setMuted`; the loops run on underneath,
+    so unmuting comes back in place), with the clock running or during an
     audition. It only counts with the pointer over the plugin or during a
     pad drag: Command is global on macOS, and Command-clicks in the host
     shouldn't mute it.
@@ -168,9 +168,8 @@ bundle ID are unchanged, so saved sessions find it.
   pad carries on, free run) and an audition rendered through the engine;
   loudness against EBU Tech 3341's reference signals (steady sines,
   relative and absolute gating, at 48 and 44.1 kHz) and the levelling gain;
-  an immediate mix replacing a waiting one; mute and unmute on the 16th
-  (a cancelled mute leaving it playing), a start while muted silent, a
-  restart taking a waiting unmute.
+  an immediate mix replacing a waiting one; mute and unmute at once,
+  mid-step, the loop back in place; a start while muted silent.
 - The loop loudness agrees with pyloudnorm, run on each break tiled 32
   times, to within 0.12 LU on all 97 (mean +0.06 LU, the difference between
   its filter and the standard's). The K-weighting reproduces BS.1770's
@@ -206,8 +205,8 @@ bundle ID are unchanged, so saved sessions find it.
   holds at the largest circle, an Option press leaves the circle in place;
   a rightward drag pushes a nearby point right (2.5 px), never back, still
   at the end, and a distant one not at all. Through the
-  processor: holding the mute silences it from the next 16th and letting go
-  brings it back, with the clock running and during an audition. Not
+  processor: holding the mute silences it from the next block and letting
+  go brings it back, with the clock running and during an audition. Not
   covered: real modifier keys (the Command-over-the-plugin polling), the
   pointer hiding, unbounded movement and the pointer landing on the circle
   at release - those need hands on a mouse.
