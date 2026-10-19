@@ -1,12 +1,18 @@
 # Windows build: the VST3 and the app, the engine tests, and an Inno Setup
-# installer, uploaded as artifacts. Unsigned for now (docs/RELEASE.md).
-# The Mac release is built locally: installer/macos/make_pkg.sh.
+# installer, uploaded as an artifact. When a release is published
+# (installer/release.sh, which also adds the Mac installer) the Windows
+# installer is attached to it. Unsigned for now (docs/RELEASE.md).
 name: windows
 
 on:
   push:
     branches: [main]
+  release:
+    types: [published]
   workflow_dispatch:
+
+permissions:
+  contents: write   # to attach the installer to a release
 
 jobs:
   build:
@@ -39,3 +45,12 @@ jobs:
           name: LOOP-BROTHER-${{ env.VER }}-windows
           path: dist/*.exe
           if-no-files-found: error
+
+      - name: Attach to the release
+        if: github.event_name == 'release'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ("v$env:VER" -ne "${{ github.event.release.tag_name }}") { throw "release ${{ github.event.release.tag_name }} doesn't match version $env:VER" }
+          gh release upload "${{ github.event.release.tag_name }}" (Get-ChildItem dist\*.exe).FullName --clobber

@@ -1,14 +1,31 @@
 # LÖÖP BRÖTHER — releases
 
-How the installers are made, and how to sign them later. What users do
-with them is in `installer/README.md`, the folder the installers are
-downloaded from; keep the two in step.
+How the installers are made and published, and how to sign them later.
+The users' side (downloading from Releases, getting past the warnings,
+what goes where) is in the project's `README.md`; keep the two in step.
 
 Decided 2026-10-19: releases are **unsigned for now** on both platforms.
 The Mac release is built on the Mac; Windows is built by GitHub Actions.
-The bundle ID is `com.minus.loopbrother`, set before the first release. The
+Both are published as GitHub releases of minusro/loopbrother. The bundle ID is `com.minus.loopbrother`, set before the first release. The
 plugin codes (manufacturer `Mnro`, plugin `Jngl`) never change: saved
 sessions find the plugin by them.
+
+## Publishing a release
+
+```sh
+sh installer/release.sh       # → GitHub release v<version>
+```
+
+1. Bump `project(... VERSION)`, then commit and push.
+2. Run the script. It checks you're logged in to the GitHub CLI and that
+   everything is committed and pushed. Then it builds the Mac installer
+   (below) and creates release `v<version>` on that commit, with the
+   installer attached.
+3. Publishing the release starts the Windows workflow. A few minutes later
+   it attaches `LOOP-BROTHER-<version>-windows.exe` to the same release; it
+   refuses if the tag doesn't match the version.
+
+Releases of a private repo are only visible to people with access to it.
 
 ## macOS
 
@@ -31,13 +48,14 @@ sh installer/macos/make_pkg.sh            # → dist/LOOP-BROTHER-<version>-maco
   copy it finds elsewhere instead.
 
 **While it's unsigned,** macOS blocks the downloaded package on first open
-until the user allows it (steps in `installer/README.md`). The installed
+until the user allows it (steps in `README.md`). The installed
 plugins aren't quarantined, so hosts load them normally.
 
 ## Windows
 
-`.github/workflows/windows.yml` runs on every push to `main` (and by hand).
-It does four things:
+`.github/workflows/windows.yml` runs on every push to `main`, on every
+published release, and by hand. It does four things, and a fifth for a
+release:
 
 1. Builds the VST3 and the app.
 2. Runs the engine tests.
@@ -45,13 +63,13 @@ It does four things:
    to `C:\Program Files\Common Files\VST3`; the app and the font licence go
    to `C:\Program Files\minus\LOOP BROTHER`.
 4. Uploads `LOOP-BROTHER-<version>-windows.exe` as an artifact.
+5. For a release, attaches it to the release.
 
-This needs the project on GitHub (a private repo is fine). It has never run
-yet; expect the first run to need fixes, since nothing here has been built
-with MSVC.
+It hasn't succeeded yet; expect the first runs to need fixes, since nothing
+here has been built with MSVC.
 
 **While it's unsigned,** SmartScreen warns about an unrecognised app until
-the user clicks past it (steps in `installer/README.md`). DAWs load unsigned
+the user clicks past it (steps in `README.md`). DAWs load unsigned
 VST3s.
 
 ## Shipping notes
