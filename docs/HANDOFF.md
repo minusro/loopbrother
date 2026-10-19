@@ -1,7 +1,7 @@
 # LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-19 — v0.9.6, the logo curves with the bowl's lip and is
-shaded from above; fine drags at 1/8 speed. v0.9.1 is
+Updated: 2026-10-19 — v0.9.7, the logo on a curve concentric with the lip,
+its white underline back, a lighter bowl shaded round, a 0.1 s colour fade. v0.9.1 is
 released (github.com/minusro/loopbrother/releases).
 
 ## Where things stand
@@ -73,13 +73,13 @@ bundle ID are unchanged, so saved sessions find it.
   `jm_assets`, SIL Open Font License in `fonts/OFL-CherryBombOne.txt`, which
   has to ship with the installers), 38 px at 480 to match the old logo's
   ink height, spacing 0. It takes the colour of the break whose cell the
-  circle's centre is in, fading to a new one over about a fifth of a
-  second round the hue wheel (saturation and brightness kept, so a pastel
-  doesn't grey halfway as an RGB mix does), sunk into the bowl: a light grey copy sits above it, higher by a quarter
-  of the thickness of its O's bottom (measured from the font: 1.3 px at
-  480), so a shaded edge shows along the letters' upper sides like a
-  pressed-in letter lit from above. Set letter by letter on a curve parallel
-  to the lip, each letter lifted as the lip rises and turned to its slope. Drawn as outlines, centred across on its ink and up and down on
+  circle's centre is in, fading to a new one over 0.1 s round the hue wheel (saturation and brightness kept, so a pastel
+  doesn't grey halfway as an RGB mix does), sunk into the bowl: a white copy sits under it, lower by a quarter of the
+  thickness of its O's bottom (measured from the font: 1.3 px at 480), so a
+  thin white edge shows along the letters' lower sides like a pressed-in
+  letter lit from above. Set letter by letter with the tops of its capitals
+  on the curve concentric with the lip (the lip's ellipse, both semi-axes
+  longer by the gap), each letter turned to that curve. Drawn as outlines, centred across on its ink and up and down on
   its capitals (the umlauts ride above).
 - **Window**: the pad over the status bar (44 px at 480, the logo in it),
   resizable by the host window from 240
@@ -91,8 +91,10 @@ bundle ID are unchanged, so saved sessions find it.
   22 px (at 480) towards the sides, over the pad's lower corners, with a
   white rim and a soft shade along its inner edge (`jmui::bowlLip`, drawn over the pad
   in `paintOverChildren`). Presses under the lip are on the bowl, not the
-  pad (`XYPad::hitTest`). The bowl's front is biscuit (#f5ede4), a shade
-  deeper than the pad, so the logo's white edge shows. Every size goes through
+  pad (`XYPad::hitTest`). The bowl's front is biscuit (#faf4ed, midway
+  between the pad's cream and #f5ede4), a shade deeper than the pad so the
+  logo's white edge shows, and very slightly deeper towards its sides and
+  foot (to #f1eae2, warm) so it reads as round. Every size goes through
   `jmui::WindowConstrainer`:
   - **Edges:** an edge drag follows that edge.
   - **Corners:** a corner drag follows the corner's further-out side, so

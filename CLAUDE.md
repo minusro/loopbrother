@@ -41,7 +41,7 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
   exactly 1 (`src/engine/PadGeometry.h`). Gains are equal power, the square
   root of the share (`jm::equalPower`), so the squared gains add up to 1.
 - The editor palette: `jmui::cream` (#fffaf6) for the pad, `biscuit`
-  (#f5ede4) for the status bar, which is the front of a cereal bowl (its lip
+  (#faf4ed) for the status bar, which is the front of a cereal bowl (its lip
   arcs over the pad's lower corners: `jmui::bowlLip`), `white` for cell borders and the logo's
   edge, `brown` (dark) for other
   lettering, and the 7 pastel

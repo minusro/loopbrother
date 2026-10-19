@@ -8,12 +8,11 @@ namespace jmui {
 // bowl: the status bar is its front (biscuit, a shade deeper, with a white
 // rim), the breaks in the Froot Loops pastels
 // (Cereal.h) and the logo in the colour of the one under the circle, sunk in
-// with a light grey upper edge. Dark brown is for any other lettering.
+// with a white lower edge. Dark brown is for any other lettering.
 const juce::Colour white  { 0xffffffff };
 const juce::Colour cream  { 0xfffffaf6 };
-const juce::Colour biscuit { 0xfff5ede4 }; // the status bar: dark enough for the logo's white edge to show
+const juce::Colour biscuit { 0xfffaf4ed }; // the bowl's front, a shade under the pad: the logo's white edge shows on it
 const juce::Colour brown  { 0xff3e2723 };
-const juce::Colour lightGrey { 0xffcfcfcf }; // the shaded upper edge of the logo
 
 // Hides the mouse pointer while a control is being dragged: the control's own
 // marker (a knob's pointer) shows where it is. Every draggable control gets
@@ -38,11 +37,15 @@ private:
 // corners. How far above the bar's top the lip is at x, for a window w wide
 // and a pad scaled by scale:
 constexpr float kBowlRise = 22.0f, kBowlReach = 0.6f; // the ellipse's half-width, in window widths
-inline float bowlLip(float x, float w, float scale)
+// With inside > 0 the same for the curve concentric with it that many pixels
+// further in (below the lip at the middle): its ellipse has the same centre,
+// both semi-axes longer by that much.
+inline float bowlLip(float x, float w, float scale, float inside = 0.0f)
 {
-    const float a = kBowlReach * w, u = (x - 0.5f * w) / a, end = 0.5f / kBowlReach;
+    const float a = kBowlReach * w, end = 0.5f / kBowlReach;
     const float b = kBowlRise * scale / (1.0f - std::sqrt(1.0f - end * end)); // so it rises kBowlRise at the sides
-    return b * (1.0f - std::sqrt(juce::jmax(0.0f, 1.0f - u * u)));
+    const float u = (x - 0.5f * w) / (a + inside);
+    return (b + inside) * (1.0f - std::sqrt(juce::jmax(0.0f, 1.0f - u * u)));
 }
 
 // The XY pad: every break sits at its similarity-layout position and owns the
@@ -178,7 +181,7 @@ private:
 // host window at that fixed ratio (the width is kept in the plugin state);
 // everything scales with it. The logo, in Cherry Bomb One, takes the colour
 // of the break whose cell the circle's centre is in, fading round the hue
-// wheel over 0.2 s as it changes. Holding Command (Control on Windows) with the
+// wheel over 0.1 s as it changes. Holding Command (Control on Windows) with the
 // pointer over the plugin mutes it. Command is global on macOS, so it only
 // counts over the plugin (or during a pad drag, when the hidden pointer can
 // be anywhere): Command-clicks in the host don't mute it.
@@ -197,7 +200,7 @@ public:
     static constexpr int kDesignSize  = 480;  // the pad width drawing dimensions are given at
     static constexpr int kTitleHeight = 44;   // the status bar, at kDesignSize
     static constexpr float kLogoKerning = 0.0f;
-    static constexpr double kLogoFade = 0.2; // seconds
+    static constexpr double kLogoFade = 0.1; // seconds
     // Between two colours round the hue wheel, saturation and brightness
     // straight, so a pastel stays a pastel all the way (a mix in RGB greys out
     // halfway between opposite hues).

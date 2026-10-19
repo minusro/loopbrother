@@ -442,8 +442,9 @@ void JungleEditor::paintOverChildren(juce::Graphics& g)
     auto bar = statusBar().toFloat();
 
     // The bowl's front: its lip arcs up over the pad's lower corners. Biscuit,
-    // a shade under the pad so the logo's white edge shows, turning a touch
-    // deeper towards the foot, as a curved bowl takes the light.
+    // a shade under the pad so the logo's white edge shows, and very slightly
+    // deeper towards its sides and foot, where the round bowl turns away from
+    // the light.
     juce::Path lip, front;
     for (int i = 0; i <= 96; ++i)
     {
@@ -456,7 +457,16 @@ void JungleEditor::paintOverChildren(juce::Graphics& g)
     front.lineTo(w, bar.getBottom());
     front.lineTo(0.0f, bar.getBottom());
     front.closeSubPath();
-    g.setGradientFill(juce::ColourGradient(biscuit, 0.0f, bar.getY(), biscuit.darker(0.025f), 0.0f, bar.getBottom(), false));
+    g.setColour(biscuit);
+    g.fillPath(front);
+    const auto turn = biscuit.withMultipliedSaturation(1.4f).withMultipliedBrightness(0.93f); // warm, not grey
+    juce::ColourGradient sides(turn.withAlpha(0.45f), 0.0f, 0.0f, turn.withAlpha(0.45f), w, 0.0f, false);
+    sides.addColour(0.2, turn.withAlpha(0.12f));
+    sides.addColour(0.5, turn.withAlpha(0.0f));
+    sides.addColour(0.8, turn.withAlpha(0.12f));
+    g.setGradientFill(sides);
+    g.fillPath(front);
+    g.setGradientFill(juce::ColourGradient(turn.withAlpha(0.0f), 0.0f, bar.getY(), turn.withAlpha(0.3f), 0.0f, bar.getBottom(), false));
     g.fillPath(front);
     // The rim: a white band along the lip, with a soft shade along its inner
     // edge, where the bowl's wall turns down into it.
@@ -470,12 +480,13 @@ void JungleEditor::paintOverChildren(juce::Graphics& g)
     bar.removeFromTop(0.5f * rim); // the logo sits on the bowl below the rim
 
     // The logo as outlines, filled with the colour of the break under the
-    // circle, sunk into the bowl: a light grey copy sits above it by a
-    // quarter of the thickness of the O's bottom, showing as a shaded edge
-    // along the letters' upper sides, as on a pressed-in letter lit from
-    // above. Centred across on its ink and up and down on its capitals (the
-    // umlauts riding above), then set letter by letter on a curve parallel to
-    // the lip: each one lifted as the lip rises and turned to its slope.
+    // circle, sunk into the bowl: a white copy sits below it by a quarter of
+    // the thickness of the O's bottom, showing as a white edge along the
+    // letters' lower sides, as on a pressed-in letter lit from above. Centred
+    // across on its ink and up and down on its capitals (the umlauts riding
+    // above), then set letter by letter with the tops of its capitals on the
+    // curve concentric with the lip through that point, each letter turned
+    // to the curve.
     const auto font = logoFont ? logoFont->withHeight(kLogoHeight * scale)
                                : juce::Font(juce::FontOptions(logoFace).withHeight(kLogoHeight * scale)
                                                 .withKerningFactor(kLogoKerning));
@@ -492,6 +503,8 @@ void JungleEditor::paintOverChildren(juce::Graphics& g)
     glyphs.addLineOfText(font, logo(), 0.0f, 0.0f); // baseline at 0
     const float dx = bar.getCentreX() - outline(logo()).getBounds().getCentreX();
     const float dy = bar.getCentreY() - capitals.getCentreY();
+    const float lipY = (float) statusBar().getY(), top = capitals.getY() + dy; // the capitals' top, mid-window
+    const float inside = top - lipY;                                          // how far in from the lip
     juce::Path text;
     for (int i = 0; i < glyphs.getNumGlyphs(); ++i)
     {
@@ -500,9 +513,11 @@ void JungleEditor::paintOverChildren(juce::Graphics& g)
         juce::Path letter;
         glyph.createPath(letter);
         const float cx = 0.5f * (glyph.getLeft() + glyph.getRight()), at = cx + dx;
-        const float slope = 0.5f * (bowlLip(at + 1.0f, w, scale) - bowlLip(at - 1.0f, w, scale)); // the lip's rise per pixel
-        letter.applyTransform(juce::AffineTransform::rotation(-std::atan(slope), cx, 0.0f)
-                                  .translated(dx, dy - bowlLip(at, w, scale)));
+        const float rise = bowlLip(at, w, scale, inside);
+        const float slope = 0.5f * (bowlLip(at + 1.0f, w, scale, inside) - bowlLip(at - 1.0f, w, scale, inside));
+        letter.applyTransform(juce::AffineTransform::translation(-cx, -capitals.getY())  // its capitals' top centre...
+                                  .rotated(-std::atan(slope))                           // ...turned to the curve...
+                                  .translated(at, top - rise));                         // ...and set on it
         text.addPath(letter);
     }
     // The O's bottom, measured up its middle from its lowest ink to its hole.
@@ -515,8 +530,8 @@ void JungleEditor::paintOverChildren(juce::Graphics& g)
     while (y > ob.getCentreY() && o.contains(x, y)) y -= step;    // through to the hole
     const float bottom = inkBottom - y;
     auto edge = text;
-    edge.applyTransform(juce::AffineTransform::translation(0.0f, -bottom / 4));
-    g.setColour(lightGrey);
+    edge.applyTransform(juce::AffineTransform::translation(0.0f, bottom / 4));
+    g.setColour(white);
     g.fillPath(edge);
     g.setColour(logoColour);
     g.fillPath(text);
