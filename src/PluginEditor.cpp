@@ -270,7 +270,7 @@ void XYPad::mouseDown(const juce::MouseEvent& e)
     isDragging = true;
     travelled = 0.0f;
     heading = {};
-    last = pivot = e.position;
+    last = e.position;
     e.source.enableUnboundedMouseMovement(true);
     proc.setFineDrag(e.mods.isAltDown());
     if (! e.mods.isAltDown()) setPuck(toUnit(e.position));
@@ -285,16 +285,16 @@ void XYPad::mouseDrag(const juce::MouseEvent& e)
     const float speed = fine ? kFineSpeed : 1.0f;
     if (e.mods.isShiftDown())
     {
-        // Moving away from the pivot grows the circle by as much (in pixels).
-        const float grow = (e.position.getDistanceFrom(pivot) - last.getDistanceFrom(pivot)) * speed;
-        setCircleSize(size + grow / (float) (jm::kPuckRadius * getWidth()));
+        // Like a knob: right or up grows the circle, left or down shrinks
+        // it, its radius by as many pixels as the mouse moved.
+        const auto d = e.position - last;
+        setCircleSize(size + (d.x - d.y) * speed / (float) (jm::kPuckRadius * getWidth()));
     }
     else
     {
         const auto before = toScreen(puck);
         setPuck(toUnit(before + (e.position - last) * speed));
         const auto step = toScreen(puck) - before;
-        pivot += step; // with the circle, stopping where it stops
 
         // The umlauts face where the circle has been heading lately.
         const double t = juce::Time::getMillisecondCounterHiRes() / 1000.0;
@@ -391,27 +391,37 @@ JungleEditor::~JungleEditor()
 
 void JungleEditor::paint(juce::Graphics& g)
 {
-    g.fillAll(white);
+    g.fillAll(cream); // the status bar continues the pad
     const float scale = (float) getWidth() / kDesignSize;
     const auto bar = statusBar().toFloat();
-    g.setColour(cream); // the pad's lower edge
-    g.fillRect(bar.withHeight(juce::jmax(1.0f, scale)));
 
-    // The logo as outlines, centred on its ink, filled with the colour of the
-    // break under the circle and edged in that colour's shadow tone, which
-    // keeps the paler pastels (yellow) readable on white.
+    // The logo as outlines, filled with the colour of the break under the
+    // circle, sunk into the bar: its white edge sits a little below it, so it
+    // shows along the letters' lower sides, as on a pressed-in letter lit
+    // from above. Centred across on its ink and up and down on its capitals,
+    // the umlauts riding above.
     const auto font = logoFont ? logoFont->withHeight(kLogoHeight * scale)
                                : juce::Font(juce::FontOptions(logoFace).withHeight(kLogoHeight * scale)
                                                 .withKerningFactor(kLogoKerning));
-    juce::GlyphArrangement glyphs;
-    glyphs.addLineOfText(font, logo(), 0.0f, 0.0f);
-    juce::Path text;
-    glyphs.createPath(text);
-    text.applyTransform(juce::AffineTransform::translation(bar.getCentre() - text.getBounds().getCentre()));
+    auto outline = [&font](const juce::String& s)
+    {
+        juce::GlyphArrangement glyphs;
+        glyphs.addLineOfText(font, s, 0.0f, 0.0f);
+        juce::Path p;
+        glyphs.createPath(p);
+        return p;
+    };
+    auto text = outline(logo());
+    const auto capitals = outline("L").getBounds(); // a capital's height, no accent
+    text.applyTransform(juce::AffineTransform::translation(bar.getCentreX() - text.getBounds().getCentreX(),
+                                                           bar.getCentreY() - capitals.getCentreY()));
+    auto edge = text;
+    edge.applyTransform(juce::AffineTransform::translation(0.0f, 1.5f * scale));
+    g.setColour(white);
+    g.fillPath(edge);
+    g.strokePath(edge, juce::PathStrokeType(juce::jmax(0.8f, 1.0f * scale)));
     g.setColour(logoColour);
     g.fillPath(text);
-    g.setColour(shadowOf(logoColour).withAlpha(0.7f));
-    g.strokePath(text, juce::PathStrokeType(juce::jmax(0.8f, 1.0f * scale)));
 }
 
 void JungleEditor::resized()

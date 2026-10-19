@@ -40,8 +40,8 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
   Voronoi cell, so the shares add up to
   exactly 1 (`src/engine/PadGeometry.h`). Gains are equal power, the square
   root of the share (`jm::equalPower`), so the squared gains add up to 1.
-- The editor palette: `jmui::cream` (#fffaf6) for the pad and its edge,
-  `white` for cell borders and the status bar, `brown` (dark) for other
+- The editor palette: `jmui::cream` (#fffaf6) for the pad and the status
+  bar, `white` for cell borders and the logo's edge, `brown` (dark) for other
   lettering, and the 7 pastel
   `frootLoops` for the breaks, one per similarity cluster
   (`breaks/colours.json`, from `colour_breaks.py`). Shade a colour with
@@ -63,8 +63,8 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
   `addMouseListener`. The pad uses JUCE's unbounded mouse movement instead
   (fine drags run far past the screen edge), and on release puts the
   pointer back on the circle's centre.
-- Pad modifiers: Option (Alt) = 16x slower and immediate; Shift = resize
-  the circle around a pivot; Command (Control on Windows) = mute while
+- Pad modifiers: Option (Alt) = 16x slower and immediate; Shift = size the
+  circle like a knob (right/up bigger, left/down smaller); Command (Control on Windows) = mute while
   held with the pointer over the plugin. Command is global on macOS, hence
   the pointer condition.
 - Continuous parameters need an explicit `NormalisableRange`: the short
@@ -91,6 +91,10 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
   `breaks/colours.json` with `colour_breaks.py` whenever the loops change.
 - Commit every change (see the user's standing request); commit messages:
   imperative subject, body explains the musical/design reasoning.
+- Releases are unsigned for now (`docs/RELEASE.md` has the signing
+  checklist). The plugin codes `Mnro`/`Jngl` never change; the bundle ID is
+  `com.minus.loopbrother`. Windows has never been built yet: keep code
+  portable (no `M_PI`, no POSIX-only calls outside tests/tools).
 - Versioning: from `project(... VERSION)`; patch for small fixes, minor for a
   batch of real changes, major for paradigm steps. Started at 0.1.0.
 
@@ -126,4 +130,8 @@ JM_PAD_CHECK=1 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png      
 
 # AU validation
 auval -v aumu Jngl Mnro
+
+# Release (docs/RELEASE.md): universal Mac installer, unsigned for now;
+# Windows builds on GitHub Actions (.github/workflows/windows.yml)
+sh installer/macos/make_pkg.sh
 ```

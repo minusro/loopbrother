@@ -12,10 +12,8 @@ already wait for (`LoopEngine::kStepBeats`).
   circle as the mouse moves away from the pivot and shrinks it as the mouse
   moves towards it. The pivot starts at the point where the press began,
   and follows the selection while Shift isn't held.
-  - Done as a new parameter, Circle Size (`size`, 0.25x to 4x). Because the
-    pivot sits under the pointer in a plain drag, a Shift-drag can only
-    grow the circle at first. To shrink below the starting size, a Command
-    move first has to put distance between pointer and pivot.
+  - Done as a new parameter, Circle Size (`size`). The pivot was later
+    replaced by a knob: right/up grows the circle, left/down shrinks it.
 - [x] **Mute.** With the clock running, the instrument is muted only while
   Option (Alt on Windows) is held, never as a
   toggle. Letting go unmutes it. Muting and unmuting both wait

@@ -8,13 +8,14 @@ if(APPLE AND NOT CMAKE_OSX_DEPLOYMENT_TARGET)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "" FORCE)
 endif()
 
-project(junglemassive VERSION 0.9.0 LANGUAGES C CXX)
+project(junglemassive VERSION 0.9.1 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 option(JM_BUILD_PLUGIN "Build the JUCE plugin targets" ON)
+option(JM_INSTALL_AFTER_BUILD "Copy the built plugins into the user's plug-in folders (off for release builds)" ON)
 option(JM_BUILD_TESTS  "Build the plain-C++ engine tests" ON)
 set(JM_JUCE_DIR "" CACHE PATH "Local JUCE git checkout to clone 8.0.4 from (empty = GitHub); never modified")
 
@@ -78,31 +79,31 @@ if(JM_BUILD_PLUGIN)
         NAMESPACE   Assets
         SOURCES     ${CMAKE_CURRENT_SOURCE_DIR}/fonts/CherryBombOne-Regular.ttf)
 
-    set(JM_FORMATS VST3)
+    set(JM_FORMATS VST3 Standalone)
     if(APPLE)
-        list(APPEND JM_FORMATS AU Standalone)
+        list(APPEND JM_FORMATS AU)
     endif()
 
     # LÖÖP BRÖTHER (formerly Jungle Massive). The name hosts and files see
     # is ASCII, LOOP BROTHER: the VST3 SDK's moduleinfo.json writer garbles
     # non-ASCII names (each UTF-8 byte sign-extended into its own
     # character), and hosts list plugins from that file. The umlauts are in
-    # the editor's logo. The codes and bundle ID are unchanged, so saved
-    # sessions still find it.
+    # the editor's logo. The codes are unchanged, so saved sessions still find
+    # it; the bundle ID followed the new name before the first release.
     set(JM_PLUGIN_NAME "LOOP BROTHER")
     juce_add_plugin(junglemassive
         COMPANY_NAME                "minus"
         PLUGIN_MANUFACTURER_CODE    Mnro
         PLUGIN_CODE                 Jngl
         PRODUCT_NAME                "${JM_PLUGIN_NAME}"
-        BUNDLE_ID                   "com.minusro.junglemassive"
+        BUNDLE_ID                   "com.minus.loopbrother"
         FORMATS                     ${JM_FORMATS}
         IS_SYNTH                    TRUE
         NEEDS_MIDI_INPUT            TRUE
         NEEDS_MIDI_OUTPUT           FALSE
         VST3_CATEGORIES             Instrument Sampler
         AU_MAIN_TYPE                kAudioUnitType_MusicDevice
-        COPY_PLUGIN_AFTER_BUILD     TRUE)
+        COPY_PLUGIN_AFTER_BUILD     ${JM_INSTALL_AFTER_BUILD})
 
     target_sources(junglemassive PRIVATE
         src/LoopLibrary.cpp
