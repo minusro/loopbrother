@@ -18,7 +18,7 @@ jobs:
   build:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Version
         shell: pwsh
@@ -40,7 +40,7 @@ jobs:
         run: iscc /DVersion=$env:VER "/DArtefacts=$PWD\build\junglemassive_artefacts\Release" /O"$PWD\dist" installer\windows\loopbrother.iss
 
       - name: Upload installer
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: LOOP-BROTHER-${{ env.VER }}-windows
           path: dist/*.exe
