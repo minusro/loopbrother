@@ -9,6 +9,7 @@
 // JM_STYLE_SHEET=<out.png> draws every ring style in every colour instead.
 // JM_LOGO_SHEET=<out.png> JM_LOGO_FONTS=<dir> draws the logo in the current
 // font and in every .ttf/.otf in dir, each in a mock of the status bar.
+// JM_LOGO_FONT=<font file> [JM_LOGO_KERN=<factor>] draws the logo in that font.
 // JM_RIPPLE=1 drags the pad (synthetic events) just before the render, so
 // it shows ripples; JM_TIME_PAINT=1 times the pad's painting and
 // JM_TIME_AUDIO=1 the processor's blocks.
@@ -180,6 +181,17 @@ int main(int argc, char** argv)
     }
     std::unique_ptr<juce::AudioProcessorEditor> ed(proc.createEditor());
     if (argc >= 5) ed->setSize(std::atoi(argv[4]), jmui::JungleEditor::heightFor(std::atoi(argv[4])));
+    if (const char* path = std::getenv("JM_LOGO_FONT"))
+    {
+        juce::MemoryBlock data;
+        juce::File(juce::String::fromUTF8(path)).loadFileAsData(data);
+        if (auto face = juce::Typeface::createSystemTypefaceFor(data.getData(), data.getSize()))
+        {
+            const float kern = std::getenv("JM_LOGO_KERN") ? (float) std::atof(std::getenv("JM_LOGO_KERN")) : 0.0f;
+            if (auto* jed = dynamic_cast<jmui::JungleEditor*>(ed.get()))
+                jed->setLogoFont(juce::Font(juce::FontOptions(face).withHeight(30.0f).withKerningFactor(kern)));
+        }
+    }
 
     // Window resizing, by every route a new size takes. The window is the
     // pad plus a title bar, at a fixed ratio: H(w) is the height for a width,

@@ -117,6 +117,7 @@ JM_RING_STYLE=2 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png     
 JM_STYLE_SHEET=docs/ring-styles.png build/jm_snapshot_artefacts/Release/jm_snapshot  # all styles, all colours
 JM_RIPPLE=1 [JM_RIPPLE_WAIT=ms] / JM_TIME_PAINT=1 / JM_TIME_AUDIO=1               # mid-drag ripple, paint and audio timing
 JM_LOGO_SHEET=docs/logo-fonts.png JM_LOGO_FONTS=<dir> build/jm_snapshot_artefacts/Release/jm_snapshot  # logo font options
+JM_LOGO_FONT=<file.ttf> JM_LOGO_KERN=0.03 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png  # the UI with that logo font
 JM_RESIZE_CHECK=1 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png   # window frame, edge + corner drags
 JM_PAD_CHECK=1 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png      # pad drags (plain/Option/Shift), mute
 
