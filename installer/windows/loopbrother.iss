@@ -1,7 +1,7 @@
 ; Inno Setup script for LÖÖP BRÖTHER on Windows: the VST3 into the
 ; system-wide VST3 folder (C:\Program Files\Common Files\VST3), the app into
 ; Program Files, the logo font's licence beside it. Unsigned for now
-; (installer/README.md). Names here are ASCII, like the files.
+; (docs/RELEASE.md). Names here are ASCII, like the files.
 ;
 ; Build: iscc /DVersion=<m.n.p> /DArtefacts=<...\junglemassive_artefacts\Release> loopbrother.iss
 

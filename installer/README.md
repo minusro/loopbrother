@@ -1,91 +1,52 @@
-# LÖÖP BRÖTHER — releases
+# Installing LÖÖP BRÖTHER
 
-Decided 2026-10-19: releases are **unsigned for now** on both platforms.
-The Mac release is built on the Mac; Windows is built by GitHub Actions.
-The bundle ID is `com.minus.loopbrother`, set before the first release. The
-plugin codes (manufacturer `Mnro`, plugin `Jngl`) never change: saved
-sessions find the plugin by them.
+LÖÖP BRÖTHER is an instrument for macOS and Windows. It comes as a VST3
+plugin and a standalone app, plus an Audio Unit on macOS. In plugin lists
+it appears as **LOOP BROTHER** by **minus**.
+
+The installers aren't signed yet, so macOS and Windows warn you that they
+don't know who made them. The steps below get past those warnings.
 
 ## macOS
 
-```sh
-sh installer/macos/make_pkg.sh            # → dist/LOOP-BROTHER-<version>-macos.pkg
-```
+macOS 11 or later, Apple silicon or Intel.
 
-- Builds a universal release (Apple silicon + Intel) in `build-release/`
-  without touching the plugins installed by the dev build
-  (`-DJM_INSTALL_AFTER_BUILD=OFF`).
-- Checks every binary has both architectures. Seals each bundle with an
-  ad-hoc signature (`codesign --sign -`).
-- Packs one installer with a choice of parts:
-  - the VST3 → `/Library/Audio/Plug-Ins/VST3`;
-  - the Audio Unit → `/Library/Audio/Plug-Ins/Components`;
-  - the app → `/Applications`;
-  - the font licence → `/Library/Application Support/minus/LOOP BROTHER`.
+1. **Download** `LOOP-BROTHER-<version>-macos.pkg` from this folder.
+2. **Open it.** macOS says it can't check the package for malicious
+   software. Click **Done** (not *Move to Bin*).
+3. **Allow it.**
+   - **macOS 15 or later:** open **System Settings → Privacy & Security**,
+     scroll down to the message about `LOOP-BROTHER-….pkg`, click
+     **Open Anyway**, then confirm with your password.
+   - **macOS 14 or earlier:** Control-click (or right-click) the package,
+     choose **Open**, then **Open** again.
+4. **Install.** To leave out a format, click **Customize**. The installer
+   puts:
+   - the VST3 in `/Library/Audio/Plug-Ins/VST3`;
+   - the Audio Unit in `/Library/Audio/Plug-Ins/Components`;
+   - the app in `/Applications`.
+5. **Rescan your plugins** in your DAW, or restart it. Logic Pro checks new
+   Audio Units on its next start.
 
-  Bundles are marked not relocatable, so the installer never "updates" a
-  copy it finds elsewhere instead.
+The plugins and the app then open like any other, without further warnings.
 
-**What users see while it's unsigned:** macOS blocks the downloaded package
-on first open. On macOS 15 and later: try to open it, then System Settings →
-Privacy & Security → *Open Anyway*. On older macOS: right-click → Open.
-Installed plugins aren't quarantined, so hosts load them normally.
+**To uninstall,** delete `LOOP BROTHER.vst3`, `LOOP BROTHER.component` and
+`LOOP BROTHER.app` from the folders above, and the folder
+`/Library/Application Support/minus/LOOP BROTHER`.
 
 ## Windows
 
-`.github/workflows/windows.yml` runs on every push to `main` (and by hand).
-It does four things:
+Windows 10 or 11, 64-bit.
 
-1. Builds the VST3 and the app.
-2. Runs the engine tests.
-3. Packs `installer/windows/loopbrother.iss` with Inno Setup. The VST3 goes
-   to `C:\Program Files\Common Files\VST3`; the app and the font licence go
-   to `C:\Program Files\minus\LOOP BROTHER`.
-4. Uploads `LOOP-BROTHER-<version>-windows.exe` as an artifact.
+1. **Download** `LOOP-BROTHER-<version>-windows.exe` from this folder. If
+   your browser says the file isn't commonly downloaded, choose **Keep**.
+2. **Run it.** When Windows shows *Windows protected your PC*, click
+   **More info**, then **Run anyway**. Allow it to make changes when asked.
+3. **Install.** The installer puts:
+   - the VST3 in `C:\Program Files\Common Files\VST3`;
+   - the app in `C:\Program Files\minus\LOOP BROTHER`, with a Start menu
+     entry.
+4. **Rescan your plugins** in your DAW, or restart it.
 
-This needs the project on GitHub (a private repo is fine). It has never run
-yet; expect the first run to need fixes, since nothing here has been built
-with MSVC.
-
-**What users see while it's unsigned:** SmartScreen warns about an
-unrecognised app: *More info → Run anyway*. DAWs load unsigned VST3s.
-
-## Shipping notes
-
-- The logo font (Cherry Bomb One) is compiled in under the SIL Open Font
-  License: `fonts/OFL-CherryBombOne.txt` ships in both installers and must
-  stay with any other distribution.
-- The breaks in `breaks/` are sampled from records. Distributing them is a
-  rights question separate from signing.
-
-## Signing later: the checklist
-
-**macOS**
-
-1. Join the Apple Developer Program as an individual ($99/year; signs as
-   "Developer ID Application: Daniel Stanciu"). An organisation instead
-   needs a legal entity and a D-U-N-S number, and shows its name. Not the
-   LUMINARY ROLI LIMITED team on this Mac.
-2. Create **Developer ID Application** and **Developer ID Installer**
-   certificates (Xcode → Settings → Accounts → Manage Certificates).
-3. In `make_pkg.sh`, replace the ad-hoc seal:
-   `codesign --force --options runtime --timestamp --sign "Developer ID Application: …"`
-   on each bundle, innermost first. The plugins need no entitlements, and
-   neither does the app while it takes no audio input.
-4. Sign the package with `productsign --sign "Developer ID Installer: …"`.
-5. Notarize: `xcrun notarytool submit dist/….pkg --keychain-profile <profile> --wait`
-   (store the credentials once with `notarytool store-credentials`, from an
-   app-specific password or an App Store Connect API key).
-6. Staple the notarization: `xcrun stapler staple dist/….pkg`.
-
-**Windows**
-
-1. Get a code-signing certificate on hardware or a cloud signing service
-   (required since 2023). Options: Certum (EU individuals, about €100/year),
-   SSL.com eSigner (about $250/year, suits CI), or Azure Trusted Signing
-   (about $10/month, depending on eligibility).
-2. Sign `LOOP BROTHER.exe`, the DLL inside the VST3 bundle, and the
-   installer. Inno Setup's `SignTool=` directive also signs its uninstaller:
-   `signtool sign /fd sha256 /tr <timestamp URL> /td sha256 …`.
-3. SmartScreen warnings fade as downloads build a reputation; EV
-   certificates no longer skip that.
+**To uninstall,** use **Settings → Apps → Installed apps → LOOP BROTHER →
+Uninstall**.
