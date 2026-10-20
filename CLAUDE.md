@@ -103,10 +103,12 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
 - Releases are unsigned for now (`docs/RELEASE.md`: building and the signing
   checklist; `README.md` is for users only: what it is, how to play it,
   how to install it from GitHub Releases). The plugin codes `Mnro`/`Jngl` never change; the bundle ID is
-  `com.minus.loopbrother`. Windows has never been built yet: keep code
+  `com.minus.loopbrother`. Windows builds on GitHub Actions (MSVC): keep code
   portable (no `M_PI`, no POSIX-only calls outside tests/tools).
 - Versioning: from `project(... VERSION)`; patch for small fixes, minor for a
-  batch of real changes, major for paradigm steps. Started at 0.1.0.
+  batch of real changes, major for paradigm steps. Started at 0.1.0. Each
+  release gets an entry in `CHANGELOG.md`: what changed for players since
+  the last release.
 
 ## Quick commands
 

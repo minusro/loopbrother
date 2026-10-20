@@ -1,8 +1,8 @@
 # LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-20 — v0.12.1, the cat sways left and right on the beat
-like a pendulum (no more squish). v0.9.1 is
-released (github.com/minusro/loopbrother/releases).
+Updated: 2026-10-20 — v0.12.2 tagged for release; what changed since
+v0.9.1 is in `CHANGELOG.md`. v0.9.1 is the last published release
+(github.com/minusro/loopbrother/releases).
 
 ## Where things stand
 

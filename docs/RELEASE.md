@@ -16,7 +16,8 @@ sessions find the plugin by them.
 sh installer/release.sh       # → GitHub release v<version>
 ```
 
-1. Bump `project(... VERSION)`, then commit and push.
+1. Bump `project(... VERSION)` and add the release to `CHANGELOG.md`, then
+   commit and push.
 2. Run the script. It checks you're logged in to the GitHub CLI and that
    everything is committed and pushed. Then it builds the Mac installer
    (below) and creates release `v<version>` on that commit, with the
@@ -65,8 +66,7 @@ release:
 4. Uploads `LOOP-BROTHER-<version>-windows.exe` as an artifact.
 5. For a release, attaches it to the release.
 
-It hasn't succeeded yet; expect the first runs to need fixes, since nothing
-here has been built with MSVC.
+It builds with MSVC in about six minutes.
 
 **While it's unsigned,** SmartScreen warns about an unrecognised app until
 the user clicks past it (steps in `README.md`). DAWs load unsigned

@@ -8,7 +8,7 @@ if(APPLE AND NOT CMAKE_OSX_DEPLOYMENT_TARGET)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "" FORCE)
 endif()
 
-project(junglemassive VERSION 0.12.1 LANGUAGES C CXX)
+project(junglemassive VERSION 0.12.2 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -73,8 +73,8 @@ if(JM_BUILD_PLUGIN)
                     ${CMAKE_CURRENT_SOURCE_DIR}/breaks/colours.json)
 
     # The logo's font, compiled in so it looks the same everywhere (SIL Open
-    # Font License: fonts/OFL-CherryBombOne.txt), and the cat that rises
-    # behind the bowl (cut out of docs/loops cat.jpg).
+    # Font License: fonts/OFL-CherryBombOne.txt), and the cat that comes up
+    # over the logo (cut out of docs/loops cat.jpg).
     juce_add_binary_data(jm_assets
         HEADER_NAME Assets.h
         NAMESPACE   Assets
