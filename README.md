@@ -1,6 +1,6 @@
 # LÖÖP BRÖTHER
 
-A drum-break instrument by **minus**: 97 classic breaks laid out on a pad by
+A drum break instrument: 97 classic breaks laid out on a pad by
 how they sound, played in time with your song. Move the circle across the
 pad and the breaks under it play together, blended by how much of each one
 it covers, always in sync with your DAW's tempo. It works as a VST3 plugin
