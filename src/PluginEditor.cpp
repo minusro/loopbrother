@@ -9,28 +9,6 @@ XYPad::XYPad(JungleProcessor& p) : proc(p), lib(p.library())
     px = p.apvts.getParameter("x");
     py = p.apvts.getParameter("y");
     psize = p.apvts.getParameter("size");
-
-    // Which cells meet at each corner of each cell: the ones whose breaks
-    // are nearest to it (a Voronoi corner is equally far from all of them).
-    for (const auto& poly : lib.cells())
-    {
-        std::vector<std::vector<int>> owners;
-        for (const auto& v : poly)
-        {
-            double nearest = std::numeric_limits<double>::max();
-            std::vector<double> dist;
-            for (int i = 0; i < lib.size(); ++i)
-            {
-                dist.push_back(std::hypot(v.x - lib.entry(i).pos.x, v.y - lib.entry(i).pos.y));
-                nearest = std::min(nearest, dist.back());
-            }
-            std::vector<int> meet;
-            for (int i = 0; i < lib.size(); ++i)
-                if (dist[(size_t) i] < nearest + 1e-5) meet.push_back(i);
-            owners.push_back(std::move(meet));
-        }
-        corners.push_back(std::move(owners));
-    }
 }
 
 XYPad::~XYPad()
@@ -49,23 +27,6 @@ juce::Point<float> XYPad::toUnit(juce::Point<float> s) const
 {
     return { juce::jlimit(0.0f, 1.0f, s.x / (float) getWidth()),
              juce::jlimit(0.0f, 1.0f, 1.0f - s.y / (float) getHeight()) };
-}
-
-void XYPad::resized()
-{
-    cellPaths.clear();
-    for (const auto& poly : lib.cells())
-    {
-        juce::Path path;
-        for (size_t i = 0; i < poly.size(); ++i)
-        {
-            const auto s = toScreen({ (float) poly[i].x, (float) poly[i].y });
-            if (i == 0) path.startNewSubPath(s);
-            else        path.lineTo(s);
-        }
-        path.closeSubPath();
-        cellPaths.push_back(std::move(path));
-    }
 }
 
 void XYPad::refresh()
@@ -101,43 +62,18 @@ void XYPad::paint(juce::Graphics& g)
     g.fillAll(cream);
     sprites.configure(kRingRadius * scale, g.getInternalContext().getPhysicalPixelScaleFactor(), *style);
 
-    // Where everything is drawn: the layout, moved by the ripples. A pushed
-    // cell's O moves with it; a border corner moves by the average of
-    // the cells that meet there, so the borders bend but never come apart.
+    // How far the ripples have moved each cell (pad units).
     const double now = juce::Time::getMillisecondCounterHiRes() / 1000.0;
     const bool rippling = ! drops.empty();
     std::vector<juce::Point<float>> shift((size_t) lib.size());
     if (rippling)
         for (int i = 0; i < lib.size(); ++i) shift[(size_t) i] = cellShift(i, now);
-    std::vector<juce::Path> rippled;
-    if (rippling)
-        for (size_t c = 0; c < lib.cells().size(); ++c)
-        {
-            const auto& poly = lib.cells()[c];
-            juce::Path path;
-            for (size_t i = 0; i < poly.size(); ++i)
-            {
-                juce::Point<float> d;
-                for (const int m : corners[c][i]) d += shift[(size_t) m];
-                d /= (float) juce::jmax<size_t>(1, corners[c][i].size());
-                const auto s = toScreen(juce::Point<float> { (float) poly[i].x, (float) poly[i].y } + d);
-                if (i == 0) path.startNewSubPath(s);
-                else        path.lineTo(s);
-            }
-            path.closeSubPath();
-            rippled.push_back(std::move(path));
-        }
-    const auto& cells = rippling ? rippled : cellPaths;
 
-    // cells under the circle, washed in their break's colour by their share
+    // The cells under the circle: only their rings show it, the cells
+    // themselves look like any other.
     std::vector<char> covered((size_t) lib.size(), 0);
     for (int m = 0; m < mixCount; ++m)
-        if (mix[m].loop >= 0 && mix[m].loop < (int) cells.size())
-        {
-            covered[(size_t) mix[m].loop] = 1;
-            g.setColour(frootLoop(lib.entry(mix[m].loop).colour).withAlpha(0.10f + 0.35f * mix[m].weight));
-            g.fillPath(cells[(size_t) mix[m].loop]);
-        }
+        if (mix[m].loop >= 0 && mix[m].loop < lib.size()) covered[(size_t) mix[m].loop] = 1;
     // A small O on every cell the circle doesn't cover. Pushed by a ripple,
     // it squashes along the push, up to kBob, like a ring tipping as it bobs
     // in milk, and swings across and along it a few times as it settles.

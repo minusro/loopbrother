@@ -1,8 +1,9 @@
 # LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-20 — v0.13.0: the logo is pressed into the bowl in a
-deeper biscuit, the ripples swing as long as the rings bob, and resizing
-the circle ripples the cells round its edge. v0.12.2 is the last published
+Updated: 2026-10-20 — v0.13.1: the logo is pressed into the bowl in a
+deeper biscuit, the ripples swing as long as the rings bob, resizing the
+circle ripples the cells round its edge, and covered cells are no longer
+tinted. v0.12.2 is the last published
 release (github.com/minusro/loopbrother/releases; `CHANGELOG.md`).
 
 ## Where things stand
@@ -141,8 +142,9 @@ bundle ID are unchanged, so saved sessions find it.
   - **Hosts that ignore the constraint:** off-ratio sizes are corrected
     afterwards by the same rules.
 
-  No cell borders are drawn. Covered cells take a wash of their break's
-  colour by share and carry a cereal ring (a Froot Loop: a thick ring,
+  No cell borders or washes are drawn: the cells themselves all look the
+  same (until v0.13.0 covered cells took a wash of their break's colour by
+  share). Covered cells carry a cereal ring (a Froot Loop: a thick ring,
   8.5 px radius at 480); every other cell carries a small one at half that
   (4.25 px), drawn from the same sprites. The look is a `jmui::RingStyle`
   (`src/Cereal.{h,cpp}`); `kRingStyles` holds nine to try
@@ -181,8 +183,7 @@ bundle ID are unchanged, so saved sessions find it.
   swings back (up to 20% flatter, tanh of the push over 0.006 of the pad),
   the pushes added as vectors at twice their axis's angle so pushes either
   way along an axis add up and a swing across turns the axis a quarter
-  (`XYPad::cellBob`); the rings under the circle hold still. A covered cell's wash moves with its
-  corners, each the average of the cells meeting there. While the circle
+  (`XYPad::cellBob`); the rings under the circle hold still. While the circle
   crosses a cell the pushes add up and it leans forward; once passed, it swings to rest. A cell
   moves at most 0.014 of the pad (7 px at 480); a slow drag moves it 2 to
   3 px. 60 Hz while any run. Drawing only: the sound follows the true
@@ -192,7 +193,7 @@ bundle ID are unchanged, so saved sessions find it.
   keeping its loudest moment so no hit falls between readings, scaled to
   the loop's peak) and read at the playhead the processor publishes; the
   pad repaints at 60 Hz so the snap shows. The selection circle itself is not
-  drawn - the washed cells show what it covers. Over the pad the pointer
+  drawn: the full-size rings show what it covers. Over the pad the pointer
   is the default arrow. (`jmui::HideCursorWhileDragging` hides it on future
   knobs and sliders.)
 - **Playback** (`src/engine/LoopEngine.h`): the mix, every loop varispeed at
@@ -296,11 +297,11 @@ bundle ID are unchanged, so saved sessions find it.
 
 ## Not yet verified
 
-- Painting at 1440 px with the largest circle takes 45 to 50 ms a frame
-  in JUCE's software renderer (7 at 480; the drag's wake adds about 3.4 ms
-  at 480). On screen macOS draws through Core Graphics, likely faster, but
-  it hasn't been timed there. The cost is the area: the cell washes and
-  2 px borders scale with the window.
+- Painting at 1440 px with the largest circle takes about 20 to 30 ms a
+  frame in JUCE's software renderer (about 2 at 480), depending on where
+  the circle is; ripples add little. On screen macOS draws through Core
+  Graphics, likely faster, but it hasn't been timed there. The cost is
+  the big rings' sprites, which scale with the window.
 
 - No DAW testing: Ableton/Logic/Bitwig transport, loop regions, tempo
   automation, state recall, many instances, window resizing (it relies on

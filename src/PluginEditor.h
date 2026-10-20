@@ -67,7 +67,7 @@ inline float bowlLip(float x, float w, float scale, float inside = 0.0f)
 // a small ring, half the size of one at rest.
 //
 // Dragging pushes the cells the circle's centre passes through (their
-// washes and small rings) a few pixels the way it goes, and the cells
+// small rings) a few pixels the way it goes, and the cells
 // beside its path outwards, like a wake in liquid; growing or shrinking the
 // circle (Shift) pushes the cells round its edge outwards or inwards. A
 // pushed cell swings back past where it was and out again a few times,
@@ -86,7 +86,6 @@ public:
     ~XYPad() override;
     void refresh();                         // poll params + playback state (30 Hz)
     void paint(juce::Graphics&) override;
-    void resized() override;
     void mouseDown(const juce::MouseEvent&) override;
     void mouseDrag(const juce::MouseEvent&) override;
     void mouseUp(const juce::MouseEvent&) override;
@@ -151,8 +150,6 @@ private:
     Voice voices[kMaxMix] {};               // what is sounding
     int voiceCount = 0;
 
-    std::vector<juce::Path> cellPaths;      // in component pixels
-    std::vector<std::vector<std::vector<int>>> corners; // per cell, per corner: the cells meeting there
 };
 
 // The window's constrainer: a fixed ratio, an edge drag follows that edge, a corner

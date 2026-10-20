@@ -13,6 +13,8 @@ are on the [Releases](https://github.com/minusro/loopbrother/releases) page.
   of settling after one push.
 - Growing or shrinking the circle (Shift-drag) ripples the cells round
   its edge outwards or inwards, bobbing the same way.
+- The cells under the circle are no longer tinted: their full-size rings
+  alone show what it covers.
 
 ## v0.12.2 — 2026-10-20
 
