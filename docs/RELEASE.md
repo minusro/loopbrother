@@ -19,9 +19,10 @@ sh installer/release.sh       # → GitHub release v<version>
 1. Bump `project(... VERSION)` and add the release to `CHANGELOG.md`, then
    commit and push.
 2. Run the script. It checks you're logged in to the GitHub CLI and that
-   everything is committed and pushed. Then it builds the Mac installer
-   (below) and creates release `v<version>` on that commit, with the
-   installer attached.
+   everything is committed and pushed, and that `CHANGELOG.md` has an
+   entry for the version. Then it builds the Mac installer (below) and
+   creates release `v<version>` on that commit, with the installer
+   attached and the changelog entry as its notes.
 3. Publishing the release starts the Windows workflow. A few minutes later
    it attaches `LOOP-BROTHER-<version>-windows.exe` to the same release; it
    refuses if the tag doesn't match the version.
