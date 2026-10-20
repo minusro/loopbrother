@@ -1,8 +1,9 @@
 # LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-20 — v0.12.2 tagged for release; what changed since
-v0.9.1 is in `CHANGELOG.md`. v0.9.1 is the last published release
-(github.com/minusro/loopbrother/releases).
+Updated: 2026-10-20 — v0.13.0: the logo is pressed into the bowl in a
+deeper biscuit, the ripples swing as long as the rings bob, and resizing
+the circle ripples the cells round its edge. v0.12.2 is the last published
+release (github.com/minusro/loopbrother/releases; `CHANGELOG.md`).
 
 ## Where things stand
 
@@ -72,9 +73,10 @@ bundle ID are unchanged, so saved sessions find it.
 - **Logo**: "LÖÖP BRÖTHER" in Cherry Bomb One (`fonts/`, compiled in as
   `jm_assets`, SIL Open Font License in `fonts/OFL-CherryBombOne.txt`, which
   has to ship with the installers), 38 px at 480 to match the old logo's
-  ink height, spacing 0. It takes the colour of the break whose cell the
-  circle's centre is in, fading to a new one over 0.1 s round the hue wheel (saturation and brightness kept, so a pastel
-  doesn't grey halfway as an RGB mix does), sunk into the bowl: a white copy sits under it, lower by a quarter of the
+  ink height, spacing 0. It's pressed into the bowl: filled in
+  `jmui::biscuitShade` (#e1d9cf, the bowl's biscuit 10% darker and a touch
+  more saturated so it stays warm; until v0.12.2 it took the colour of the
+  break under the circle), with a white copy under it, lower by a quarter of the
   thickness of its O's bottom (measured from the font: 1.3 px at 480), so a
   thin white edge shows along the letters' lower sides like a pressed-in
   letter lit from above. Set letter by letter with its baseline on the
@@ -165,18 +167,23 @@ bundle ID are unchanged, so saved sessions find it.
   push as long as it moved, for the cells along that stretch (sampled
   every 0.004 of the pad, so a fast move catches every cell it crosses)
   and, at 1.5 times that, for the cells around it, falling off with their
-  distance from the stretch (Gaussian, 0.1 of the pad; none past 0.2). Each such cell feels it once, as a single sin^2
-  swell out and back to rest (0.22 s, never below zero, so nothing swings
-  back and forth): its small ring moves with it and squashes along the
-  push (up to 20% flatter, tanh of the push over 0.006 of the pad), like
-  a ring tipping as it bobs in milk. The ring bobs on after its cell is
-  back: each push is a damped sine, four half-swings of 0.22 s (the first
-  with the push, then across it, along, across), dying away over 0.45 s,
+  distance from the stretch (Gaussian, 0.1 of the pad; none past 0.2).
+  Resizing the circle (Shift) does the same round its edge
+  (`XYPad::addSizeDrop`): every 60 ms or so, the cells outside the circle
+  within 0.2 of its edge are pushed straight away from its centre by 1.5
+  times as far as the edge went out, or towards it as far as it came in,
+  falling off with their distance from the edge (the same Gaussian). Each
+  push is a damped sine (`rippleSwing`): four half-swings of 0.22 s, out
+  with the push, back past where the cell was, out, back, dying away over
+  0.45 s, so a cell bobs as if in milk (until v0.12.2 it was a single sin^2
+  swell out and back, never past). The cell's small ring moves with it and
+  squashes in step, along the push on the swings out and across it on the
+  swings back (up to 20% flatter, tanh of the push over 0.006 of the pad),
   the pushes added as vectors at twice their axis's angle so pushes either
   way along an axis add up and a swing across turns the axis a quarter
   (`XYPad::cellBob`); the rings under the circle hold still. A covered cell's wash moves with its
   corners, each the average of the cells meeting there. While the circle
-  crosses a cell it keeps leaning forward; once passed, it settles. A cell
+  crosses a cell the pushes add up and it leans forward; once passed, it swings to rest. A cell
   moves at most 0.014 of the pad (7 px at 480); a slow drag moves it 2 to
   3 px. 60 Hz while any run. Drawing only: the sound follows the true
   cells. The meter

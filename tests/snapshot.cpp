@@ -11,7 +11,8 @@
 // font and in every .ttf/.otf in dir, each in a mock of the status bar.
 // JM_LOGO_FONT=<font file> [JM_LOGO_KERN=<factor>] draws the logo in that font.
 // JM_RIPPLE=1 drags the pad (synthetic events) just before the render, so
-// it shows ripples; JM_TIME_PAINT=1 times the pad's painting and
+// it shows ripples (JM_RIPPLE=size grows the circle instead, as a Shift
+// drag does); JM_TIME_PAINT=1 times the pad's painting and
 // JM_TIME_AUDIO=1 the processor's blocks.
 // JM_PAD_CHECK=1 drives the pad with synthetic mouse events (plain, Option
 // and Shift drags) and checks the parameters they set, and the mute.
@@ -359,19 +360,23 @@ int main(int argc, char** argv)
         proc.setFineDrag(false);
 
         // Ripples: dragging right pushes the cells the circle's centre
-        // crossed right, once, and they come back to rest: never pushed the
-        // other way (no ping-pong), still at the end. The nearest cell beside
-        // the path is pushed straight outwards and back; a cell well away
-        // from it never moves. A crossed cell's O bobs on after it's back:
-        // squashed along the drag, then across it, round by the end.
+        // crossed right, and they swing back past where they were and out
+        // again, dying away, still at the end. The nearest cell beside the
+        // path is pushed straight outwards and swings back in; a cell well
+        // away from it never moves. The crossed cells' Os squash along the
+        // drag and across it in step with the swings: the motion and the
+        // squash go on as long as each other, well past the drag, and are
+        // over by the end.
         {
             juce::Thread::sleep(1000); // the earlier drags' pushes settle first
             pad->mouseDown(ev(100, 300, 0));
             const double start = juce::Time::getMillisecondCounterHiRes() / 1000.0;
+            float dragEnd = 0.0f;
             for (int i = 1; i <= 5; ++i)
             {
                 juce::Thread::sleep(70);
                 pad->mouseDrag(ev(100.0f + 12.0f * i, 300, 0));
+                dragEnd = (float) (juce::Time::getMillisecondCounterHiRes() / 1000.0 - start);
             }
             proc.setPadHeld(false);
             const auto& lib = proc.library();
@@ -388,40 +393,36 @@ int main(int argc, char** argv)
             {
                 if (std::find(crossed.begin(), crossed.end(), i) != crossed.end()) continue;
                 const auto p = lib.entry(i).pos;
-                const float px = juce::jlimit(100.0f / w, 160.0f / w, p.x);
-                const float d = juce::Point<float> { px, y }.getDistanceFrom(p);
+                const float onPath = juce::jlimit(100.0f / w, 160.0f / w, p.x);
+                const float d = juce::Point<float> { onPath, y }.getDistanceFrom(p);
                 if (d < besideDist) { besideDist = d; beside = i; }
             }
             int far = -1; // a break well away from the path
             for (int i = 0; i < lib.size() && far < 0; ++i)
             {
                 const auto p = lib.entry(i).pos;
-                const float px = juce::jlimit(100.0f / w, 160.0f / w, p.x);
-                if (juce::Point<float> { px, y }.getDistanceFrom(p) > 0.25f) far = i;
+                const float onPath = juce::jlimit(100.0f / w, 160.0f / w, p.x);
+                if (juce::Point<float> { onPath, y }.getDistanceFrom(p) > 0.25f) far = i;
             }
             const float outwards = lib.entry(beside).pos.y >= y ? 1.0f : -1.0f; // its side of the path (pad y is up)
             float most = 0.0f, against = 0.0f, across = 0.0f, last = 0.0f;
             float out = 0.0f, inwards = 0.0f, sideways = 0.0f, still = 0.0f;
-            float bobAlong = 0.0f, bobAcross = 0.0f, bobAfter = 0.0f, bobLast = 0.0f;
+            float bobAlong = 0.0f, bobAcross = 0.0f, bobLast = 0.0f, moveEnd = 0.0f, bobEnd = 0.0f;
             for (double t = 0.0; t < 2.0; t += 0.005)
             {
-                bool moving = false;
-                for (const int c : crossed) moving |= pad->cellShift(c, start + t).getDistanceFromOrigin() > 1e-6f;
                 for (const int c : crossed)
                 {
                     float axis = 0.0f;
                     const float squash = 1.0f - pad->cellBob(c, start + t, axis);
                     const bool along = std::abs(std::cos(axis)) > std::abs(std::sin(axis)); // the drag went right
                     (along ? bobAlong : bobAcross) = std::max(along ? bobAlong : bobAcross, squash);
-                    if (! moving && t > 0.1) bobAfter = std::max(bobAfter, squash);
+                    if (squash > 1e-3f) bobEnd = (float) t;
                     if (t > 1.9) bobLast = std::max(bobLast, squash);
-                }
-                for (const int c : crossed)
-                {
                     const auto d = pad->cellShift(c, start + t);
                     most = std::max(most, d.x);
                     against = std::min(against, d.x);
                     across = std::max(across, std::abs(d.y)); // beside the path's other steps, they're pushed out too
+                    if (d.getDistanceFromOrigin() * w > 0.01f) moveEnd = (float) t;
                     if (t > 1.9) last = std::max(last, d.getDistanceFromOrigin());
                 }
                 const auto b = pad->cellShift(beside, start + t);
@@ -431,19 +432,86 @@ int main(int argc, char** argv)
                 if (t > 1.9) last = std::max(last, b.getDistanceFromOrigin());
                 still = std::max(still, pad->cellShift(far, start + t).getDistanceFromOrigin());
             }
-            std::printf("  ripple: %zu crossed cells pushed up to %.2f px right, %.4f px back, %.4f px across;"
-                        " the nearest cell beside (%.0f px off) %.2f px outwards, %.4f px in, %.4f px along;"
-                        " %.4f px at the end; a far cell %.4f px\n",
+            std::printf("  ripple: %zu crossed cells pushed up to %.2f px right and swinging %.2f px back, %.2f px"
+                        " across; the nearest cell beside (%.0f px off) %.2f px outwards and %.2f px back in, %.4f px"
+                        " along; %.4f px at the end; a far cell %.4f px\n",
                         crossed.size(), most * w, -against * w, across * w, besideDist * w, out * w, -inwards * w,
                         sideways * w, last * w, still * w);
-            std::printf("  bob: squashed up to %.2f along the drag, %.2f across it, %.2f once the cells are back,"
-                        " %.4f at the end\n", bobAlong, bobAcross, bobAfter, bobLast);
-            ok &= most * w > 1.0f && against > -1e-6f && out * w > 0.8f && inwards > -1e-6f
+            std::printf("  bob: squashed up to %.2f along the drag and %.2f across it; after the drag (%.2f s) the cells"
+                        " move for %.2f s and squash for %.2f s; %.4f at the end\n", bobAlong, bobAcross, dragEnd,
+                        moveEnd - dragEnd, bobEnd - dragEnd, bobLast);
+            ok &= most * w > 1.0f && -against * w > 0.2f && out * w > 0.8f && -inwards * w > 0.1f
                   && sideways < 1e-4f && last < 1e-6f && still < 1e-6f
-                  && bobAlong > 0.1f && bobAlong <= jmui::XYPad::kBob + 1e-4f && bobAcross > 0.02f && bobAfter > 0.02f
-                  && bobLast < 1e-6f;
+                  && bobAlong > 0.1f && bobAlong <= jmui::XYPad::kBob + 1e-4f && bobAcross > 0.02f && bobLast < 1e-6f
+                  && moveEnd - dragEnd > 0.5f && std::abs(moveEnd - bobEnd) < 0.15f;
 
             proc.setPadHeld(false);
+        }
+
+        // Resizing ripples too: growing the circle (Shift) pushes the cell
+        // just outside its new edge straight away from the centre, and it
+        // swings back in past where it was; shrinking pulls the cell just
+        // outside the new edge in first. A cell well outside never moves.
+        {
+            const auto& lib = proc.library();
+            auto* sizeParam = proc.apvts.getParameter("size");
+            // The cell nearest the circle's edge outside it, a cell well
+            // outside, and how far a cell moves along the radius over 2 s.
+            auto nearest = [&](float radius, float beyond)
+            {
+                int best = -1;
+                float bestOff = 1e9f;
+                for (int i = 0; i < lib.size(); ++i)
+                {
+                    const float off = lib.entry(i).pos.getDistanceFrom(pad->circleCentre()) - radius;
+                    if (off >= beyond && off < bestOff) { bestOff = off; best = i; }
+                }
+                return best;
+            };
+            auto radial = [&](int cell, double from, float& outMost, float& inMost, float& first)
+            {
+                const auto out = (lib.entry(cell).pos - pad->circleCentre()) / lib.entry(cell).pos.getDistanceFrom(pad->circleCentre());
+                outMost = inMost = first = 0.0f;
+                for (double t = 0.0; t < 2.0; t += 0.005)
+                {
+                    const float r = pad->cellShift(cell, from + t).getDotProduct(out) * w;
+                    outMost = std::max(outMost, r);
+                    inMost = std::min(inMost, r);
+                    if (juce::exactlyEqual(first, 0.0f) && std::abs(r) > 0.05f) first = r;
+                }
+            };
+            auto resize = [&](float by) // Shift-drag five 10 px steps, a push each
+            {
+                juce::Thread::sleep(1000); // earlier pushes settle first
+                pad->mouseDown(ev(240, 240, 0));
+                const double from = juce::Time::getMillisecondCounterHiRes() / 1000.0;
+                for (int i = 1; i <= 5; ++i)
+                {
+                    juce::Thread::sleep(70);
+                    pad->mouseDrag(ev(240.0f + by * (float) i, 240, Mods::shiftModifier));
+                }
+                proc.setPadHeld(false);
+                return from;
+            };
+            sizeParam->setValueNotifyingHost(sizeParam->convertTo0to1(3.0f));
+            const double grown = resize(10.0f);
+            const float big = (float) jm::circleRadius(pad->circleSize());
+            const int edge = nearest(big, 0.0f), far = nearest(big, 0.25f);
+            float growOut, growIn, growFirst, farOut, farIn, farFirst;
+            radial(edge, grown, growOut, growIn, growFirst);
+            radial(far, grown, farOut, farIn, farFirst);
+            const double shrunk = resize(-10.0f);
+            const float small = (float) jm::circleRadius(pad->circleSize());
+            const int edge2 = nearest(small, 0.0f);
+            float shrinkOut, shrinkIn, shrinkFirst;
+            radial(edge2, shrunk, shrinkOut, shrinkIn, shrinkFirst);
+            std::printf("  resize ripple: growing to %.0f px, the nearest cell outside (%.0f px out) %.2f px out, %.2f px"
+                        " back in; shrinking to %.0f px, the nearest outside (%.0f px out) %.2f px %s first, up to"
+                        " %.2f px in; a far cell %.4f px\n", big * w, (lib.entry(edge).pos.getDistanceFrom(pad->circleCentre()) - big) * w,
+                        growOut, -growIn, small * w, (lib.entry(edge2).pos.getDistanceFrom(pad->circleCentre()) - small) * w,
+                        std::abs(shrinkFirst), shrinkFirst < 0.0f ? "in" : "out", -shrinkIn, std::max(farOut, -farIn));
+            ok &= growOut > 0.5f && growFirst > 0.0f && growIn < -0.1f && shrinkFirst < 0.0f && shrinkIn < -0.5f
+                  && farOut < 1e-6f && farIn > -1e-6f;
         }
 
         // The cat: up over the logo once the circle is at its largest, back
@@ -521,18 +589,6 @@ int main(int argc, char** argv)
             ok &= ! corner && middle;
         }
 
-        // The logo's colour fade keeps its saturation: halfway from pastel
-        // red to pastel blue round the hue wheel, where an RGB mix greys.
-        {
-            float h, s1, s2, smid, srgb, v;
-            jmui::frootLoop(0).getHSB(h, s1, v);
-            jmui::frootLoop(4).getHSB(h, s2, v);
-            jmui::JungleEditor::blendHues(jmui::frootLoop(0), jmui::frootLoop(4), 0.5f).getHSB(h, smid, v);
-            jmui::frootLoop(0).interpolatedWith(jmui::frootLoop(4), 0.5f).getHSB(h, srgb, v);
-            std::printf("  logo fade: saturation %.2f and %.2f at the ends, %.2f halfway (an RGB mix: %.2f)\n", s1, s2, smid, srgb);
-            ok &= std::abs(smid - 0.5f * (s1 + s2)) < 0.01f && srgb < smid - 0.1f;
-        }
-
         // Command over the plugin (the editor's part, faked here): silent
         // from the next block, playing again from the next block once let go.
         // With the clock running, and with it stopped during an audition (the
@@ -574,21 +630,25 @@ int main(int argc, char** argv)
             if (const char* st = std::getenv("JM_RING_STYLE"))
                 pad->setRingStyle(jmui::kRingStyles[juce::jlimit(0, jmui::kNumRingStyles - 1, std::atoi(st))]);
             pad->refresh();
-            if (std::getenv("JM_RIPPLE"))
+            if (const char* ripple = std::getenv("JM_RIPPLE"))
             {
+                const bool sizing = juce::String(ripple) == "size";
                 const auto now = juce::Time::getCurrentTime();
-                auto ev = [&](float x, float y)
+                auto ev = [&](float x, float y, int mods)
                 {
                     return juce::MouseEvent(juce::Desktop::getInstance().getMainMouseSource(), { x, y },
-                                            juce::ModifierKeys(juce::ModifierKeys::leftButtonModifier), 0.0f, 0.0f, 0.0f,
-                                            0.0f, 0.0f, pad, pad, now, { x, y }, now, 1, true);
+                                            juce::ModifierKeys(juce::ModifierKeys::leftButtonModifier | mods), 0.0f, 0.0f,
+                                            0.0f, 0.0f, 0.0f, pad, pad, now, { x, y }, now, 1, true);
                 };
                 const float w = (float) pad->getWidth();
-                pad->mouseDown(ev(0.30f * w, 0.55f * w));
+                pad->mouseDown(ev(0.30f * w, 0.55f * w, 0));
                 for (int i = 1; i <= 8; ++i)
                 {
                     juce::Thread::sleep(70);
-                    pad->mouseDrag(ev((0.30f + 0.03f * i) * w, (0.55f - 0.012f * i) * w));
+                    if (sizing) // Shift: the circle's radius grows by 0.02 of the pad a step
+                        pad->mouseDrag(ev((0.30f + 0.02f * i) * w, 0.55f * w, juce::ModifierKeys::shiftModifier));
+                    else
+                        pad->mouseDrag(ev((0.30f + 0.03f * i) * w, (0.55f - 0.012f * i) * w, 0));
                 }
                 juce::MessageManager::getInstance()->runDispatchLoopUntil(std::getenv("JM_RIPPLE_WAIT") ? std::atoi(std::getenv("JM_RIPPLE_WAIT")) : 250); // the ripples move on
                 proc.setPadHeld(false);

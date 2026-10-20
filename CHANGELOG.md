@@ -3,6 +3,17 @@
 What changed for players in each release of LÖÖP BRÖTHER. The installers
 are on the [Releases](https://github.com/minusro/loopbrother/releases) page.
 
+## Unreleased
+
+- The logo is pressed into the bowl: a slightly darker shade of the bowl,
+  with its white edge below. It no longer takes the colour of the break
+  under the circle.
+- The ripples last as long as the rings' bobbing: a pushed cell swings
+  back past where it was and out again a few times, dying away, instead
+  of settling after one push.
+- Growing or shrinking the circle (Shift-drag) ripples the cells round
+  its edge outwards or inwards, bobbing the same way.
+
 ## v0.12.2 — 2026-10-20
 
 Everything since v0.9.1.

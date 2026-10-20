@@ -171,24 +171,32 @@ void XYPad::paint(juce::Graphics& g)
 // ---------------------------------------------------------------- ripples
 // Each step of a drag pushes the cells the circle's centre passed through
 // since the last step the way the circle went, and the cells beside that
-// stretch outwards, away from it, as a wake: a single smooth swell out and
-// back to rest (sin^2, never below zero, so nothing swings past and back).
-// While the circle crosses a cell it keeps leaning forward; once it has
-// passed, the cell settles. Pad units and seconds: kRipplePush is how far a
-// crossed cell moves per unit the circle moved, kRippleMax the most any
-// cell moves; cells beside the path get kSidePush of that, straight
-// outwards, falling off with their distance from the stretch, across it and
-// past its ends (kSideWidth), none beyond kSideReach.
-//
-// A pushed small O bobs longer than its cell moves: it squashes along the
-// push as the cell goes out and back, then across it, then along it again,
-// kBobSwings swings in all, each as long as the push and dying away over
-// kBobDecay seconds.
+// stretch outwards, away from it, as a wake. Each step of a resize (Shift)
+// pushes the cells outside the circle round its edge straight away from
+// its centre as far as the edge went out, or towards it as far as it came
+// in. A pushed cell bobs as if in milk: out with the push, back past where
+// it was, out again, kRippleSwings half-swings of kRippleSwell seconds,
+// dying away over kRippleDecay, and its small O squashes along the push and
+// across it in step (cellBob). While the circle keeps crossing a cell the
+// pushes add up and it leans forward; once passed, it swings to rest. Pad
+// units: kRipplePush is how far a crossed cell moves per unit the circle
+// moved, kRippleMax the most any cell moves; cells beside the path or round
+// the edge get kSidePush of that, falling off with their distance from the
+// stretch (across it and past its ends) or from the edge (kSideWidth), none
+// beyond kSideReach.
 constexpr float kRippleSwell = 0.22f, kRipplePush = 0.14f, kRippleMax = 0.014f;
 constexpr float kSidePush = 1.5f, kSideWidth = 0.1f, kSideReach = 0.2f;
-constexpr int   kBobSwings = 4;
-constexpr float kBobDecay = 0.45f;
-constexpr float kRippleLife = kBobSwings * kRippleSwell; // a drop lasts as long as its bobbing
+constexpr int   kRippleSwings = 4;
+constexpr float kRippleDecay = 0.45f;
+constexpr float kRippleLife = kRippleSwings * kRippleSwell;
+
+// Where a push has its cell t seconds after it, as a share of the push: a
+// damped sine, 0 at the start and at the end of each half-swing.
+static float rippleSwing(float t)
+{
+    if (t <= 0.0f || t >= kRippleLife) return 0.0f;
+    return std::sin(juce::MathConstants<float>::pi * t / kRippleSwell) * std::exp(-t / kRippleDecay);
+}
 
 int XYPad::cellAt(juce::Point<float> u) const
 {
@@ -232,10 +240,33 @@ void XYPad::addDrop(juce::Point<float> from, juce::Point<float> to)
             drop.pushes.push_back({ i, across * ((off >= 0.0f ? 1.0f : -1.0f) * length * kSidePush * fall) });
         }
     }
+    ripple(std::move(drop), now);
+    lastDropAt = to;
+}
+
+void XYPad::addSizeDrop(float from, float to)
+{
+    const double now = juce::Time::getMillisecondCounterHiRes() / 1000.0;
+    Drop drop { now, {} };
+    // The cells outside the circle round its edge, straight away from its
+    // centre (or towards it): the further from the edge, the less.
+    for (int i = 0; i < lib.size(); ++i)
+    {
+        const auto rel = lib.entry(i).pos - puck;
+        const float r = rel.getDistanceFromOrigin(), off = r - to; // how far outside the edge
+        if (off < 0.0f || off > kSideReach) continue;
+        const float fall = std::exp(-(off * off) / (kSideWidth * kSideWidth));
+        drop.pushes.push_back({ i, rel * ((to - from) * kSidePush * fall / r) });
+    }
+    ripple(std::move(drop), now);
+    lastDropRadius = to;
+}
+
+void XYPad::ripple(Drop drop, double now)
+{
     drops.push_back(std::move(drop));
     if (drops.size() > 64) drops.erase(drops.begin());
     lastDrop = now;
-    lastDropAt = to;
     if (! isTimerRunning()) startTimerHz(60);
 }
 
@@ -244,11 +275,10 @@ juce::Point<float> XYPad::cellShift(int cell, double now) const
     juce::Point<float> d;
     for (const auto& drop : drops)
     {
-        const float t = (float) (now - drop.born);
-        if (t <= 0.0f || t >= kRippleSwell) continue;
-        const float swell = std::sin(juce::MathConstants<float>::pi * t / kRippleSwell);
+        const float swing = rippleSwing((float) (now - drop.born));
+        if (juce::exactlyEqual(swing, 0.0f)) continue;
         for (const auto& [c, push] : drop.pushes)
-            if (c == cell) d += push * (kRipplePush * swell * swell);
+            if (c == cell) d += push * (kRipplePush * swing);
     }
     const float m = d.getDistanceFromOrigin(); // a fast flick moves cells further, but only so far
     return m > 0.0f ? d * (kRippleMax * std::tanh(m / kRippleMax) / m) : d;
@@ -262,9 +292,8 @@ float XYPad::cellBob(int cell, double now, float& axis) const
     juce::Point<float> q;
     for (const auto& drop : drops)
     {
-        const float t = (float) (now - drop.born);
-        if (t <= 0.0f || t >= kRippleLife) continue;
-        const float swing = std::sin(juce::MathConstants<float>::pi * t / kRippleSwell) * std::exp(-t / kBobDecay);
+        const float swing = rippleSwing((float) (now - drop.born));
+        if (juce::exactlyEqual(swing, 0.0f)) continue;
         for (const auto& [c, push] : drop.pushes)
             if (c == cell)
             {
@@ -310,6 +339,7 @@ void XYPad::mouseDown(const juce::MouseEvent& e)
     if (! e.mods.isAltDown()) setPuck(toUnit(e.position));
     proc.setPadHeld(true); // after the move, so an audition starts on the pressed spot
     lastDropAt = puck;
+    lastDropRadius = (float) jm::circleRadius(size);
 }
 
 void XYPad::mouseDrag(const juce::MouseEvent& e)
@@ -330,10 +360,14 @@ void XYPad::mouseDrag(const juce::MouseEvent& e)
     }
     last = e.position;
 
-    // A push where the circle is now and then, as far as it went since.
+    // A push where the circle is now and then, as far as it went since, or
+    // as far as its edge went out or in.
     const double now = juce::Time::getMillisecondCounterHiRes() / 1000.0;
     const auto moved = puck - lastDropAt;
+    const float radius = (float) jm::circleRadius(size);
     if (now - lastDrop > 0.06 && moved.getDistanceFromOrigin() * (float) getWidth() > 1.0f) addDrop(lastDropAt, puck);
+    else if (now - lastDrop > 0.06 && std::abs(radius - lastDropRadius) * (float) getWidth() > 1.0f)
+        addSizeDrop(lastDropRadius, radius);
 }
 
 void XYPad::mouseUp(const juce::MouseEvent& e)
@@ -388,7 +422,6 @@ JungleEditor::JungleEditor(JungleProcessor& p) : AudioProcessorEditor(&p), proc(
     logoFace = juce::Typeface::createSystemTypefaceFor(Assets::CherryBombOneRegular_ttf,
                                                        (size_t) Assets::CherryBombOneRegular_ttfSize);
     pad.refresh();
-    logoColour = logoFrom = logoTo = frootLoop(p.library().entry(pad.cellAt(pad.circleCentre())).colour);
     catImage = juce::ImageCache::getFromMemory(Assets::loopscat_png, Assets::loopscat_pngSize);
     cat = catTarget(); // already where it belongs when the window opens
     catX = juce::jmap(juce::Random::getSystemRandom().nextFloat(), kCatLeft, kCatRight);
@@ -455,34 +488,6 @@ void JungleEditor::timerCallback()
                         .getSmallestIntegerContainer().expanded(2));
         catAngle = angle;
     }
-    // A new colour fades in over kLogoFade from wherever the last fade got to.
-    const auto target = frootLoop(proc.library().entry(pad.cellAt(pad.circleCentre())).colour);
-    const double now = juce::Time::getMillisecondCounterHiRes() / 1000.0;
-    if (target != logoTo)
-    {
-        logoFrom = logoColour;
-        logoTo = target;
-        logoFadeStart = now;
-    }
-    if (logoColour != logoTo)
-    {
-        const float t = (float) juce::jlimit(0.0, 1.0, (now - logoFadeStart) / kLogoFade);
-        logoColour = t >= 1.0f ? logoTo : blendHues(logoFrom, logoTo, t * t * (3.0f - 2.0f * t));
-        repaint(statusBar());
-    }
-}
-
-juce::Colour JungleEditor::blendHues(juce::Colour a, juce::Colour b, float t)
-{
-    float ha, sa, va, hb, sb, vb;
-    a.getHSB(ha, sa, va);
-    b.getHSB(hb, sb, vb);
-    float dh = hb - ha; // the short way round the wheel
-    if (dh > 0.5f) dh -= 1.0f;
-    if (dh < -0.5f) dh += 1.0f;
-    float h = ha + dh * t;
-    h -= std::floor(h);
-    return juce::Colour::fromHSV(h, sa + (sb - sa) * t, va + (vb - va) * t, 1.0f);
 }
 
 JungleEditor::~JungleEditor()
@@ -536,9 +541,9 @@ void JungleEditor::paintOverChildren(juce::Graphics& g)
     g.strokePath(lip, juce::PathStrokeType(rim, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     bar.removeFromTop(0.5f * rim); // the logo sits on the bowl below the rim
 
-    // The logo as outlines, filled with the colour of the break under the
-    // circle, sunk into the bowl: a white copy sits below it by a quarter of
-    // the thickness of the O's bottom, showing as a white edge along the
+    // The logo as outlines, pressed into the bowl: filled a shade deeper
+    // than it (biscuitShade), with a white copy below by a quarter of the
+    // thickness of the O's bottom, showing as a white edge along the
     // letters' lower sides, as on a pressed-in letter lit from above. Centred
     // across on its ink and up and down on its capitals (the umlauts riding
     // above), then set letter by letter with its baseline on the curve
@@ -590,7 +595,7 @@ void JungleEditor::paintOverChildren(juce::Graphics& g)
     edge.applyTransform(juce::AffineTransform::translation(0.0f, bottom / 4));
     g.setColour(white);
     g.fillPath(edge);
-    g.setColour(logoColour);
+    g.setColour(biscuitShade);
     g.fillPath(text);
 
     // The cat, over the bowl and the logo: it slides up from the window's

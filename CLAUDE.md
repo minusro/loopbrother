@@ -42,15 +42,16 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
   root of the share (`jm::equalPower`), so the squared gains add up to 1.
 - The editor palette: `jmui::cream` (#fffaf6) for the pad, `biscuit`
   (#faf4ed) for the status bar, which is the front of a cereal bowl (its lip
-  arcs over the pad's lower corners: `jmui::bowlLip`), `white` for cell borders and the logo's
-  edge, `brown` (dark) for other
+  arcs over the pad's lower corners: `jmui::bowlLip`), `biscuitShade`
+  (#e1d9cf) for the logo, pressed into the bowl, `white` for the bowl's rim
+  and the logo's edge, `brown` (dark) for other
   lettering, and the 7 pastel
   `frootLoops` for the breaks, one per similarity cluster
   (`breaks/colours.json`, from `colour_breaks.py`). Shade a colour with
   `shadowOf`, never black, which turns yellow olive. New controls draw from
   this palette. The logo is Cherry Bomb One (`fonts/`, compiled in as
-  `jm_assets`, with the cat in `images/`: it sways on the beat) in the
-  colour of the break under the circle; any font that
+  `jm_assets`, with the cat in `images/`: it sways on the beat) in
+  `biscuitShade`; any font that
   ships must be compiled in with its licence, since hosts and Windows
   won't have it.
 - The breaks' marks live in `src/Cereal.{h,cpp}`: `RingStyle`s (the look,
@@ -58,8 +59,10 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
   pre-renders them; the pad must draw through the sprites, since drawing
   65 shaded marks from scratch can't keep up with the ripple animation.
   The marks are plain rings (no umlauts): full size under the circle,
-  half size elsewhere, those squashing along a ripple's push and bobbing
-  on (`XYPad::cellBob`) after it.
+  half size elsewhere, those bobbing in the ripples that moving or resizing
+  the circle makes: moving with each push and back past rest, squashing
+  along it and across it in step, a few swings dying away
+  (`XYPad::cellShift`, `cellBob`).
   Regenerate `docs/ring-styles.png` (`JM_STYLE_SHEET`) after changing a
   style. The logo is
   drawn text with umlauts; never put them in a plugin name or file name
@@ -108,7 +111,8 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
 - Versioning: from `project(... VERSION)`; patch for small fixes, minor for a
   batch of real changes, major for paradigm steps. Started at 0.1.0. Each
   release gets an entry in `CHANGELOG.md`: what changed for players since
-  the last release.
+  the last release. Note player-facing changes under `## Unreleased` as
+  they land; a release renames it to its version.
 
 ## Quick commands
 
@@ -135,7 +139,7 @@ JM_CIRCLE=4.5 build/jm_snapshot_artefacts/Release/jm_snapshot docs/screenshot.pn
 JM_CIRCLE=3 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png 0.77 0.65 1200  # big circle, close-up
 JM_RING_STYLE=2 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png      # another ring style
 JM_STYLE_SHEET=docs/ring-styles.png build/jm_snapshot_artefacts/Release/jm_snapshot  # all styles, all colours
-JM_RIPPLE=1 [JM_RIPPLE_WAIT=ms] / JM_TIME_PAINT=1 [JM_TIME_FRAMES=n] / JM_TIME_AUDIO=1  # mid-drag ripple, paint (after a warm-up frame) and audio timing
+JM_RIPPLE=1|size [JM_RIPPLE_WAIT=ms] / JM_TIME_PAINT=1 [JM_TIME_FRAMES=n] / JM_TIME_AUDIO=1  # mid-drag ripple, paint (after a warm-up frame) and audio timing
 JM_LOGO_SHEET=docs/logo-fonts.png JM_LOGO_FONTS=<dir> build/jm_snapshot_artefacts/Release/jm_snapshot  # logo font options
 JM_LOGO_FONT=<file.ttf> JM_LOGO_KERN=0.03 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png  # the UI with that logo font
 JM_RESIZE_CHECK=1 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png   # window frame, edge + corner drags

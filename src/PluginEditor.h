@@ -4,14 +4,15 @@
 
 namespace jmui {
 
-// A warm off-white pad (cream) with white cell borders inside a cereal
-// bowl: the status bar is its front (biscuit, a shade deeper, with a white
-// rim), the breaks in the Froot Loops pastels
-// (Cereal.h) and the logo in the colour of the one under the circle, sunk in
-// with a white lower edge. Dark brown is for any other lettering.
+// A warm off-white pad (cream) inside a cereal bowl: the status bar is its
+// front (biscuit, a shade deeper, with a white rim), the breaks in the Froot
+// Loops pastels (Cereal.h), and the logo pressed into the bowl: a little
+// deeper again (biscuitShade), with a white lower edge. Dark brown is for
+// any other lettering.
 const juce::Colour white  { 0xffffffff };
 const juce::Colour cream  { 0xfffffaf6 };
 const juce::Colour biscuit { 0xfffaf4ed }; // the bowl's front, a shade under the pad: the logo's white edge shows on it
+const juce::Colour biscuitShade { 0xffe1d9cf }; // the logo: biscuit's hue, 10% darker and a touch richer, so it stays warm
 const juce::Colour brown  { 0xff3e2723 };
 
 // Hides the mouse pointer while a control is being dragged: the control's own
@@ -67,12 +68,13 @@ inline float bowlLip(float x, float w, float scale, float inside = 0.0f)
 //
 // Dragging pushes the cells the circle's centre passes through (their
 // washes and small rings) a few pixels the way it goes, and the cells
-// beside its path outwards, like a wake in liquid: once, then back to rest,
-// no swinging to and fro; cells further off stay still. A pushed small ring
-// squashes along the push as if tipping in milk, then across it and along
-// it again, a few swings dying away after the cell is back. Drawing only; the sound
-// follows the true cells. While the mute is held the circle's rings are dark
-// grey and still.
+// beside its path outwards, like a wake in liquid; growing or shrinking the
+// circle (Shift) pushes the cells round its edge outwards or inwards. A
+// pushed cell swings back past where it was and out again a few times,
+// dying away, and its small ring squashes along the push and across it in
+// step, as if bobbing in milk; cells further off stay still. Drawing only;
+// the sound follows the true cells. While the mute is held the circle's
+// rings are dark grey and still.
 class XYPad : public juce::Component, private juce::Timer {
 public:
     static constexpr float kFineSpeed = 1.0f / 8.0f;
@@ -105,9 +107,12 @@ private:
     void setCircleSize(float s);
 
     // The ripples: one push per step of a drag, the way and as far as the
-    // circle moved, for the cells its centre passed through.
+    // circle moved, for the cells its centre passed through and those beside
+    // its path, or as far as its edge moved, for the cells round it.
     struct Drop { double born; std::vector<std::pair<int, juce::Point<float>>> pushes; }; // cell, its push
     void addDrop(juce::Point<float> from, juce::Point<float> to);
+    void addSizeDrop(float from, float to); // the circle's radius, pad units
+    void ripple(Drop drop, double now);
     void timerCallback() override;          // animates the ripples
 
 public:
@@ -138,6 +143,7 @@ private:
     std::vector<Drop> drops;
     double lastDrop = 0.0;
     juce::Point<float> lastDropAt;
+    float lastDropRadius = 0.0f;
     juce::Point<float> last;                // the drag, in pad pixels (unbounded)
     jm::MixVoice mix[kMaxMix] {};           // what the circle covers
     int mixCount = 0;
@@ -175,9 +181,9 @@ private:
 // The square pad over a small status bar with the logo, resizable by the
 // host window at that fixed ratio (the width is kept in the plugin state);
 // everything scales with it. As the circle nears its largest, a cat slides
-// up from the bottom over the logo, begging for the cereal. The logo, in Cherry Bomb One, takes the colour
-// of the break whose cell the circle's centre is in, fading round the hue
-// wheel over 0.1 s as it changes. Holding Command (Control on Windows) with the
+// up from the bottom over the logo, begging for the cereal. The logo, in
+// Cherry Bomb One, is pressed into the bowl: a shade deeper than it, with a
+// white lower edge. Holding Command (Control on Windows) with the
 // pointer over the plugin mutes it. Command is global on macOS, so it only
 // counts over the plugin (or during a pad drag, when the hidden pointer can
 // be anywhere): Command-clicks in the host don't mute it.
@@ -196,7 +202,6 @@ public:
     static constexpr int kDesignSize  = 480;  // the pad width drawing dimensions are given at
     static constexpr int kTitleHeight = 44;   // the status bar, at kDesignSize
     static constexpr float kLogoKerning = 0.0f;
-    static constexpr double kLogoFade = 0.1; // seconds
     // The cat in front of the logo: it starts to rise once the circle's
     // radius passes kCatFrom of its largest and is fully up at the largest,
     // easing with kCatEase (seconds). kCatHeight is its height at 480 px,
@@ -215,10 +220,6 @@ public:
     float catRise() const { return cat; } // 0 hidden .. 1 up
     float catTurn() const { return catAngle; } // its sway now, radians
     static float catSwayAt(double beat);       // where the sway is at a beat: 1 one way .. -1 the other
-    // Between two colours round the hue wheel, saturation and brightness
-    // straight, so a pastel stays a pastel all the way (a mix in RGB greys out
-    // halfway between opposite hues).
-    static juce::Colour blendHues(juce::Colour a, juce::Colour b, float t);
     static constexpr float kLogoHeight = 38.0f; // its lettering (Cherry Bomb One), at kDesignSize
     static juce::String logo() { return juce::CharPointer_UTF8("L\xc3\x96\xc3\x96P BR\xc3\x96THER"); }
     static constexpr int kDefaultSize = JungleProcessor::kDefaultEditorSize, kMinSize = 240, kMaxSize = 1440;
@@ -247,7 +248,6 @@ private:
     int side = kDefaultSize;                // the last width at the right ratio
     std::optional<juce::Font> logoFont;
     juce::Typeface::Ptr logoFace;           // Cherry Bomb One, compiled in
-    juce::Colour logoColour, logoFrom, logoTo; // shown now, and the fade's ends
     juce::Image catImage;                   // the cat, cut out (images/loops-cat.png)
     float cat = 0.0f;                       // how far it has risen
     float catX = 0.5f;                      // its centre, as a fraction of the width
@@ -256,7 +256,6 @@ private:
     juce::AffineTransform catTurned(float angle) const;   // the sway, about where it stands
     double catTick = 0.0;
     float catTarget() const;
-    double logoFadeStart = 0.0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(JungleEditor)
 };

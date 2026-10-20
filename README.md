@@ -8,7 +8,7 @@ and a standalone app on macOS and Windows, and as an Audio Unit on macOS.
 In plugin lists it appears as **LOOP BROTHER** by **minus**.
 
 <p align="center">
-  <img src="docs/screenshot.png" width="480" alt="LÖÖP BRÖTHER: a cream pad of cells, each with a small coloured dot; under the selection circle the breaks show as pastel cereal rings shaped like the letter Ö, and the logo at the bottom takes the colour of the break under the circle's centre.">
+  <img src="docs/screenshot.png" width="480" alt="LÖÖP BRÖTHER: a cream pad of cells, each with a small pastel cereal ring; under the selection circle the breaks show as full-size rings, and at the bottom the logo is pressed into the front of a cereal bowl.">
 </p>
 
 ## Playing it
