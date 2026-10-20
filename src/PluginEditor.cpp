@@ -319,18 +319,43 @@ void XYPad::mouseDown(const juce::MouseEvent& e)
     last = e.position;
     e.source.enableUnboundedMouseMovement(true);
     proc.setFineDrag(e.mods.isAltDown());
-    if (! e.mods.isAltDown() && ! e.mods.isRightButtonDown()) setPuck(toUnit(e.position));
+    buttons = e.mods;
+    sizing = e.mods.isRightButtonDown();
+    if (! e.mods.isAltDown()) setPuck(toUnit(e.position));
     proc.setPadHeld(true); // after the move, so an audition starts on the pressed spot
     lastDropAt = puck;
     lastDropRadius = (float) jm::circleRadius(size);
 }
 
+// The mouse buttons held now. JUCE gives every event of a drag the buttons
+// of the press that started it, however they change after, so they come
+// from the state the native layer keeps up to date; a synthetic event,
+// with none there, has its own.
+static juce::ModifierKeys heldButtons(const juce::MouseEvent& e)
+{
+    const auto live = juce::ModifierKeys::currentModifiers;
+    return live.isAnyMouseButtonDown() ? live : e.mods;
+}
+
 void XYPad::mouseDrag(const juce::MouseEvent& e)
 {
+    // The right button sizes, the left moves. A button pressed mid-drag
+    // takes over; letting go of the one in charge while the other is still
+    // down hands it back.
+    const auto held = heldButtons(e);
+    const bool rightNew = held.isRightButtonDown() && ! buttons.isRightButtonDown();
+    const bool leftNew = held.isLeftButtonDown() && ! buttons.isLeftButtonDown();
+    if (rightNew != leftNew)
+        sizing = rightNew;
+    else if (sizing ? ! held.isRightButtonDown() && held.isLeftButtonDown()
+                    : ! held.isLeftButtonDown() && held.isRightButtonDown())
+        sizing = ! sizing;
+    buttons = held;
+
     const bool fine = e.mods.isAltDown();
     proc.setFineDrag(fine); // before the change, so it applies at once
     const float speed = fine ? kFineSpeed : 1.0f;
-    if (e.mods.isShiftDown() || e.mods.isRightButtonDown())
+    if (e.mods.isShiftDown() || sizing)
     {
         // Like a knob: right or up grows the circle, left or down shrinks
         // it, its radius by as many pixels as the mouse moved.
@@ -358,6 +383,8 @@ void XYPad::mouseUp(const juce::MouseEvent& e)
     proc.setPadHeld(false);
     proc.setFineDrag(false);
     isDragging = false;
+    sizing = false;
+    buttons = {};
     for (auto* p : { px, py, psize }) p->endChangeGesture();
     // Show the pointer again on the circle's centre. The unbounded drag ends
     // first: ending it afterwards, JUCE would put the pointer back near

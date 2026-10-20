@@ -64,9 +64,17 @@ bundle ID are unchanged, so saved sessions find it.
   - **Shift**, or dragging with the right button: sizes the circle like a
     knob: moving right or up grows its radius by as many pixels, left or
     down shrinks it; the circle stays put. With Option as well, an eighth
-    as much. A right press leaves the circle where it is (a Shift press
-    still places it), so a right drag can start anywhere. Only the real
-    right button counts (`isRightButtonDown`), not Control-click on macOS.
+    as much. A right press places the circle like a left one. Switching
+    buttons mid-drag switches between moving and sizing: pressing the other
+    button too hands the drag to it, and letting go of the one in charge
+    while still holding the other hands it back (`XYPad::sizing`). JUCE
+    gives every event of a drag the buttons of the press that started it,
+    so the buttons held come from `ModifierKeys::currentModifiers`, which
+    the native layer keeps up to date. Only the real right button counts,
+    not Control-click on macOS. A trackpad's two-finger click is a right
+    press; whether macOS reports a change of fingers mid-click hasn't been
+    tried, but releasing and pressing again works without a jump, since a
+    release leaves the pointer on the circle's centre.
   - **Command** (Control on Windows): mutes while held, at once both ways
     over the 5 ms ramp (`LoopEngine::setMuted`; the loops run on underneath,
     so unmuting comes back in place), with the clock running or during an
@@ -292,9 +300,10 @@ bundle ID are unchanged, so saved sessions find it.
   the real editor): a press places the circle, a plain drag follows 1:1,
   Option moves an eighth as far, Shift right/up grows the radius a pixel
   per pixel and left/down shrinks it back, Shift+Option an eighth as
-  much, the size holds at the smallest and the largest circle, a right
-  press leaves the circle and a right drag sizes it as Shift does, an
-  Option press leaves the circle in place;
+  much, the size holds at the smallest and the largest circle, an Option
+  press leaves the circle in place, a right press places it and a right
+  drag sizes it as Shift does, and pressing or letting go of the other
+  button mid-drag switches between moving and sizing;
   a rightward drag pushes the cells it crossed right (2.2 px) and they
   swing back, each swing half the last, still at the end, and a cell well
   away not at all. Through the

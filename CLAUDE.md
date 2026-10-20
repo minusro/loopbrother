@@ -75,8 +75,11 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
   (fine drags run far past the screen edge), and on release puts the
   pointer back on the circle's centre.
 - Pad modifiers: Option (Alt) = 8x slower and immediate; Shift, or a
-  right-button drag (whose press leaves the circle in place) = size the
-  circle like a knob (right/up bigger, left/down smaller); Command (Control on Windows) = mute while
+  right-button drag = size the circle like a knob (right/up bigger,
+  left/down smaller), and switching buttons mid-drag switches between
+  moving and sizing (read the buttons held from
+  `ModifierKeys::currentModifiers`: a drag's events keep its press's);
+  Command (Control on Windows) = mute while
   held with the pointer over the plugin. Command is global on macOS, hence
   the pointer condition.
 - Continuous parameters need an explicit `NormalisableRange`: the short

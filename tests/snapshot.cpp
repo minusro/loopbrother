@@ -309,10 +309,16 @@ int main(int argc, char** argv)
         for (auto* c : ed->getChildren()) if (auto* p = dynamic_cast<jmui::XYPad*>(c)) pad = p;
         auto value = [&](const char* id) { return proc.apvts.getRawParameterValue(id)->load(); };
         using Mods = juce::ModifierKeys;
+        // A mouse event, the left button down unless mods says which.
+        // JUCE keeps a drag's events on the buttons of its press, and the
+        // native layer keeps the buttons really held in currentModifiers:
+        // set it here as it would.
         auto ev = [&](float x, float y, int mods)
         {
             const auto now = juce::Time::getCurrentTime();
-            const int button = (mods & Mods::rightButtonModifier) != 0 ? 0 : Mods::leftButtonModifier;
+            const int anyButton = Mods::leftButtonModifier | Mods::rightButtonModifier;
+            const int button = (mods & anyButton) != 0 ? 0 : Mods::leftButtonModifier;
+            Mods::currentModifiers = Mods(button | mods);
             return juce::MouseEvent(juce::Desktop::getInstance().getMainMouseSource(), { x, y },
                                     Mods(button | mods), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                                     pad, pad, now, { x, y }, now, 1, false);
@@ -355,27 +361,48 @@ int main(int argc, char** argv)
         report("Shift, very far: held at the largest circle", near(value("size"), jm::kCircleSizeMax, 2e-3f));
         proc.setPadHeld(false);
         proc.setFineDrag(false);
-        // Dragging with the right button does the same, from wherever it's
-        // pressed: a right press leaves the circle where it is.
-        auto* circleSize = proc.apvts.getParameter("size");
-        circleSize->setValueNotifyingHost(circleSize->convertTo0to1(1.0f));
-        const auto rightButton = Mods::rightButtonModifier;
-        pad->mouseDown(ev(40, 400, rightButton));
-        report("right press far off: the circle stays", near(value("x"), x0) && near(value("y"), y0) && near(value("size"), 1.0f));
-        pad->mouseDrag(ev(70, 400, rightButton));
-        report("right drag, 30 px right: radius 30 px bigger, circle stays",
-               near(value("size"), 1.0f + 30.0f * px, 2e-3f) && near(value("x"), x0) && near(value("y"), y0));
-        pad->mouseDrag(ev(70, 420, rightButton));
-        report("right drag, 20 px down: 20 px smaller", near(value("size"), 1.0f + 10.0f * px, 2e-3f));
-        pad->mouseDrag(ev(70 + 160, 420, rightButton | Mods::altModifier));
-        report("right drag + Option, 160 px right: an eighth as much",
-               near(value("size"), 1.0f + (10.0f + 160.0f * fine) * px, 2e-3f));
-        proc.setPadHeld(false);
-        proc.setFineDrag(false);
         pad->mouseDown(ev(10, 10, Mods::altModifier));
         report("Option press: the circle stays where it was", near(value("x"), x0) && near(value("y"), y0));
         proc.setPadHeld(false);
         proc.setFineDrag(false);
+        // The right button: a press places the circle as a left one does,
+        // and a drag sizes it as Shift does. Pressing the other button
+        // mid-drag hands the drag to it, and letting go of the one in charge
+        // while holding the other hands it back.
+        {
+            auto* circleSize = proc.apvts.getParameter("size");
+            circleSize->setValueNotifyingHost(circleSize->convertTo0to1(1.0f));
+            const int right = Mods::rightButtonModifier, left = Mods::leftButtonModifier, both = left | right;
+            pad->mouseDown(ev(240, 300, right));
+            report("right press: the circle goes there", near(value("x"), 0.5f) && near(value("y"), 1.0f - 300.0f / w));
+            const float x1 = value("x"), y1 = value("y");
+            pad->mouseDrag(ev(270, 300, right));
+            report("right drag, 30 px right: radius 30 px bigger, circle stays",
+                   near(value("size"), 1.0f + 30.0f * px, 2e-3f) && near(value("x"), x1) && near(value("y"), y1));
+            pad->mouseDrag(ev(270, 320, right));
+            report("right drag, 20 px down: 20 px smaller", near(value("size"), 1.0f + 10.0f * px, 2e-3f));
+            pad->mouseDrag(ev(270 + 160, 320, right | Mods::altModifier));
+            const float s1 = 1.0f + (10.0f + 160.0f * fine) * px;
+            report("right drag + Option, 160 px right: an eighth as much", near(value("size"), s1, 2e-3f));
+            pad->mouseDrag(ev(478, 320, both));
+            report("left pressed too, 48 px right: moves instead",
+                   near(value("x"), x1 + 48.0f / w) && near(value("y"), y1) && near(value("size"), s1, 2e-3f));
+            pad->mouseDrag(ev(502, 320, left));
+            report("right let go, 24 px right: still moves",
+                   near(value("x"), x1 + 72.0f / w) && near(value("size"), s1, 2e-3f));
+            pad->mouseDrag(ev(532, 320, both));
+            report("right pressed again, 30 px right: sizes again",
+                   near(value("x"), x1 + 72.0f / w) && near(value("size"), s1 + 30.0f * px, 2e-3f));
+            pad->mouseDrag(ev(532, 300, right));
+            report("left let go, 20 px up: still sizes",
+                   near(value("x"), x1 + 72.0f / w) && near(value("size"), s1 + 50.0f * px, 2e-3f));
+            pad->mouseDrag(ev(532, 320, both));
+            report("left pressed again, 20 px down: moves again",
+                   near(value("y"), y1 - 20.0f / w) && near(value("size"), s1 + 50.0f * px, 2e-3f));
+            Mods::currentModifiers = {}; // all let go
+            proc.setPadHeld(false);
+            proc.setFineDrag(false);
+        }
 
         // A motion's swings from a time on: the peaks of its size in turn.
         // Returns the most any reaches of the one before, over the swings at

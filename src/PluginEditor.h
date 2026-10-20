@@ -60,8 +60,10 @@ inline float bowlLip(float x, float w, float scale, float inside = 0.0f)
 //   on the next 16th. An Option press leaves the circle where it is.
 // - Shift, or dragging with the right button: sizes the circle like a knob:
 //   right or up grows it, left or down shrinks it, the circle staying where
-//   it is. A right press leaves the circle where it is, so a right drag
-//   can start anywhere.
+//   it is. A right press places the circle as a left one does. Switching
+//   buttons mid-drag switches between moving and sizing: pressing the other
+//   button too hands the drag to it, and letting go of the one in charge
+//   while still holding the other hands it back.
 //
 // Each cell under the circle shows its break as a cereal ring in its
 // colour (Cereal.h). While the break plays, the ring follows its meter, from
@@ -142,6 +144,8 @@ private:
     juce::Point<float> puck { -1.0f, -1.0f };
     float size = -1.0f;                     // Circle Size, 1 = jm::kPuckRadius
     bool  isDragging = false;
+    bool  sizing = false;                   // this drag sizes the circle (right button) instead of moving it
+    juce::ModifierKeys buttons;             // the mouse buttons held at the drag's last event
     bool  muted = false;                    // the mute held: the circle's Ös turn grey
     CerealSprites sprites;
     const RingStyle* style = &kRingStyle;
