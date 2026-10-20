@@ -359,14 +359,45 @@ int main(int argc, char** argv)
         proc.setPadHeld(false);
         proc.setFineDrag(false);
 
+        // A motion's swings from a time on: the peaks of its size in turn.
+        // Returns the most any reaches of the one before, over the swings at
+        // least a tenth of the first (smaller ones are past seeing), and how
+        // many that was.
+        auto swingRatio = [](auto size, double from, double to, int& count)
+        {
+            std::vector<float> peaks;
+            float before = size(from), at = size(from + 0.001);
+            for (double t = from + 0.002; t < to; t += 0.001)
+            {
+                const float next = size(t);
+                if (at > before && at >= next) peaks.push_back(at);
+                before = at;
+                at = next;
+            }
+            float most = 0.0f;
+            count = 0;
+            for (size_t i = 1; i < peaks.size() && peaks[i] >= 0.1f * peaks[0]; ++i, ++count)
+                most = std::max(most, peaks[i] / peaks[i - 1]);
+            return most;
+        };
+        float swingMost = 0.0f;
+        int swingsFewest = 1000;
+        auto swingsShrink = [&](auto size, double from)
+        {
+            int n = 0;
+            swingMost = std::max(swingMost, swingRatio(size, from, from + 2.0, n));
+            swingsFewest = std::min(swingsFewest, n);
+        };
+
         // Ripples: dragging right pushes the cells the circle's centre
         // crossed right, and they swing back past where they were and out
-        // again, dying away, still at the end. The nearest cell beside the
-        // path is pushed straight outwards and swings back in; a cell well
-        // away from it never moves. The crossed cells' Os squash along the
-        // drag and across it in step with the swings: the motion and the
-        // squash go on as long as each other, well past the drag, and are
-        // over by the end.
+        // again, every swing about half the last, still at the end. The
+        // nearest cell alongside the path is pushed outwards (and a little
+        // onwards while it was ahead) and swings back in; a cell well away
+        // from it never moves. The crossed cells' Os squash along the drag
+        // and across it in step with the swings:
+        // the motion and the squash go on as long as each other, well past
+        // the drag, and are over by the end.
         {
             juce::Thread::sleep(1000); // the earlier drags' pushes settle first
             pad->mouseDown(ev(100, 300, 0));
@@ -387,14 +418,14 @@ int main(int argc, char** argv)
                 const int c = pad->cellAt({ x / w, y });
                 if (std::find(crossed.begin(), crossed.end(), c) == crossed.end()) crossed.push_back(c);
             }
-            int beside = -1;
+            int beside = -1; // alongside the path, not behind its start or past its end
             float besideDist = 1e9f;
             for (int i = 0; i < lib.size(); ++i)
             {
                 if (std::find(crossed.begin(), crossed.end(), i) != crossed.end()) continue;
                 const auto p = lib.entry(i).pos;
-                const float onPath = juce::jlimit(100.0f / w, 160.0f / w, p.x);
-                const float d = juce::Point<float> { onPath, y }.getDistanceFrom(p);
+                if (p.x < 100.0f / w || p.x > 160.0f / w) continue;
+                const float d = std::abs(p.y - y);
                 if (d < besideDist) { besideDist = d; beside = i; }
             }
             int far = -1; // a break well away from the path
@@ -440,10 +471,49 @@ int main(int argc, char** argv)
             std::printf("  bob: squashed up to %.2f along the drag and %.2f across it; after the drag (%.2f s) the cells"
                         " move for %.2f s and squash for %.2f s; %.4f at the end\n", bobAlong, bobAcross, dragEnd,
                         moveEnd - dragEnd, bobEnd - dragEnd, bobLast);
-            ok &= most * w > 1.0f && -against * w > 0.2f && out * w > 0.8f && -inwards * w > 0.1f
-                  && sideways < 1e-4f && last < 1e-6f && still < 1e-6f
+            ok &= most * w > 1.0f && -against * w > 0.2f && out * w > 0.3f && -inwards * w > 0.1f
+                  && sideways < 0.5f * out && last < 1e-6f && still < 1e-6f
                   && bobAlong > 0.1f && bobAlong <= jmui::XYPad::kBob + 1e-4f && bobAcross > 0.02f && bobLast < 1e-6f
                   && moveEnd - dragEnd > 0.5f && std::abs(moveEnd - bobEnd) < 0.15f;
+            for (const int c : crossed)
+            {
+                swingsShrink([&](double t) { return std::abs(pad->cellShift(c, t).x); }, start + dragEnd);
+                swingsShrink([&](double t) { float a; return 1.0f - pad->cellBob(c, t, a); }, start + dragEnd);
+            }
+            swingsShrink([&](double t) { return std::abs(pad->cellShift(beside, t).y); }, start + dragEnd);
+
+            // A fast flick moves the cells it crosses only so far, the most
+            // a cell swings, and their swings still halve.
+            juce::Thread::sleep(1400); // the drag's swings die first
+            pad->mouseDown(ev(60, 150, 0));
+            for (int i = 1; i <= 5; ++i)
+            {
+                juce::Thread::sleep(70);
+                pad->mouseDrag(ev(60.0f + 60.0f * i, 150, 0));
+            }
+            const double flicked = juce::Time::getMillisecondCounterHiRes() / 1000.0;
+            proc.setPadHeld(false);
+            float flickMost = 0.0f, flickSquash = 0.0f;
+            std::vector<int> flickCrossed;
+            for (float x = 60.0f; x <= 360.0f; x += 0.5f)
+            {
+                const int c = pad->cellAt({ x / w, 1.0f - 150.0f / w });
+                if (std::find(flickCrossed.begin(), flickCrossed.end(), c) == flickCrossed.end()) flickCrossed.push_back(c);
+            }
+            for (const int c : flickCrossed)
+            {
+                for (double t = -0.5; t < 1.5; t += 0.002)
+                {
+                    float a;
+                    flickMost = std::max(flickMost, pad->cellShift(c, flicked + t).getDistanceFromOrigin() * w);
+                    flickSquash = std::max(flickSquash, 1.0f - pad->cellBob(c, flicked + t, a));
+                }
+                swingsShrink([&](double t) { return std::abs(pad->cellShift(c, t).x); }, flicked);
+            }
+            std::printf("  flick: 300 px in 0.35 s moves the %zu cells it crosses up to %.2f px (the most is %.2f px),"
+                        " squashed up to %.2f\n", flickCrossed.size(), flickMost, jmui::XYPad::kRippleMax * w, flickSquash);
+            ok &= flickMost <= jmui::XYPad::kRippleMax * w + 0.01f && flickMost > 0.5f * jmui::XYPad::kRippleMax * w
+                  && flickSquash <= jmui::XYPad::kBob + 1e-4f;
 
             proc.setPadHeld(false);
         }
@@ -480,9 +550,10 @@ int main(int argc, char** argv)
                     if (juce::exactlyEqual(first, 0.0f) && std::abs(r) > 0.05f) first = r;
                 }
             };
+            double ended = 0.0;
             auto resize = [&](float by) // Shift-drag five 10 px steps, a push each
             {
-                juce::Thread::sleep(1000); // earlier pushes settle first
+                juce::Thread::sleep(1400); // earlier pushes settle first
                 pad->mouseDown(ev(240, 240, 0));
                 const double from = juce::Time::getMillisecondCounterHiRes() / 1000.0;
                 for (int i = 1; i <= 5; ++i)
@@ -490,8 +561,14 @@ int main(int argc, char** argv)
                     juce::Thread::sleep(70);
                     pad->mouseDrag(ev(240.0f + by * (float) i, 240, Mods::shiftModifier));
                 }
+                ended = juce::Time::getMillisecondCounterHiRes() / 1000.0;
                 proc.setPadHeld(false);
                 return from;
+            };
+            auto radialSize = [&](int cell)
+            {
+                const auto out = lib.entry(cell).pos - pad->circleCentre();
+                return [&, cell, out](double t) { return std::abs(pad->cellShift(cell, t).getDotProduct(out)); };
             };
             sizeParam->setValueNotifyingHost(sizeParam->convertTo0to1(3.0f));
             const double grown = resize(10.0f);
@@ -500,11 +577,14 @@ int main(int argc, char** argv)
             float growOut, growIn, growFirst, farOut, farIn, farFirst;
             radial(edge, grown, growOut, growIn, growFirst);
             radial(far, grown, farOut, farIn, farFirst);
+            swingsShrink(radialSize(edge), ended);
+            swingsShrink([&](double t) { float a; return 1.0f - pad->cellBob(edge, t, a); }, ended);
             const double shrunk = resize(-10.0f);
             const float small = (float) jm::circleRadius(pad->circleSize());
             const int edge2 = nearest(small, 0.0f);
             float shrinkOut, shrinkIn, shrinkFirst;
             radial(edge2, shrunk, shrinkOut, shrinkIn, shrinkFirst);
+            swingsShrink(radialSize(edge2), ended);
             std::printf("  resize ripple: growing to %.0f px, the nearest cell outside (%.0f px out) %.2f px out, %.2f px"
                         " back in; shrinking to %.0f px, the nearest outside (%.0f px out) %.2f px %s first, up to"
                         " %.2f px in; a far cell %.4f px\n", big * w, (lib.entry(edge).pos.getDistanceFrom(pad->circleCentre()) - big) * w,
@@ -512,6 +592,12 @@ int main(int argc, char** argv)
                         std::abs(shrinkFirst), shrinkFirst < 0.0f ? "in" : "out", -shrinkIn, std::max(farOut, -farIn));
             ok &= growOut > 0.5f && growFirst > 0.0f && growIn < -0.1f && shrinkFirst < 0.0f && shrinkIn < -0.5f
                   && farOut < 1e-6f && farIn > -1e-6f;
+
+            // Once the pushes stop, every swing, of the motion and of the
+            // squash, is smaller than the last: about half.
+            std::printf("  swings: after a drag or a resize each swing reaches at most %.2f of the last (%d or more"
+                        " checked per motion)\n", swingMost, swingsFewest);
+            ok &= swingMost < 0.6f && swingsFewest >= 2;
         }
 
         // The cat: up over the logo once the circle is at its largest, back

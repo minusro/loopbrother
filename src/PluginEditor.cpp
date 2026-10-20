@@ -1,5 +1,6 @@
 #include "PluginEditor.h"
 #include "Assets.h"
+#include <complex>
 
 namespace jmui {
 
@@ -107,31 +108,51 @@ void XYPad::paint(juce::Graphics& g)
 // ---------------------------------------------------------------- ripples
 // Each step of a drag pushes the cells the circle's centre passed through
 // since the last step the way the circle went, and the cells beside that
-// stretch outwards, away from it, as a wake. Each step of a resize (Shift)
-// pushes the cells outside the circle round its edge straight away from
-// its centre as far as the edge went out, or towards it as far as it came
-// in. A pushed cell bobs as if in milk: out with the push, back past where
-// it was, out again, kRippleSwings half-swings of kRippleSwell seconds,
-// dying away over kRippleDecay, and its small O squashes along the push and
-// across it in step (cellBob). While the circle keeps crossing a cell the
-// pushes add up and it leans forward; once passed, it swings to rest. Pad
-// units: kRipplePush is how far a crossed cell moves per unit the circle
-// moved, kRippleMax the most any cell moves; cells beside the path or round
-// the edge get kSidePush of that, falling off with their distance from the
-// stretch (across it and past its ends) or from the edge (kSideWidth), none
-// beyond kSideReach.
-constexpr float kRippleSwell = 0.22f, kRipplePush = 0.14f, kRippleMax = 0.014f;
+// stretch or ahead of it straight away from it, outwards or onwards, as a
+// wake. Each step of a resize (Shift) pushes the cells outside the circle
+// round its edge straight away from its centre as far as the edge went
+// out, or towards it as far as it came in. A pushed cell bobs as if in
+// milk: out with the push, back past where it was, out again, each
+// half-swing kRippleSwell seconds long and reaching kRippleFade of the
+// last, and its small O squashes along the push and across it in step
+// (cellBob). While the circle keeps crossing a cell the
+// pushes add up and it leans forward; once passed, it swings to rest, every
+// swing smaller than the one before. Pad units: kRipplePush is how far a
+// crossed cell moves per unit the circle moved; cells beside the path or
+// round the edge get kSidePush of that, falling off with their distance
+// from the stretch or from the edge (kSideWidth), none beyond kSideReach.
+// kRippleMax is the most a cell swings, and its O is then kBob flatter.
+//
+// It's all linear: a cell's motion is its pushes' swings added up, so once
+// the pushes stop it's a single damped swing whose every half reaches
+// kRippleFade of the last. The limit doesn't clip the motion, which would
+// flatten big swings into a run of equal ones: it trims a push as it comes
+// so the swing it joins never grows past kRippleMax (limitPush).
+constexpr float kRippleSwell = 0.22f, kRipplePush = 0.14f, kRippleFade = 0.5f;
 constexpr float kSidePush = 1.5f, kSideWidth = 0.1f, kSideReach = 0.2f;
-constexpr int   kRippleSwings = 4;
-constexpr float kRippleDecay = 0.45f;
+constexpr int   kRippleSwings = 6; // the last one under 5% of the first: gone
 constexpr float kRippleLife = kRippleSwings * kRippleSwell;
+const float kRippleDecay = kRippleSwell / std::log(1.0f / kRippleFade); // seconds
 
-// Where a push has its cell t seconds after it, as a share of the push: a
-// damped sine, 0 at the start and at the end of each half-swing.
-static float rippleSwing(float t)
+// A push's swing t seconds after it, as a turning, shrinking phasor: the
+// push's cell is moved by the push times its imaginary part (a damped sine,
+// 0 at the start and the end of each half-swing), and its size is how far
+// the swing still reaches.
+static std::complex<float> swingAt(float t)
 {
-    if (t <= 0.0f || t >= kRippleLife) return 0.0f;
-    return std::sin(juce::MathConstants<float>::pi * t / kRippleSwell) * std::exp(-t / kRippleDecay);
+    if (t < 0.0f || t >= kRippleLife) return {};
+    const float reach = std::exp(-t / kRippleDecay), turn = juce::MathConstants<float>::pi * t / kRippleSwell;
+    return { reach * std::cos(turn), reach * std::sin(turn) };
+}
+static float rippleSwing(float t) { return t <= 0.0f ? 0.0f : swingAt(t).imag(); }
+
+// A push's squash: along its axis at twice the axis's angle, so pushes
+// either way along one axis add up, and a swing back (negative) turns it a
+// quarter, across the push.
+static juce::Point<float> squashOf(juce::Point<float> push)
+{
+    const float m = push.getDistanceFromOrigin(), twice = 2.0f * std::atan2(push.y, push.x);
+    return { m * std::cos(twice), m * std::sin(twice) };
 }
 
 int XYPad::cellAt(juce::Point<float> u) const
@@ -160,20 +181,24 @@ void XYPad::addDrop(juce::Point<float> from, juce::Point<float> to)
         const int c = cellAt(from + step * ((float) i / (float) samples));
         if (! pushed(c)) drop.pushes.push_back({ c, step });
     }
-    // The cells beside it, outwards: the further from the path, the less.
+    // The cells beside it and ahead of it, straight away from it: outwards
+    // beside it, onwards past its end, the further off the less. Not the
+    // ones behind it: the steps before pushed those, and pushing them again
+    // as the circle moves off would set them swinging anew.
     if (length > 0.0f)
     {
         const auto along = step / length;
-        const juce::Point<float> across { -along.y, along.x };
         for (int i = 0; i < lib.size(); ++i)
         {
             if (pushed(i)) continue;
             const auto rel = lib.entry(i).pos - from;
-            const float on = rel.getDotProduct(along), off = rel.getDotProduct(across);
-            const float past = on < 0.0f ? -on : std::max(0.0f, on - length); // beyond the stretch's ends
-            if (std::hypot(off, past) > kSideReach) continue;
-            const float fall = std::exp(-(off * off + past * past) / (kSideWidth * kSideWidth));
-            drop.pushes.push_back({ i, across * ((off >= 0.0f ? 1.0f : -1.0f) * length * kSidePush * fall) });
+            const float on = rel.getDotProduct(along);
+            if (on < 0.0f) continue;
+            const auto away = rel - along * std::min(on, length); // from the nearest point of the stretch
+            const float off = away.getDistanceFromOrigin();
+            if (off <= 0.0f || off > kSideReach) continue;
+            const float fall = std::exp(-(off * off) / (kSideWidth * kSideWidth));
+            drop.pushes.push_back({ i, away * (length * kSidePush * fall / off) });
         }
     }
     ripple(std::move(drop), now);
@@ -200,10 +225,40 @@ void XYPad::addSizeDrop(float from, float to)
 
 void XYPad::ripple(Drop drop, double now)
 {
+    for (auto& [c, push] : drop.pushes) push = limitPush(c, push * kRipplePush, now);
     drops.push_back(std::move(drop));
     if (drops.size() > 64) drops.erase(drops.begin());
     lastDrop = now;
     if (! isTimerRunning()) startTimerHz(60);
+}
+
+juce::Point<float> XYPad::limitPush(int cell, juce::Point<float> push, double now) const
+{
+    // The cell's swing now, as phasors: its motion across and up, and its
+    // squash (at twice its axis's angle). A new push joins them at no turn
+    // (its sine starts at 0), adding straight to their real parts.
+    std::complex<float> mx, my, sx, sy;
+    for (const auto& drop : drops)
+    {
+        const auto at = swingAt((float) (now - drop.born));
+        for (const auto& [c, p] : drop.pushes)
+            if (c == cell)
+            {
+                const auto s = squashOf(p);
+                mx += p.x * at, my += p.y * at, sx += s.x * at, sy += s.y * at;
+            }
+    }
+    // The largest share k of the push that keeps the swing's reach,
+    // |u + k b| for the pair, within kRippleMax: a quadratic in k.
+    auto room = [](std::complex<float> u, std::complex<float> v, juce::Point<float> b)
+    {
+        const float a = b.x * b.x + b.y * b.y, bk = 2.0f * (u.real() * b.x + v.real() * b.y);
+        const float c = std::norm(u) + std::norm(v) - kRippleMax * kRippleMax;
+        if (a <= 0.0f || a + bk + c <= 0.0f) return 1.0f; // all of it fits
+        const float disc = bk * bk - 4.0f * a * c;
+        return disc < 0.0f ? 0.0f : juce::jlimit(0.0f, 1.0f, (std::sqrt(disc) - bk) / (2.0f * a));
+    };
+    return push * juce::jmin(room(mx, my, push), room(sx, sy, squashOf(push)));
 }
 
 juce::Point<float> XYPad::cellShift(int cell, double now) const
@@ -214,33 +269,24 @@ juce::Point<float> XYPad::cellShift(int cell, double now) const
         const float swing = rippleSwing((float) (now - drop.born));
         if (juce::exactlyEqual(swing, 0.0f)) continue;
         for (const auto& [c, push] : drop.pushes)
-            if (c == cell) d += push * (kRipplePush * swing);
+            if (c == cell) d += push * swing;
     }
-    const float m = d.getDistanceFromOrigin(); // a fast flick moves cells further, but only so far
-    return m > 0.0f ? d * (kRippleMax * std::tanh(m / kRippleMax) / m) : d;
+    return d;
 }
 
 float XYPad::cellBob(int cell, double now, float& axis) const
 {
-    // Each push's squash as a vector at twice its axis's angle, so pushes
-    // either way along one axis add up, and a swing across it (negative)
-    // turns the axis a quarter.
     juce::Point<float> q;
     for (const auto& drop : drops)
     {
         const float swing = rippleSwing((float) (now - drop.born));
         if (juce::exactlyEqual(swing, 0.0f)) continue;
         for (const auto& [c, push] : drop.pushes)
-            if (c == cell)
-            {
-                const float m = push.getDistanceFromOrigin() * kRipplePush * swing;
-                const float twice = 2.0f * std::atan2(push.y, push.x);
-                q += { m * std::cos(twice), m * std::sin(twice) };
-            }
+            if (c == cell) q += squashOf(push) * swing;
     }
     const float m = q.getDistanceFromOrigin();
     axis = m > 0.0f ? 0.5f * std::atan2(q.y, q.x) : 0.0f;
-    return 1.0f - kBob * std::tanh(m / kBobAt);
+    return 1.0f - kBob * juce::jmin(1.0f, m / kRippleMax); // straight, so each swing's squash is smaller than the last
 }
 
 void XYPad::timerCallback()

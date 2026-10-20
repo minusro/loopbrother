@@ -9,8 +9,9 @@ are on the [Releases](https://github.com/minusro/loopbrother/releases) page.
   with its white edge below. It no longer takes the colour of the break
   under the circle.
 - The ripples last as long as the rings' bobbing: a pushed cell swings
-  back past where it was and out again a few times, dying away, instead
-  of settling after one push.
+  back past where it was and out again a few times instead of settling
+  after one push, each swing, and each squash of its ring, half the last.
+  Cells ahead of a drag are pushed onwards, not sideways.
 - Growing or shrinking the circle (Shift-drag) ripples the cells round
   its edge outwards or inwards, bobbing the same way.
 - The cells under the circle are no longer tinted: their full-size rings

@@ -80,7 +80,8 @@ public:
     static constexpr float kFineSpeed = 1.0f / 8.0f;
     static constexpr float kRingRadius = 8.5f;  // at 480 px
     static constexpr float kSmallO = 0.5f * kRingRadius; // the ring of a cell outside the circle
-    static constexpr float kBob = 0.2f, kBobAt = 0.006f;  // its squash when pushed: at most, and its scale (pad units)
+    static constexpr float kRippleMax = 0.008f; // the most a ripple swings a cell (pad units)...
+    static constexpr float kBob = 0.2f;         // ...and its small ring's squash then
 
     explicit XYPad(JungleProcessor& p);
     ~XYPad() override;
@@ -112,6 +113,9 @@ private:
     void addDrop(juce::Point<float> from, juce::Point<float> to);
     void addSizeDrop(float from, float to); // the circle's radius, pad units
     void ripple(Drop drop, double now);
+    // How much of a push the cell can take now without swinging further
+    // than the most a cell swings.
+    juce::Point<float> limitPush(int cell, juce::Point<float> push, double now) const;
     void timerCallback() override;          // animates the ripples
 
 public:

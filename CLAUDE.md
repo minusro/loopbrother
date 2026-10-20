@@ -61,8 +61,10 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
   The marks are plain rings (no umlauts): full size under the circle,
   half size elsewhere, those bobbing in the ripples that moving or resizing
   the circle makes: moving with each push and back past rest, squashing
-  along it and across it in step, a few swings dying away
-  (`XYPad::cellShift`, `cellBob`).
+  along it and across it in step, each swing half the last
+  (`XYPad::cellShift`, `cellBob`). Keep the ripples linear: limit pushes
+  as they arrive (`limitPush`), never clip the motion, which flattens
+  successive swings into equal ones.
   Regenerate `docs/ring-styles.png` (`JM_STYLE_SHEET`) after changing a
   style. The logo is
   drawn text with umlauts; never put them in a plugin name or file name

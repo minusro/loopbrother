@@ -1,9 +1,9 @@
 # LÖÖP BRÖTHER — handoff
 
-Updated: 2026-10-20 — v0.13.1: the logo is pressed into the bowl in a
-deeper biscuit, the ripples swing as long as the rings bob, resizing the
-circle ripples the cells round its edge, and covered cells are no longer
-tinted. v0.12.2 is the last published
+Updated: 2026-10-20 — v0.13.2: the logo is pressed into the bowl in a
+deeper biscuit, the ripples swing as long as the rings bob (each swing
+half the last), resizing the circle ripples the cells round its edge, and
+covered cells are no longer tinted. v0.12.2 is the last published
 release (github.com/minusro/loopbrother/releases; `CHANGELOG.md`).
 
 ## Where things stand
@@ -164,29 +164,40 @@ bundle ID are unchanged, so saved sessions find it.
   size in silence to double at the loop's peak; when nothing plays it
   rests at full size.
   Dragging pushes the cells the circle's centre actually passes through
-  the way the circle goes, and the cells beside the path straight
-  outwards, as a wake in liquid: every 60 ms or so the circle leaves a
-  push as long as it moved, for the cells along that stretch (sampled
-  every 0.004 of the pad, so a fast move catches every cell it crosses)
-  and, at 1.5 times that, for the cells around it, falling off with their
-  distance from the stretch (Gaussian, 0.1 of the pad; none past 0.2).
-  Resizing the circle (Shift) does the same round its edge
-  (`XYPad::addSizeDrop`): every 60 ms or so, the cells outside the circle
-  within 0.2 of its edge are pushed straight away from its centre by 1.5
-  times as far as the edge went out, or towards it as far as it came in,
-  falling off with their distance from the edge (the same Gaussian). Each
-  push is a damped sine (`rippleSwing`): four half-swings of 0.22 s, out
-  with the push, back past where the cell was, out, back, dying away over
-  0.45 s, so a cell bobs as if in milk (until v0.12.2 it was a single sin^2
-  swell out and back, never past). The cell's small ring moves with it and
-  squashes in step, along the push on the swings out and across it on the
-  swings back (up to 20% flatter, tanh of the push over 0.006 of the pad),
-  the pushes added as vectors at twice their axis's angle so pushes either
-  way along an axis add up and a swing across turns the axis a quarter
-  (`XYPad::cellBob`); the rings under the circle hold still. While the circle
-  crosses a cell the pushes add up and it leans forward; once passed, it swings to rest. A cell
-  moves at most 0.014 of the pad (7 px at 480); a slow drag moves it 2 to
-  3 px. 60 Hz while any run. Drawing only: the sound follows the true
+  the way the circle goes, and the cells beside the path or ahead of it
+  straight away from it, as a wake in liquid: every 60 ms or so the circle
+  leaves a push as long as it moved (times 0.14), for the cells along that
+  stretch (sampled every 0.004 of the pad, so a fast move catches every
+  cell it crosses) and, at 1.5 times that, for the cells beside it
+  (outwards) or past its end (onwards), falling off with their distance
+  from the stretch (Gaussian, 0.1 of the pad; none past 0.2). Cells
+  behind a stretch get nothing from it: the steps before pushed them, and
+  pushing them again as the circle moves off set them swinging anew (and
+  pushed the ones on the path sideways). Resizing the circle (Shift) does
+  the same round its edge (`XYPad::addSizeDrop`): every 60 ms or so, the
+  cells outside the circle within 0.2 of its edge are pushed straight away
+  from its centre by 1.5 times as far as the edge went out, or towards it
+  as far as it came in, falling off with their distance from the edge
+  (the same Gaussian). Each push is a damped sine (`rippleSwing`): out
+  with the push, back past where the cell was, out, back, each half-swing
+  0.22 s and reaching exactly half the last (six of them, 1.32 s, the last
+  3% of the first), so a cell bobs as if in milk (until v0.12.2 it was a
+  single sin^2 swell out and back, never past). It's linear: a cell's
+  motion is its pushes' swings added up, so once the pushes stop it's one
+  damped swing, every half of it half the last; the pad check measures it.
+  The cell's small ring squashes in step, along the push on the swings out
+  and across it on the swings back, straight in the swing's size (20%
+  flatter at the most a cell swings), the pushes added as vectors at twice
+  their axis's angle so pushes either way along an axis add up and a swing
+  across turns the axis a quarter (`XYPad::cellBob`); the rings under the
+  circle hold still. Nothing clips the motion or the squash: v0.13.1 did
+  (tanh), which flattened a big swing and the next into two of the same
+  size. Instead each push is trimmed as it arrives (`XYPad::limitPush`) so
+  the cell's swing, summed as phasors, never reaches past
+  `XYPad::kRippleMax` (0.008 of the pad, 3.8 px at 480): a fast flick
+  moves cells about 3.4 px, a slow drag 2 to 3. While the circle crosses a
+  cell the pushes add up and it leans forward; once passed, it swings to
+  rest. 60 Hz while any run. Drawing only: the sound follows the true
   cells. The meter
   is precomputed per loop at load (RMS with a snappy 1 ms attack and a
   VU-style 300 ms release, run twice round the loop, each 256-frame hop
