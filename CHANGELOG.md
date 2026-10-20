@@ -16,6 +16,8 @@ are on the [Releases](https://github.com/minusro/loopbrother/releases) page.
   its edge outwards or inwards, bobbing the same way.
 - The cells under the circle are no longer tinted: their full-size rings
   alone show what it covers.
+- Dragging with the right mouse button sizes the circle like Shift-drag,
+  and can start anywhere: a right press doesn't move the circle.
 
 ## v0.12.2 — 2026-10-20
 

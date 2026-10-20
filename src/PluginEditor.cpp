@@ -313,12 +313,13 @@ void XYPad::setCircleSize(float s)
 
 void XYPad::mouseDown(const juce::MouseEvent& e)
 {
+    refresh(); // from the parameters as they are: the host may have moved them since the last frame
     for (auto* p : { px, py, psize }) p->beginChangeGesture();
     isDragging = true;
     last = e.position;
     e.source.enableUnboundedMouseMovement(true);
     proc.setFineDrag(e.mods.isAltDown());
-    if (! e.mods.isAltDown()) setPuck(toUnit(e.position));
+    if (! e.mods.isAltDown() && ! e.mods.isRightButtonDown()) setPuck(toUnit(e.position));
     proc.setPadHeld(true); // after the move, so an audition starts on the pressed spot
     lastDropAt = puck;
     lastDropRadius = (float) jm::circleRadius(size);
@@ -329,7 +330,7 @@ void XYPad::mouseDrag(const juce::MouseEvent& e)
     const bool fine = e.mods.isAltDown();
     proc.setFineDrag(fine); // before the change, so it applies at once
     const float speed = fine ? kFineSpeed : 1.0f;
-    if (e.mods.isShiftDown())
+    if (e.mods.isShiftDown() || e.mods.isRightButtonDown())
     {
         // Like a knob: right or up grows the circle, left or down shrinks
         // it, its radius by as many pixels as the mouse moved.

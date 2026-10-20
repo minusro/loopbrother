@@ -61,9 +61,12 @@ bundle ID are unchanged, so saved sessions find it.
     of on the next 16th (`setFineDrag`, then
     `LoopEngine::setMix(..., immediate)`). An Option press leaves the circle
     where it is.
-  - **Shift**: sizes the circle like a knob: moving right or up grows its
-    radius by as many pixels, left or down shrinks it; the circle stays
-    put. With Option as well, an eighth as much.
+  - **Shift**, or dragging with the right button: sizes the circle like a
+    knob: moving right or up grows its radius by as many pixels, left or
+    down shrinks it; the circle stays put. With Option as well, an eighth
+    as much. A right press leaves the circle where it is (a Shift press
+    still places it), so a right drag can start anywhere. Only the real
+    right button counts (`isRightButtonDown`), not Control-click on macOS.
   - **Command** (Control on Windows): mutes while held, at once both ways
     over the 5 ms ramp (`LoopEngine::setMuted`; the loops run on underneath,
     so unmuting comes back in place), with the clock running or during an
@@ -289,9 +292,12 @@ bundle ID are unchanged, so saved sessions find it.
   the real editor): a press places the circle, a plain drag follows 1:1,
   Option moves an eighth as far, Shift right/up grows the radius a pixel
   per pixel and left/down shrinks it back, Shift+Option an eighth as
-  much, the size holds at the smallest and the largest circle, an Option press leaves the circle in place;
-  a rightward drag pushes the cells it crossed right (2.5 px), never back,
-  still at the end, and a cell well away not at all. Through the
+  much, the size holds at the smallest and the largest circle, a right
+  press leaves the circle and a right drag sizes it as Shift does, an
+  Option press leaves the circle in place;
+  a rightward drag pushes the cells it crossed right (2.2 px) and they
+  swing back, each swing half the last, still at the end, and a cell well
+  away not at all. Through the
   processor: holding the mute silences it from the next block and letting
   go brings it back, with the clock running and during an audition. Not
   covered: real modifier keys (the Command-over-the-plugin polling), the

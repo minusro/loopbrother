@@ -58,8 +58,10 @@ inline float bowlLip(float x, float w, float scale, float inside = 0.0f)
 // screen edge. On release the pointer reappears on the circle's centre.
 // - Option (Alt): 8 times slower, and the changes apply at once instead of
 //   on the next 16th. An Option press leaves the circle where it is.
-// - Shift: sizes the circle like a knob: right or up grows it, left or down
-//   shrinks it, the circle staying where it is.
+// - Shift, or dragging with the right button: sizes the circle like a knob:
+//   right or up grows it, left or down shrinks it, the circle staying where
+//   it is. A right press leaves the circle where it is, so a right drag
+//   can start anywhere.
 //
 // Each cell under the circle shows its break as a cereal ring in its
 // colour (Cereal.h). While the break plays, the ring follows its meter, from

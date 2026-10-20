@@ -312,8 +312,9 @@ int main(int argc, char** argv)
         auto ev = [&](float x, float y, int mods)
         {
             const auto now = juce::Time::getCurrentTime();
+            const int button = (mods & Mods::rightButtonModifier) != 0 ? 0 : Mods::leftButtonModifier;
             return juce::MouseEvent(juce::Desktop::getInstance().getMainMouseSource(), { x, y },
-                                    Mods(Mods::leftButtonModifier | mods), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                    Mods(button | mods), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                                     pad, pad, now, { x, y }, now, 1, false);
         };
         const float w = (float) pad->getWidth();
@@ -352,6 +353,23 @@ int main(int argc, char** argv)
         report("Shift, far left: held at the smallest circle", near(value("size"), jm::kCircleSizeMin, 2e-3f));
         pad->mouseDrag(ev(8, 160 - 5000, Mods::shiftModifier));
         report("Shift, very far: held at the largest circle", near(value("size"), jm::kCircleSizeMax, 2e-3f));
+        proc.setPadHeld(false);
+        proc.setFineDrag(false);
+        // Dragging with the right button does the same, from wherever it's
+        // pressed: a right press leaves the circle where it is.
+        auto* circleSize = proc.apvts.getParameter("size");
+        circleSize->setValueNotifyingHost(circleSize->convertTo0to1(1.0f));
+        const auto rightButton = Mods::rightButtonModifier;
+        pad->mouseDown(ev(40, 400, rightButton));
+        report("right press far off: the circle stays", near(value("x"), x0) && near(value("y"), y0) && near(value("size"), 1.0f));
+        pad->mouseDrag(ev(70, 400, rightButton));
+        report("right drag, 30 px right: radius 30 px bigger, circle stays",
+               near(value("size"), 1.0f + 30.0f * px, 2e-3f) && near(value("x"), x0) && near(value("y"), y0));
+        pad->mouseDrag(ev(70, 420, rightButton));
+        report("right drag, 20 px down: 20 px smaller", near(value("size"), 1.0f + 10.0f * px, 2e-3f));
+        pad->mouseDrag(ev(70 + 160, 420, rightButton | Mods::altModifier));
+        report("right drag + Option, 160 px right: an eighth as much",
+               near(value("size"), 1.0f + (10.0f + 160.0f * fine) * px, 2e-3f));
         proc.setPadHeld(false);
         proc.setFineDrag(false);
         pad->mouseDown(ev(10, 10, Mods::altModifier));
@@ -399,7 +417,7 @@ int main(int argc, char** argv)
         // the motion and the squash go on as long as each other, well past
         // the drag, and are over by the end.
         {
-            juce::Thread::sleep(1000); // the earlier drags' pushes settle first
+            juce::Thread::sleep(1400); // the earlier drags' pushes settle first
             pad->mouseDown(ev(100, 300, 0));
             const double start = juce::Time::getMillisecondCounterHiRes() / 1000.0;
             float dragEnd = 0.0f;

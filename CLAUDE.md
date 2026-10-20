@@ -74,7 +74,8 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
   `addMouseListener`. The pad uses JUCE's unbounded mouse movement instead
   (fine drags run far past the screen edge), and on release puts the
   pointer back on the circle's centre.
-- Pad modifiers: Option (Alt) = 8x slower and immediate; Shift = size the
+- Pad modifiers: Option (Alt) = 8x slower and immediate; Shift, or a
+  right-button drag (whose press leaves the circle in place) = size the
   circle like a knob (right/up bigger, left/down smaller); Command (Control on Windows) = mute while
   held with the pointer over the plugin. Command is global on macOS, hence
   the pointer condition.
@@ -145,7 +146,7 @@ JM_RIPPLE=1|size [JM_RIPPLE_WAIT=ms] / JM_TIME_PAINT=1 [JM_TIME_FRAMES=n] / JM_T
 JM_LOGO_SHEET=docs/logo-fonts.png JM_LOGO_FONTS=<dir> build/jm_snapshot_artefacts/Release/jm_snapshot  # logo font options
 JM_LOGO_FONT=<file.ttf> JM_LOGO_KERN=0.03 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png  # the UI with that logo font
 JM_RESIZE_CHECK=1 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png   # window frame, edge + corner drags
-JM_PAD_CHECK=1 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png      # pad drags (plain/Option/Shift), mute
+JM_PAD_CHECK=1 build/jm_snapshot_artefacts/Release/jm_snapshot /tmp/jm.png      # pad drags (plain/Option/Shift/right button), ripples, mute
 
 # AU validation
 auval -v aumu Jngl Mnro
