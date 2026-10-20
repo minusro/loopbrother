@@ -19,7 +19,8 @@ are on the [Releases](https://github.com/minusro/loopbrother/releases) page.
 - Dragging with the right mouse button (a two-finger click on a trackpad)
   sizes the circle like Shift-drag; a right press places it like a left
   one. Pressing the other button mid-drag switches between moving and
-  sizing.
+  sizing; on a Mac trackpad, putting a second finger down or lifting it
+  does.
 
 ## v0.12.2 — 2026-10-20
 

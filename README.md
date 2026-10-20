@@ -24,7 +24,7 @@ Load it as an instrument on a track and press play in your DAW.
   click on a trackpad), sizes the circle like a knob: right or up makes it
   bigger, left or down smaller. A bigger circle blends more breaks, up to
   half the pad. Press the other button mid-drag to switch between moving
-  and sizing.
+  and sizing; on a Mac trackpad, put a second finger down or lift it.
 - **Option-drag** (Alt on Windows) moves the circle 8 times slower, for fine
   adjustments, and the change sounds at once instead of on the next 16th.
 - **Hold Command** (Control on Windows) with the pointer over the plugin to

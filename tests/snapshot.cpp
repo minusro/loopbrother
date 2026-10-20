@@ -18,6 +18,7 @@
 // and Shift drags) and checks the parameters they set, and the mute.
 #include "../src/PluginProcessor.h"
 #include "../src/PluginEditor.h"
+#include "../src/Trackpad.h"
 
 struct ScriptedPlayHead : juce::AudioPlayHead {
     double ppq = 0.0;
@@ -400,6 +401,43 @@ int main(int argc, char** argv)
             report("left pressed again, 20 px down: moves again",
                    near(value("y"), y1 - 20.0f / w) && near(value("size"), s1 + 50.0f * px, 2e-3f));
             Mods::currentModifiers = {}; // all let go
+            proc.setPadHeld(false);
+            proc.setFineDrag(false);
+        }
+        // A trackpad click keeps its type while it's held, so there the
+        // fingers switch it (as the touch events report them, faked here): a
+        // second finger down mid-drag sizes, back to one moves, whichever
+        // click began it.
+        {
+            auto* circleSize = proc.apvts.getParameter("size");
+            circleSize->setValueNotifyingHost(circleSize->convertTo0to1(1.0f));
+            const int right = Mods::rightButtonModifier;
+            jmui::setTrackpadFingers(1);
+            pad->mouseDown(ev(240, 240, 0)); // a one-finger click
+            const float xs = value("x"), ss = value("size");
+            pad->mouseDrag(ev(264, 240, 0));
+            report("trackpad, one finger, 24 px right: moves", near(value("x"), xs + 24.0f / w) && near(value("size"), ss));
+            jmui::setTrackpadFingers(2);
+            pad->mouseDrag(ev(294, 240, 0));
+            report("a second finger down, 30 px right: sizes",
+                   near(value("x"), xs + 24.0f / w) && near(value("size"), ss + 30.0f * px, 2e-3f));
+            jmui::setTrackpadFingers(1);
+            pad->mouseDrag(ev(318, 240, 0));
+            report("back to one finger, 24 px right: moves",
+                   near(value("x"), xs + 48.0f / w) && near(value("size"), ss + 30.0f * px, 2e-3f));
+            proc.setPadHeld(false);
+            jmui::setTrackpadFingers(2);
+            pad->mouseDown(ev(240, 240, right)); // a two-finger click: a right one
+            const float xr = value("x"), sr = value("size");
+            pad->mouseDrag(ev(270, 240, right));
+            report("two-finger click, 30 px right: sizes",
+                   near(value("x"), xr) && near(value("size"), sr + 30.0f * px, 2e-3f));
+            jmui::setTrackpadFingers(1);
+            pad->mouseDrag(ev(294, 240, right));
+            report("a finger lifted, 24 px right: moves",
+                   near(value("x"), xr + 24.0f / w) && near(value("size"), sr + 30.0f * px, 2e-3f));
+            jmui::setTrackpadFingers(0);
+            Mods::currentModifiers = {};
             proc.setPadHeld(false);
             proc.setFineDrag(false);
         }

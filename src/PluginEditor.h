@@ -63,7 +63,9 @@ inline float bowlLip(float x, float w, float scale, float inside = 0.0f)
 //   it is. A right press places the circle as a left one does. Switching
 //   buttons mid-drag switches between moving and sizing: pressing the other
 //   button too hands the drag to it, and letting go of the one in charge
-//   while still holding the other hands it back.
+//   while still holding the other hands it back. A trackpad click keeps
+//   its type while held, so there the fingers switch it instead (Mac): a
+//   second finger down mid-drag sizes, back to one moves.
 //
 // Each cell under the circle shows its break as a cereal ring in its
 // colour (Cereal.h). While the break plays, the ring follows its meter, from
@@ -91,6 +93,7 @@ public:
     ~XYPad() override;
     void refresh();                         // poll params + playback state (30 Hz)
     void paint(juce::Graphics&) override;
+    void parentHierarchyChanged() override; // in a window: hear the trackpad's fingers
     void mouseDown(const juce::MouseEvent&) override;
     void mouseDrag(const juce::MouseEvent&) override;
     void mouseUp(const juce::MouseEvent&) override;
@@ -146,6 +149,8 @@ private:
     bool  isDragging = false;
     bool  sizing = false;                   // this drag sizes the circle (right button) instead of moving it
     juce::ModifierKeys buttons;             // the mouse buttons held at the drag's last event
+    int   fingers = 0;                      // on the trackpad at the drag's last event (0: not a trackpad)
+    void* heardView = nullptr;              // the native view hearing the trackpad
     bool  muted = false;                    // the mute held: the circle's Ös turn grey
     CerealSprites sprites;
     const RingStyle* style = &kRingStyle;

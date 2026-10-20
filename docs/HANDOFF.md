@@ -72,9 +72,19 @@ bundle ID are unchanged, so saved sessions find it.
     so the buttons held come from `ModifierKeys::currentModifiers`, which
     the native layer keeps up to date. Only the real right button counts,
     not Control-click on macOS. A trackpad's two-finger click is a right
-    press; whether macOS reports a change of fingers mid-click hasn't been
-    tried, but releasing and pressing again works without a jump, since a
-    release leaves the pointer on the circle's centre.
+    press, and macOS keeps a click's type for as long as it's held, so on
+    a Mac trackpad the fingers switch it instead: a second finger down
+    mid-drag sizes, back to one moves. `src/Trackpad_mac.mm` (the only
+    Objective-C++) makes the editor's NSView take indirect touches,
+    resting ones included (`allowedTouchTypes`, `wantsRestingTouches`),
+    and adds touch handlers to JUCE's view class at run time
+    (`class_addMethod`; JUCE has none), which count the fingers touching
+    (`jmui::trackpadFingers`). Only a change of count switches, so a thumb
+    already resting at the press doesn't. Tested with faked counts only:
+    whether macOS delivers the touches to a plugin's view in every host is
+    to be seen on a real trackpad. Releasing and pressing again also works
+    without a jump, since a release leaves the pointer on the circle's
+    centre.
   - **Command** (Control on Windows): mutes while held, at once both ways
     over the 5 ms ramp (`LoopEngine::setMuted`; the loops run on underneath,
     so unmuting comes back in place), with the clock running or during an

@@ -78,7 +78,10 @@ mixes the breaks whose cells it covers, in sync with the host. Start with
   right-button drag = size the circle like a knob (right/up bigger,
   left/down smaller), and switching buttons mid-drag switches between
   moving and sizing (read the buttons held from
-  `ModifierKeys::currentModifiers`: a drag's events keep its press's);
+  `ModifierKeys::currentModifiers`: a drag's events keep its press's); on
+  a Mac trackpad, whose clicks keep their type while held, the finger
+  count switches it (`src/Trackpad_mac.mm`, the only Objective-C++: it
+  adds touch handlers to JUCE's NSView class at run time);
   Command (Control on Windows) = mute while
   held with the pointer over the plugin. Command is global on macOS, hence
   the pointer condition.

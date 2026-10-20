@@ -1,5 +1,6 @@
 #include "PluginEditor.h"
 #include "Assets.h"
+#include "Trackpad.h"
 #include <complex>
 
 namespace jmui {
@@ -311,8 +312,19 @@ void XYPad::setCircleSize(float s)
     refresh();
 }
 
+void XYPad::parentHierarchyChanged()
+{
+    if (auto* peer = getPeer())
+        if (peer->getNativeHandle() != heardView)
+        {
+            heardView = peer->getNativeHandle();
+            hearTrackpad(heardView);
+        }
+}
+
 void XYPad::mouseDown(const juce::MouseEvent& e)
 {
+    parentHierarchyChanged(); // in case the window came without telling
     refresh(); // from the parameters as they are: the host may have moved them since the last frame
     for (auto* p : { px, py, psize }) p->beginChangeGesture();
     isDragging = true;
@@ -321,6 +333,7 @@ void XYPad::mouseDown(const juce::MouseEvent& e)
     proc.setFineDrag(e.mods.isAltDown());
     buttons = e.mods;
     sizing = e.mods.isRightButtonDown();
+    fingers = trackpadFingers();
     if (! e.mods.isAltDown()) setPuck(toUnit(e.position));
     proc.setPadHeld(true); // after the move, so an audition starts on the pressed spot
     lastDropAt = puck;
@@ -351,6 +364,15 @@ void XYPad::mouseDrag(const juce::MouseEvent& e)
                     : ! held.isLeftButtonDown() && held.isRightButtonDown())
         sizing = ! sizing;
     buttons = held;
+    // A trackpad click keeps its type for as long as it's held, so there
+    // the fingers decide: a second one down hands the drag to sizing, back
+    // to one hands it to moving. (0: no trackpad heard.)
+    if (const int now = trackpadFingers(); now > 0)
+    {
+        if (fingers > 0 && (now >= 2) != (fingers >= 2))
+            sizing = now >= 2;
+        fingers = now;
+    }
 
     const bool fine = e.mods.isAltDown();
     proc.setFineDrag(fine); // before the change, so it applies at once
@@ -385,6 +407,7 @@ void XYPad::mouseUp(const juce::MouseEvent& e)
     isDragging = false;
     sizing = false;
     buttons = {};
+    fingers = 0;
     for (auto* p : { px, py, psize }) p->endChangeGesture();
     // Show the pointer again on the circle's centre. The unbounded drag ends
     // first: ending it afterwards, JUCE would put the pointer back near
